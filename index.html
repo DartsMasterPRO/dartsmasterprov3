@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DartsMaster Pro">
+<meta name="description" content="Gra w darta 501, 301, Cricket, ATC">
+<title>DartsMaster Pro</title>
+<link rel="manifest" href="/manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0f;color:#e8e8f0;font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{text-align:center;padding:20px;max-width:600px}
+h1{font-family:'Bebas Neue',cursive;font-size:48px;letter-spacing:2px;color:#ff3c3c;margin-bottom:20px}
+.logo{font-size:120px;margin:30px 0}
+p{font-size:18px;color:#8888aa;margin:15px 0}
+.btn{background:linear-gradient(135deg,#ff3c3c,#cc1f1f);color:#fff;border:none;padding:15px 40px;font-size:18px;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;letter-spacing:1px;margin:20px 0;width:100%;max-width:400px;transition:all 0.3s}
+.btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(255,60,60,0.4)}
+.info{background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.3);border-radius:10px;padding:20px;margin:30px 0}
+.success{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;display:none;padding:15px;border-radius:10px;margin:20px 0}
+</style>
+</head>
+<body>
+
+<div class="container">
+<div class="logo">🎯</div>
+<h1>DARTS MASTER PRO</h1>
+<p>Gra w Darta na Telefonie</p>
+
+<div class="info">
+📱 Zainstaluj aplikację!
+</div>
+
+<button class="btn" id="installBtn" onclick="install()">
+📱 ZAINSTALUJ APLIKACJĘ
+</button>
+
+<button class="btn" style="background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0;margin-top:10px" onclick="window.location.href='/app.html'">
+▶ ZAGRAJ TERAZ
+</button>
+
+<div class="success" id="success">
+✅ Aplikacja zainstalowana!
+</div>
+</div>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(e=>console.log('SW error:',e));
+}
+
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt',(e)=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  console.log('✅ Install ready');
+});
+
+function install(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(choice=>{
+      if(choice.outcome==='accepted'){
+        document.getElementById('success').style.display='block';
+        document.getElementById('installBtn').style.display='none';
+      }
+      deferredPrompt=null;
+    });
+  }else{
+    alert('Kliknij menu Chrome ⋮ > Zainstaluj aplikację');
+  }
+}
+
+window.addEventListener('appinstalled',()=>{
+  document.getElementById('success').style.display='block';
+  document.getElementById('installBtn').style.display='none';
+});
+</script>
+
+</body>
+</html>
