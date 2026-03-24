@@ -1,6 +1,9 @@
 {
   "buildCommand": "echo 'DartsMaster Pro PWA'",
   "outputDirectory": ".",
+  "rewrites": [
+    { "source": "/", "destination": "/app.html" }
+  ],
   "headers": [
     {
       "source": "/manifest.json",
