@@ -1,25 +1,22 @@
 {
-  "name": "DartsMaster Pro - Gra w Darta",
+  "name": "DartsMaster Pro",
   "short_name": "DartsMaster",
-  "description": "Profesjonalna gra w darta 501, 301, Cricket i ATC",
-  "start_url": "/app.html",
-  "scope": "/",
+  "description": "Profesjonalna aplikacja do gry w darta",
+  "start_url": "./",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "background_color": "#0a0a0f",
-  "theme_color": "#ff3c3c",
+  "theme_color": "#0a0a0f",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23ff3c3c' width='192' height='192'/><circle cx='96' cy='96' r='70' fill='%230a0a0f'/><circle cx='96' cy='96' r='55' fill='%23ff3c3c'/><circle cx='96' cy='96' r='40' fill='%230a0a0f'/></svg>",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHoAFhAJ/wlseKgAAAABJRU5ErkJggg==",
       "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
-      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23ff3c3c' width='512' height='512'/><circle cx='256' cy='256' r='180' fill='%230a0a0f'/><circle cx='256' cy='256' r='145' fill='%23ff3c3c'/><circle cx='256' cy='256' r='110' fill='%230a0a0f'/></svg>",
+      "src": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHoAFhAJ/wlseKgAAAABJRU5ErkJggg==",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
   ]
 }
