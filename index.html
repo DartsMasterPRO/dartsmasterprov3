@@ -2,14 +2,18 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="description" content="Profesjonalna aplikacja do gry w darta - 501, 301, Cricket, ATC">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DartsMaster Pro">
-<meta name="description" content="Gra w darta 501, 301, Cricket, ATC">
+<meta name="apple-mobile-web-app-title" content="DartsMaster">
+<meta name="msapplication-TileColor" content="#0a0a0f">
 <title>DartsMaster Pro</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="https://dartsmasterpro.vercel.app/manifest.json">
+<link rel="icon" type="image/png" href="/icon-192x192.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/icon-192x192.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -20,8 +24,10 @@ h1{font-family:'Bebas Neue',cursive;font-size:48px;letter-spacing:2px;color:#ff3
 p{font-size:18px;color:#8888aa;margin:15px 0}
 .btn{background:linear-gradient(135deg,#ff3c3c,#cc1f1f);color:#fff;border:none;padding:15px 40px;font-size:18px;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;letter-spacing:1px;margin:20px 0;width:100%;max-width:400px;transition:all 0.3s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(255,60,60,0.4)}
-.info{background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.3);border-radius:10px;padding:20px;margin:30px 0}
-.success{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;display:none;padding:15px;border-radius:10px;margin:20px 0}
+.btn:active{transform:translateY(0)}
+.info{background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.3);border-radius:10px;padding:20px;margin:30px 0;font-size:16px}
+.success{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;display:none;padding:15px;border-radius:10px;margin:20px 0;font-weight:bold}
+.offline{background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);color:#ffc107;display:none;padding:15px;border-radius:10px;margin:20px 0}
 </style>
 </head>
 <body>
@@ -32,7 +38,7 @@ p{font-size:18px;color:#8888aa;margin:15px 0}
 <p>Gra w Darta na Telefonie</p>
 
 <div class="info">
-📱 Zainstaluj aplikację!
+📱 Zainstaluj aplikację dla najlepszych wrażeń!
 </div>
 
 <button class="btn" id="installBtn" onclick="install()">
@@ -44,41 +50,92 @@ p{font-size:18px;color:#8888aa;margin:15px 0}
 </button>
 
 <div class="success" id="success">
-✅ Aplikacja zainstalowana!
+✅ Aplikacja zainstalowana pomyślnie!
+</div>
+
+<div class="offline" id="offline">
+⚠️ Offline - ale aplikacja działa!
 </div>
 </div>
 
 <script>
+// Register Service Worker
 if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/sw.js').catch(e=>console.log('SW error:',e));
+  navigator.serviceWorker.register('./sw.js', { scope: './' })
+    .then(reg => {
+      console.log('✅ Service Worker zarejestrowany');
+      // Sprawdzaj aktualizacje co 30 minut
+      setInterval(() => reg.update(), 30*60*1000);
+    })
+    .catch(e => console.log('⚠️ SW error:', e));
 }
 
-let deferredPrompt;
-
-window.addEventListener('beforeinstallprompt',(e)=>{
-  e.preventDefault();
-  deferredPrompt=e;
-  console.log('✅ Install ready');
+// Offline detection
+window.addEventListener('offline', () => {
+  document.getElementById('offline').style.display = 'block';
+});
+window.addEventListener('online', () => {
+  document.getElementById('offline').style.display = 'none';
 });
 
-function install(){
-  if(deferredPrompt){
+let deferredPrompt;
+let installShown = false;
+
+// Przechwycenie prompt'a instalacji
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installShown = true;
+  console.log('✅ Prompt instalacji gotowy');
+  // Pokaż przycisk instalacji
+  document.getElementById('installBtn').style.display = 'block';
+});
+
+function install() {
+  if (deferredPrompt) {
     deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(choice=>{
-      if(choice.outcome==='accepted'){
-        document.getElementById('success').style.display='block';
-        document.getElementById('installBtn').style.display='none';
+    deferredPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') {
+        console.log('✅ Użytkownik zaakceptował instalację');
+        document.getElementById('success').style.display = 'block';
+        document.getElementById('installBtn').style.display = 'none';
+      } else {
+        console.log('❌ Użytkownik odrzucił instalację');
       }
-      deferredPrompt=null;
+      deferredPrompt = null;
+    }).catch(err => {
+      console.error('Błąd podczas instalacji:', err);
     });
-  }else{
-    alert('Kliknij menu Chrome ⋮ > Zainstaluj aplikację');
+  } else {
+    // Fallback dla przeglądarek bez native prompt'a
+    const userAgent = navigator.userAgent.toLowerCase();
+    if (userAgent.includes('chrome')) {
+      alert('📱 Kliknij menu (⋮) > "Zainstaluj aplikację" lub "Dodaj do ekranu głównego"');
+    } else if (userAgent.includes('safari')) {
+      alert('📱 Kliknij Udostępnij > "Dodaj do ekranu głównego"');
+    } else if (userAgent.includes('firefox')) {
+      alert('📱 Kliknij menu (⋮) > "Zainstaluj aplikację"');
+    } else {
+      alert('📱 Użyj menu przeglądarki aby zainstalować aplikację');
+    }
   }
 }
 
-window.addEventListener('appinstalled',()=>{
-  document.getElementById('success').style.display='block';
-  document.getElementById('installBtn').style.display='none';
+// Ukryj przycisk instalacji jeśli już zainstalowana
+window.addEventListener('appinstalled', () => {
+  console.log('✅ Aplikacja zainstalowana!');
+  document.getElementById('success').style.display = 'block';
+  document.getElementById('installBtn').style.display = 'none';
+  deferredPrompt = null;
+});
+
+// Sprawdź czy aplikacja jest już zainstalowana
+window.addEventListener('load', () => {
+  if (window.matchMedia('(display-mode: standalone)').matches) {
+    console.log('✅ Uruchomiona jako aplikacja');
+    document.getElementById('installBtn').style.display = 'none';
+    document.getElementById('success').style.display = 'block';
+  }
 });
 </script>
 
