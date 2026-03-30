@@ -1,29 +1,20 @@
 {
-  "buildCommand": "echo 'DartsMaster Pro PWA'",
-  "outputDirectory": ".",
-  "rewrites": [
-    { "source": "/", "destination": "/app.html" }
-  ],
+  "public": true,
+  "buildCommand": "npm run build || true",
+  "outputDirectory": "public",
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
-      "source": "/manifest.json",
+      "source": "/(manifest\\.json|sw\\.js|favicon\\.ico|icon-.*\\.png)",
       "headers": [
         {
-          "key": "Content-Type",
-          "value": "application/manifest+json; charset=utf-8"
+          "key": "Cache-Control",
+          "value": "public, max-age=3600"
         },
         {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
         }
       ]
     }
