@@ -1,56 +1,30 @@
-const CACHE_NAME = 'dartmaster-v1';
+const CACHE='dartsmasterpro-v3';
+const urls=['/'];
 
-// Instalacja Service Worker'a
-self.addEventListener('install', event => {
-  console.log('🔧 Service Worker: instalacja...');
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(urls).catch(()=>{})));
   self.skipWaiting();
 });
 
-// Aktywacja Service Worker'a
-self.addEventListener('activate', event => {
-  console.log('🚀 Service Worker: aktywacja...');
-  event.waitUntil(
-    caches.keys()
-      .then(cacheNames => {
-        return Promise.all(
-          cacheNames
-            .filter(cacheName => cacheName !== CACHE_NAME)
-            .map(cacheName => {
-              console.log('🗑️ Usuwanie starego cache:', cacheName);
-              return caches.delete(cacheName);
-            })
-        );
-      })
-      .then(() => self.clients.claim())
-  );
+self.addEventListener('activate',e=>{
+  e.waitUntil(clients.claim());
 });
 
-// Przechwytywanie żądań - Network first
-self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
+self.addEventListener('fetch',e=>{
+  // Pomiń żądania inne niż GET (POST, PUT, DELETE itp.)
+  if(e.request.method !== 'GET') return;
 
-  // Ignoruj żądania do innych domen i non-GET
-  if (url.origin !== location.origin || request.method !== 'GET') {
-    return;
-  }
+  // Pomiń zewnętrzne URL (Firebase, Google APIs, CDN itp.)
+  const url = new URL(e.request.url);
+  const isExternal = url.origin !== self.location.origin;
+  if(isExternal) return;
 
-  // Network first - spróbuj pobrać, fallback do cache
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        // Jeśli OK, cache'uj i zwróć
-        if (response && response.status === 200) {
-          const cloned = response.clone();
-          caches.open(CACHE_NAME)
-            .then(cache => cache.put(request, cloned))
-            .catch(err => console.warn('Cache put error:', err));
-        }
-        return response;
-      })
-      .catch(() => {
-        // Jeśli offline, spróbuj z cache'a
-        return caches.match(request);
-      })
+  e.respondWith(
+    caches.match(e.request).then(r=>r||fetch(e.request).then(r=>{
+      if(!r||r.status!==200)return r;
+      const rc=r.clone();
+      caches.open(CACHE).then(c=>c.put(e.request,rc));
+      return r;
+    }).catch(()=>new Response('Offline')))
   );
 });
