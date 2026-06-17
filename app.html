@@ -1112,20 +1112,36 @@ input{outline:none}
     <button class="st-filter-btn" onclick="stFilter('atc')">ATC</button>
   </div>
 
-  <!-- Karty agregowane -->
+  <!-- Karty agregowane - PDC Stats -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
     <div class="stat-card"><div class="stat-val" id="st-games">0</div><div class="stat-lbl">Gier</div></div>
     <div class="stat-card"><div class="stat-val" id="st-wins">0</div><div class="stat-lbl">Wygrane</div></div>
     <div class="stat-card st-card-ratio"><div class="stat-val" id="st-wr">—</div><div class="stat-lbl">Win %</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-    <div class="stat-card"><div class="stat-val" id="st-avg">0.0</div><div class="stat-lbl">Śr./runda</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-best">0</div><div class="stat-lbl">Najlepszy</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-180">0</div><div class="stat-lbl">180s</div></div>
+  
+  <!-- 3-Dart Average (kluczowa metrika) -->
+  <div style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px">
+    <div class="stat-card" style="border:2px solid #ff8c00;background:rgba(255,140,0,.08)"><div class="stat-val" id="st-avg" style="color:#ff8c00">0.0</div><div class="stat-lbl">3-Dart Average</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+  
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+    <div class="stat-card"><div class="stat-val" id="st-180">0</div><div class="stat-lbl">180s</div></div>
     <div class="stat-card"><div class="stat-val" id="st-co">0%</div><div class="stat-lbl">Checkout %</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-best">0</div><div class="stat-lbl">Highest CO</div></div>
+  </div>
+  
+  <!-- Dodatkowe metryki PDC -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+    <div class="stat-card"><div class="stat-val" id="st-first9">0.0</div><div class="stat-lbl">First 9 Avg</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-dpl">0.0</div><div class="stat-lbl">Darts/Leg</div></div>
     <div class="stat-card"><div class="stat-val" id="st-streak">0</div><div class="stat-lbl">Seria 🔥</div></div>
+  </div>
+  
+  <!-- Wysokie podejścia -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+    <div class="stat-card"><div class="stat-val" id="st-100plus">0</div><div class="stat-lbl">100+</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-140plus">0</div><div class="stat-lbl">140+</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-180plus">0</div><div class="stat-lbl">180</div></div>
   </div>
 
   <!-- Mini wykres średniej -->
@@ -1977,7 +1993,7 @@ let G = {
   stats: loadStats()
 };
 
-function loadStats(){ try{return JSON.parse(localStorage.getItem('dm3')||'null')||{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0}}}catch{return{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0}}}}
+function loadStats(){ try{return JSON.parse(localStorage.getItem('dm3')||'null')||{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}}}catch{return{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}}}}
 function saveStats(){ try{localStorage.setItem('dm3',JSON.stringify(G.stats))}catch{} }
 
 // ===== NAV =====
@@ -3166,14 +3182,47 @@ function renderStats(){
   // avg i best z odfiltrowanych rund (tylko x01)
   const x01Rounds = [];
   let bestScore = 0;
+  let count100plus = 0, count140plus = 0;
   games.forEach(g => {
-    if (g.rounds_data) { g.rounds_data.forEach(r => { x01Rounds.push(r); if(r>bestScore) bestScore=r; }); }
+    if (g.rounds_data) { 
+      g.rounds_data.forEach(r => { 
+        x01Rounds.push(r); 
+        if(r>bestScore) bestScore=r;
+        if(r >= 100) count100plus++;
+        if(r >= 140) count140plus++;
+      }); 
+    }
   });
+  
   // fallback: jeśli brak per-game rounds_data, użyj globalnych
   const avgVal = x01Rounds.length
     ? (x01Rounds.reduce((a,b)=>a+b,0)/x01Rounds.length).toFixed(1)
     : (_stFilter==='all' && t.rounds.length ? (t.rounds.reduce((a,b)=>a+b,0)/t.rounds.length).toFixed(1) : '—');
   const bestVal = bestScore || (_stFilter==='all' ? t.best : '—') || 0;
+
+  // First 9 Average - średnia z pierwszych 9 lotek (pierwsza trzecia rundy)
+  let first9Scores = [];
+  games.forEach(g => {
+    if (g.rounds_data && g.rounds_data.length > 0) {
+      // Zakładamy że każda runda to 3 lotki, więc pierwsze 3 rundy to pierwszych 9 lotek
+      first9Scores.push(...g.rounds_data.slice(0, 3));
+    }
+  });
+  const first9Avg = first9Scores.length > 0 
+    ? (first9Scores.reduce((a,b)=>a+b,0)/first9Scores.length).toFixed(1)
+    : '—';
+
+  // Darts per Leg - średnia liczba lotek na lega
+  let totalLegs = 0, totalDarts = 0;
+  games.forEach(g => {
+    if (g.rounds && g.rounds > 0) {
+      totalLegs += g.rounds;
+      totalDarts += (g.rounds_data ? g.rounds_data.length : g.rounds);
+    }
+  });
+  const dartsPerLeg = totalLegs > 0 
+    ? (totalDarts / totalLegs).toFixed(1)
+    : '—';
 
   const coA = t.coAttempts||0, coS = t.coSuccess||0;
   const wr = totalGames > 0 ? Math.round(totalWins/totalGames*100)+'%' : '—';
@@ -3194,6 +3243,13 @@ function renderStats(){
   document.getElementById('st-180').textContent = _stFilter==='all' ? (t.e180||0) : '—';
   document.getElementById('st-co').textContent = coA>0 ? Math.round(coS/coA*100)+'%' : '0%';
   document.getElementById('st-streak').textContent = streak;
+  
+  // Nowe metryki PDC
+  document.getElementById('st-first9').textContent = first9Avg;
+  document.getElementById('st-dpl').textContent = dartsPerLeg;
+  document.getElementById('st-100plus').textContent = count100plus;
+  document.getElementById('st-140plus').textContent = count140plus;
+  document.getElementById('st-180plus').textContent = _stFilter==='all' ? (t.e180||0) : '—';
 
   // Historia
   const hist = document.getElementById('game-hist');
@@ -3324,7 +3380,7 @@ function stDrawChart(games) {
 
 function clearStats(){
   if(!confirm('Wyczyścić wszystkie statystyki?'))return;
-  G.stats={games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0}};
+  G.stats={games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}};
   _stFilter='all';
   document.querySelectorAll('.st-filter-btn').forEach((b,i)=>b.classList.toggle('st-filter-active',i===0));
   saveStats(); renderStats(); toast('Wyczyszczono');
