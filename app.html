@@ -1112,12 +1112,8 @@ input{outline:none}
     <button class="st-filter-btn" onclick="stFilter('atc')">ATC</button>
   </div>
 
-  <!-- Kto jest właścicielem tych statystyk -->
-  <div id="st-owner-bar" style="display:none;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:10px">
-    <span style="font-size:16px">👤</span>
-    <span id="st-owner-name" style="font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;color:#00ff88;flex:1"></span>
-    <button onclick="stChangeOwner()" style="background:transparent;border:1px solid rgba(0,255,136,.3);color:#00ff88;border-radius:6px;padding:3px 9px;font-family:'Bebas Neue',cursive;font-size:11px;cursor:pointer;letter-spacing:1px">ZMIEŃ</button>
-  </div>
+  <!-- Selektor gracza -->
+  <div id="st-player-bar" style="display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;flex-wrap:nowrap"></div>
 
   <!-- Karty agregowane - PDC Stats -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
@@ -2122,10 +2118,7 @@ function renderPlayers(){
       const val = e.target.value.trim().substring(0, 20); // Max 20 znaków
       G.players[idx] = val;
       document.getElementById('av'+idx).textContent = (val[0] || 'G').toUpperCase();
-      // Gracz 0 = właściciel urządzenia — zapisz jego nick
-      if (idx === 0 && val) {
-        try { const fbUser = getFbUser && getFbUser(); if (!fbUser) setLocalOwnerNick(val); } catch(e) { setLocalOwnerNick(val); }
-      }
+
     });
   });
   
@@ -3209,13 +3202,16 @@ function confetti(){
 function recGame(winner){
   if(G._onlineRoomId) return; // W trybie online statystyki zapisuje Firebase
 
-  // Jeśli właściciel urządzenia nie ma jeszcze nicku, przypisz mu nick Gracza 0
-  if (!getLocalOwnerNick()) {
-    try { const fbUser = getFbUser && getFbUser(); if (!fbUser) setLocalOwnerNick(G.players[0]); } catch(e) { setLocalOwnerNick(G.players[0]); }
-  }
+  // Build per-player round scores from history (p = player index)
+  const roundsByPlayer = {};
+  G.players.forEach((nick, idx) => {
+    roundsByPlayer[nick] = G.history
+      .filter(r => r.p === idx && !r.bust)
+      .map(r => r.sc);
+  });
 
-  const roundScores = [];
-  G.history.forEach(r=>{ roundScores.push(r.sc); });
+  // rounds_data stores per-player arrays (keyed by nick)
+  const hasRounds = G.players.some(n => roundsByPlayer[n].length > 0);
 
   // Add game to shared history
   const gameEntry = {
@@ -3224,7 +3220,7 @@ function recGame(winner){
     winner,
     rounds: G.round,
     players: [...G.players],
-    rounds_data: roundScores.length ? roundScores : undefined
+    rounds_data: hasRounds ? roundsByPlayer : undefined
   };
   G.stats.games.unshift(gameEntry);
   if(G.stats.games.length > 200) G.stats.games = G.stats.games.slice(0, 200);
@@ -3235,16 +3231,15 @@ function recGame(winner){
     ps.games++;
     if(nick === winner) ps.wins++;
 
-    if(roundScores.length){
-      roundScores.forEach(r => {
-        ps.rounds.push(r);
-        if(r > ps.best) ps.best = r;
-        if(r === 180){ ps.e180 = (ps.e180||0)+1; }
-        if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
-        if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
-        if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
-      });
-    }
+    const myRounds = roundsByPlayer[nick] || [];
+    myRounds.forEach(r => {
+      ps.rounds.push(r);
+      if(r > ps.best) ps.best = r;
+      // NOTE: e180 is already incremented in advancePlayer — do NOT count again here
+      if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
+      if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
+      if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
+    });
   });
 
   // Checkout stats → tylko zwycięzca
@@ -3271,116 +3266,110 @@ function stFilter(f) {
   renderStats();
 }
 
-// ─── Local owner nick ─────────────────────────────────────────────────────────
-// The "owner" is the local player whose stats this device shows by default.
-// Priority: Firebase display name > localStorage dm_owner > prompt on first use.
+// ─── Selektor gracza w statystykach ──────────────────────────────────────────
 
-function getLocalOwnerNick() {
-  // 1. Zalogowany user Firebase ma priorytet
-  try {
-    const fbUser = getFbUser && getFbUser();
-    if (fbUser) return fbUser.displayName || fbUser.email.split('@')[0];
-  } catch(e) {}
-  // 2. Zapisany lokalny nick
-  return localStorage.getItem('dm_owner') || null;
+function _knownNicks() {
+  const nicks = [];
+  (G.stats.games || []).forEach(g => {
+    (g.players || []).forEach(n => { if (n && !nicks.includes(n)) nicks.push(n); });
+  });
+  return nicks;
 }
 
-function setLocalOwnerNick(nick) {
-  localStorage.setItem('dm_owner', nick.trim().slice(0, 20));
+function renderPlayerBar() {
+  const bar = document.getElementById('st-player-bar');
+  if (!bar) return;
+  const nicks = _knownNicks();
+  if (!nicks.length) { bar.innerHTML = ''; return; }
+  // Domyślnie pierwszy znany gracz
+  if (!_stPlayer || !nicks.includes(_stPlayer)) _stPlayer = nicks[0];
+  bar.innerHTML = nicks.map(nick => {
+    const esc = nick.replace(/[<>"&]/g, '');
+    const active = nick === _stPlayer;
+    return `<button class="st-filter-btn${active ? ' st-filter-active' : ''}" onclick="stSelectPlayer('${esc.replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')" style="white-space:nowrap">👤 ${esc}</button>`;
+  }).join('');
 }
 
-function ensureOwnerNick(callback) {
-  const existing = getLocalOwnerNick();
-  if (existing) { callback(existing); return; }
-  // Brak ustawionego nicku — użyj aktualnego Gracza 0 jako fallback (bez promptu)
-  const fallback = (G.players && G.players[0]) || 'Gracz 1';
-  callback(fallback);
-}
-
-function stChangeOwner() {
-  const cur = getLocalOwnerNick() || (G.players && G.players[0]) || '';
-  const nick = prompt('Zmień swój nick:\n(gry pod starym nickiem zostaną zachowane — wpisz dokładnie ten sam nick co używasz w grze)', cur);
-  if (!nick || !nick.trim()) return;
-  setLocalOwnerNick(nick.trim().slice(0, 20));
-  // Aktualizuj też G.players[0] żeby nowe gry były spójne
-  if (G.players) G.players[0] = nick.trim().slice(0, 20);
+function stSelectPlayer(nick) {
+  _stPlayer = nick;
   renderStats();
 }
 
-function renderStats(){
-  ensureOwnerNick(ownerNick => {
-    _renderStatsForOwner(ownerNick);
-  });
-}
-
-function _renderStatsForOwner(ownerNick) {
-  // Pokaż pasek właściciela
-  const ownerBar = document.getElementById('st-owner-bar');
-  const ownerName = document.getElementById('st-owner-name');
-  if (ownerBar) ownerBar.style.display = 'flex';
-  if (ownerName) ownerName.textContent = ownerNick;
-
-  // Aktualizuj przycisk czyszczenia
-  const clrBtn = document.getElementById('st-clear-btn');
-  if (clrBtn) clrBtn.textContent = '🗑 WYCZYŚĆ MOJE STATYSTYKI';
-
+function renderStats() {
+  renderPlayerBar();
   const allGames = G.stats.games || [];
 
-  // Pokaż TYLKO gry w których uczestniczył właściciel urządzenia
-  let playerGames = allGames.filter(g => (g.players||[]).includes(ownerNick));
+  // Filtruj po wybranym graczu
+  const playerGames = _stPlayer
+    ? allGames.filter(g => (g.players || []).includes(_stPlayer))
+    : allGames;
 
-  // Filtr trybu
-  const games = _stFilter === 'all' ? playerGames : playerGames.filter(g => (g.mode||'').toLowerCase() === _stFilter);
+  // Filtruj po trybie gry
+  const games = _stFilter === 'all'
+    ? playerGames
+    : playerGames.filter(g => (g.mode || '').toLowerCase() === _stFilter);
 
-  // Wygrane właściciela
-  const totalWins = games.filter(g => g.winner === ownerNick).length;
+  // Wygrane
+  const totalWins = _stPlayer
+    ? games.filter(g => g.winner === _stPlayer).length
+    : games.reduce((s, g) => s + (g.winner === (g.players && g.players[0]) ? 1 : 0), 0);
   const totalGames = games.length;
-  const wr = totalGames > 0 ? Math.round(totalWins/totalGames*100)+'%' : '—';
+  const wr = totalGames > 0 ? Math.round(totalWins / totalGames * 100) + '%' : '\u2014';
 
-  // Metryki z rund
+  // Helper: get per-player rounds array from a game entry (supports new per-player format and legacy flat array)
+  function getPlayerRounds(g, nick) {
+    if (!g.rounds_data) return [];
+    // New format: rounds_data is an object keyed by nick
+    if (typeof g.rounds_data === 'object' && !Array.isArray(g.rounds_data)) {
+      return g.rounds_data[nick] || [];
+    }
+    // Legacy format: flat array of all rounds (no per-player separation)
+    return Array.isArray(g.rounds_data) ? g.rounds_data : [];
+  }
+
+  // Rundy x01 — tylko rundy aktualnie wybranego gracza
   const x01Rounds = [];
   let bestScore = 0, count100plus = 0, count140plus = 0;
   games.forEach(g => {
-    if (g.rounds_data) {
-      g.rounds_data.forEach(r => {
-        x01Rounds.push(r);
-        if(r > bestScore) bestScore = r;
-        if(r >= 100) count100plus++;
-        if(r >= 140) count140plus++;
-      });
-    }
+    const rounds = _stPlayer ? getPlayerRounds(g, _stPlayer) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
+    rounds.forEach(r => {
+      x01Rounds.push(r);
+      if (r > bestScore) bestScore = r;
+      if (r >= 100) count100plus++;
+      if (r >= 140) count140plus++;
+    });
   });
-
   const avgVal = x01Rounds.length
-    ? (x01Rounds.reduce((a,b)=>a+b,0)/x01Rounds.length).toFixed(1) : '—';
+    ? (x01Rounds.reduce((a, b) => a + b, 0) / x01Rounds.length).toFixed(1) : '\u2014';
 
-  // Statystyki zapisane w profilu gracza
-  const ps = G.stats.players[ownerNick] || {};
+  // Profil gracza (180s, CO%)
+  const ps = (_stPlayer && G.stats.players[_stPlayer]) || {};
   const total180s = ps.e180 || 0;
   const coA = ps.coAttempts || 0, coS = ps.coSuccess || 0;
 
-  // First 9 Average
-  let first9Scores = [];
+  // First 9 avg — pierwsze 3 rundy gracza (= pierwsze 9 rzutów)
+  const f9 = [];
   games.forEach(g => {
-    if (g.rounds_data && g.rounds_data.length > 0) first9Scores.push(...g.rounds_data.slice(0, 3));
+    const rounds = _stPlayer ? getPlayerRounds(g, _stPlayer) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
+    f9.push(...rounds.slice(0, 3));
   });
-  const first9Avg = first9Scores.length > 0
-    ? (first9Scores.reduce((a,b)=>a+b,0)/first9Scores.length).toFixed(1) : '—';
+  const first9Avg = f9.length ? (f9.reduce((a, b) => a + b, 0) / f9.length).toFixed(1) : '\u2014';
 
-  // Darts per Leg
-  let totalLegs = 0, totalDarts = 0;
+  // Darts per leg — liczba rund gracza w grze
+  let tLegs = 0, tDarts = 0;
   games.forEach(g => {
-    if (g.rounds && g.rounds > 0) {
-      totalLegs += g.rounds;
-      totalDarts += (g.rounds_data ? g.rounds_data.length : g.rounds);
+    if (g.rounds > 0) {
+      tLegs += g.rounds;
+      const playerRounds = _stPlayer ? getPlayerRounds(g, _stPlayer) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
+      tDarts += playerRounds.length > 0 ? playerRounds.length : g.rounds;
     }
   });
-  const dartsPerLeg = totalLegs > 0 ? (totalDarts/totalLegs).toFixed(1) : '—';
+  const dartsPerLeg = tLegs > 0 ? (tDarts / tLegs).toFixed(1) : '\u2014';
 
   // Streak
   let streak = 0;
-  for (let i = 0; i < playerGames.length; i++) {
-    if (playerGames[i].winner === ownerNick) streak++;
+  for (const g of playerGames) {
+    if (_stPlayer ? g.winner === _stPlayer : g.winner === (g.players && g.players[0])) streak++;
     else break;
   }
 
@@ -3389,14 +3378,20 @@ function _renderStatsForOwner(ownerNick) {
   document.getElementById('st-wr').textContent = wr;
   document.getElementById('st-avg').textContent = avgVal;
   document.getElementById('st-best').textContent = bestScore || 0;
-  document.getElementById('st-180').textContent = _stFilter==='all' ? total180s : '—';
-  document.getElementById('st-co').textContent = coA>0 ? Math.round(coS/coA*100)+'%' : '0%';
+  document.getElementById('st-180').textContent = _stFilter === 'all' ? total180s : '\u2014';
+  document.getElementById('st-co').textContent = coA > 0 ? Math.round(coS / coA * 100) + '%' : '0%';
   document.getElementById('st-streak').textContent = streak;
   document.getElementById('st-first9').textContent = first9Avg;
   document.getElementById('st-dpl').textContent = dartsPerLeg;
   document.getElementById('st-100plus').textContent = count100plus;
   document.getElementById('st-140plus').textContent = count140plus;
-  document.getElementById('st-180plus').textContent = _stFilter==='all' ? total180s : '—';
+  document.getElementById('st-180plus').textContent = _stFilter === 'all' ? total180s : '\u2014';
+
+  // Przycisk czyszczenia
+  const clrBtn = document.getElementById('st-clear-btn');
+  if (clrBtn) clrBtn.textContent = _stPlayer
+    ? '\ud83d\uddd1 WYCZYŚĆ STATYSTYKI: ' + _stPlayer
+    : '\ud83d\uddd1 WYCZYŚĆ WSZYSTKIE STATYSTYKI';
 
   // Historia
   const hist = document.getElementById('game-hist');
@@ -3406,22 +3401,21 @@ function _renderStatsForOwner(ownerNick) {
   if (!games.length) {
     hist.innerHTML = '<div style="text-align:center;padding:24px 0;color:#8888aa;font-size:13px;font-family:monospace">Brak rozegranych gier</div>';
   } else {
-    const modeClass = {'501':'st-mode-501','301':'st-mode-301','cricket':'st-mode-cricket','atc':'st-mode-atc'};
+    const modeClass = { '501': 'st-mode-501', '301': 'st-mode-301', 'cricket': 'st-mode-cricket', 'atc': 'st-mode-atc' };
     hist.innerHTML = games.map(g => {
-      const mode = (g.mode||'501').toLowerCase();
+      const mode = (g.mode || '501').toLowerCase();
       const mCls = modeClass[mode] || 'st-mode-501';
-      const mLbl = mode.toUpperCase();
-      const players = (g.players||[]).map(p=>p.toString().replace(/[<>]/g,'')).join(' <span style="color:#2a2a40">vs</span> ');
-      const winner = (g.winner||'').toString().replace(/[<>]/g,'');
-      const date = (g.date||'').toString().replace(/[<>]/g,'');
-      const isMyWin = g.winner === ownerNick;
+      const players = (g.players || []).map(p => p.toString().replace(/[<>]/g, '')).join(' <span style="color:#2a2a40">vs</span> ');
+      const winner = (g.winner || '').toString().replace(/[<>]/g, '');
+      const date = (g.date || '').toString().replace(/[<>]/g, '');
+      const isMyWin = _stPlayer ? g.winner === _stPlayer : g.winner === (g.players && g.players[0]);
       return `<div class="st-hist-row">
-        <span class="st-mode-badge ${mCls}">${mLbl}</span>
+        <span class="st-mode-badge ${mCls}">${mode.toUpperCase()}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${players}</div>
-          <div style="font-size:10px;color:#8888aa;font-family:monospace;margin-top:2px">${date} · R${g.rounds||'?'}</div>
+          <div style="font-size:10px;color:#8888aa;font-family:monospace;margin-top:2px">${date} \u00b7 R${g.rounds || '?'}</div>
         </div>
-        <span class="st-win-badge">${isMyWin?'🏆':'💀'} ${winner}</span>
+        <span class="st-win-badge">${isMyWin ? '\ud83c\udfc6' : '\ud83d\udc80'} ${winner}</span>
       </div>`;
     }).join('');
   }
@@ -3429,109 +3423,18 @@ function _renderStatsForOwner(ownerNick) {
   stDrawChart(games);
 }
 
-function stDrawChart(games) {
-  const canvas = document.getElementById('st-chart');
-  const empty = document.getElementById('st-chart-empty');
-  if (!canvas) return;
-
-  const points = games
-    .filter(g => g.rounds_data && g.rounds_data.length)
-    .slice(0,10)
-    .map(g => +(g.rounds_data.reduce((a,b)=>a+b,0)/g.rounds_data.length).toFixed(1))
-    .reverse();
-
-  const fallback = [];
-
-  const data = points.length >= 2 ? points : fallback;
-
-  if (data.length < 2) {
-    canvas.style.display = 'none';
-    if (empty) empty.style.display = 'block';
-    return;
-  }
-  canvas.style.display = 'block';
-  if (empty) empty.style.display = 'none';
-
-  const dpr = window.devicePixelRatio || 1;
-  const W = canvas.offsetWidth || 300;
-  const H = 70;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const pad = { l:28, r:8, t:8, b:18 };
-  const cW = W - pad.l - pad.r;
-  const cH = H - pad.t - pad.b;
-  const mn = Math.max(0, Math.min(...data) - 5);
-  const mx = Math.max(...data) + 5;
-  const xStep = cW / (data.length - 1);
-
-  const px = i => pad.l + i * xStep;
-  const py = v => pad.t + cH - ((v - mn) / (mx - mn)) * cH;
-
-  ctx.clearRect(0, 0, W, H);
-
-  // Grid lines
-  ctx.strokeStyle = 'rgba(42,42,64,0.8)';
-  ctx.lineWidth = 1;
-  [0, 0.5, 1].forEach(t => {
-    const y = pad.t + cH * (1 - t);
-    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(W - pad.r, y); ctx.stroke();
-    ctx.fillStyle = '#44446a';
-    ctx.font = `${9*dpr/dpr}px monospace`;
-    ctx.textAlign = 'right';
-    ctx.fillText(Math.round(mn + (mx-mn)*t), pad.l - 3, y + 3);
-  });
-
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + cH);
-  grad.addColorStop(0, 'rgba(255,60,60,0.35)');
-  grad.addColorStop(1, 'rgba(255,60,60,0.02)');
-  ctx.beginPath();
-  ctx.moveTo(px(0), py(data[0]));
-  data.forEach((v,i) => { if(i>0) ctx.lineTo(px(i), py(v)); });
-  ctx.lineTo(px(data.length-1), pad.t+cH);
-  ctx.lineTo(px(0), pad.t+cH);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Line
-  ctx.beginPath();
-  ctx.strokeStyle = '#ff3c3c';
-  ctx.lineWidth = 2;
-  ctx.lineJoin = 'round';
-  ctx.moveTo(px(0), py(data[0]));
-  data.forEach((v,i) => { if(i>0) ctx.lineTo(px(i), py(v)); });
-  ctx.stroke();
-
-  // Dots + labels
-  data.forEach((v,i) => {
-    ctx.beginPath();
-    ctx.arc(px(i), py(v), 3, 0, Math.PI*2);
-    ctx.fillStyle = '#ff3c3c';
-    ctx.fill();
-    // X axis labels
-    ctx.fillStyle = '#44446a';
-    ctx.font = `${8}px monospace`;
-    ctx.textAlign = 'center';
-    ctx.fillText('G'+(i+1), px(i), H - 4);
-  });
-}
-
-function clearStats(){
-  const nick = getLocalOwnerNick();
-  if (nick) {
-    if(!confirm('Wyczyścić Twoje statystyki ("'+nick+'")?')) return;
-    delete G.stats.players[nick];
-    G.stats.games = G.stats.games.filter(g => !(g.players||[]).includes(nick));
+function clearStats() {
+  if (_stPlayer) {
+    if (!confirm('Wyczyścić statystyki gracza "' + _stPlayer + '"?')) return;
+    delete G.stats.players[_stPlayer];
+    G.stats.games = G.stats.games.filter(g => !(g.players || []).includes(_stPlayer));
+    _stPlayer = null;
   } else {
-    if(!confirm('Wyczyścić wszystkie statystyki?')) return;
+    if (!confirm('Wyczyścić WSZYSTKIE statystyki?')) return;
     G.stats = _emptyStatsStore();
   }
-  _stFilter='all';
-  document.querySelectorAll('.st-filter-btn').forEach((b,i)=>b.classList.toggle('st-filter-active',i===0));
+  _stFilter = 'all';
+  document.querySelectorAll('.st-filter-btn').forEach((b, i) => b.classList.toggle('st-filter-active', i === 0));
   saveStats(); renderStats(); toast('Wyczyszczono');
 }
 
@@ -4105,9 +4008,6 @@ let gameActive = false;
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded',()=>{
   loadCustomSounds();  // Załaduj niestandardowe dźwięki
-  // Pre-fill Player 0 with the local owner nick if available
-  const ownerNick = getLocalOwnerNick();
-  if (ownerNick) G.players[0] = ownerNick;
   renderPlayers();
   renderEx('all');
   document.getElementById('x01-opts').style.display='block';
