@@ -5381,8 +5381,7 @@ function olStartListening() {
     G.firstPlayerLeg = ngs.firstPlayerLeg || 0;
     G.legs = ngs.legs || G.legs;
     G.diDone = [...(ngs.diDone||[])];
-
-    // Przerysuj UI
+    if (Array.isArray(ngs.history)) G.history = ngs.history;
     if (typeof renderScoreboard === 'function') renderScoreboard();
     if (G.mode === 'cricket' && typeof renderCricketBoard === 'function') renderCricketBoard();
     if (G.mode === 'atc' && typeof renderATC === 'function') renderATC();
@@ -5732,6 +5731,7 @@ async function olSyncGameState() {
       'gameState.cDarts': G.cDarts||0,
       'gameState.atcT': G.atcT||[],
       'gameState.atcDarts': G.atcDarts||0,
+      'gameState.history': G.history||[],
       'gameState.lastMove': { by: OL.myIndex, at: Date.now() }
     });
   } catch(e) { console.log('Sync error:', e.code); }
