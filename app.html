@@ -3200,7 +3200,7 @@ function confetti(){
 
 // ===== STATS =====
 function recGame(winner){
-  if(G._onlineRoomId) return; // W trybie online statystyki zapisuje Firebase
+  // Działa zarówno w trybie offline jak i online — statystyki zapisywane lokalnie u każdego gracza
 
   // Build per-player round scores from history (p = player index)
   const roundsByPlayer = {};
@@ -5405,6 +5405,7 @@ function olStartListening() {
         } else {
           _doShowLose(winName, ngs.round, '—', ngs.mode.toUpperCase());
         }
+        recGame(winName); // Zapisz lokalne statystyki (rundy, avg, 180s itd.)
         olRecordWin(ngs.winner);
       }
       // NIE anuluj gameUnsub — będziemy przez niego wykrywać rematch
