@@ -2793,12 +2793,13 @@ function undoTurn(){
 function trigWin(pi,lastSc){
   const pR=G.history.filter(h=>h.p===pi&&!h.bust);
   const avg=pR.length?(pR.reduce((s,r)=>s+r.sc,0)/pR.length).toFixed(1):'0.0';
+  const isOnline = !!(OL && OL.currentRoomId);
 
   if(G.legs<=1){
     // Single leg or non-x01 mode — show final win
     SFX.win();
     showWin(G.players[pi],G.round,avg,G.mode.toUpperCase());
-    recGame(G.players[pi]); return;
+    if(!isOnline) recGame(G.players[pi]); return;
   }
 
   // Multi-leg: award leg win
@@ -2808,7 +2809,7 @@ function trigWin(pi,lastSc){
     // Won the match!
     SFX.win();
     showWin(G.players[pi],G.currentLeg,avg,G.mode.toUpperCase()+' ('+G.legWins[pi]+'/'+G.legs+')');
-    recGame(G.players[pi]); return;
+    if(!isOnline) recGame(G.players[pi]); return;
   }
 
   // Start next leg
@@ -3226,6 +3227,7 @@ function recGame(winner){
   if(G.stats.games.length > 200) G.stats.games = G.stats.games.slice(0, 200);
 
   // Update per-player stats for each participant
+  const isOnline = !!(OL && OL.currentRoomId);
   G.players.forEach((nick, idx) => {
     const ps = getPlayerStats(nick);
     ps.games++;
@@ -3235,7 +3237,9 @@ function recGame(winner){
     myRounds.forEach(r => {
       ps.rounds.push(r);
       if(r > ps.best) ps.best = r;
-      // NOTE: e180 is already incremented in advancePlayer — do NOT count again here
+      // W trybie online e180 liczymy tutaj z G.history (advancePlayer nie działa u guesta)
+      // W trybie offline advancePlayer już to zrobił — nie liczymy ponownie
+      if(isOnline && r === 180) ps.e180 = (ps.e180||0)+1;
       if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
       if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
       if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
@@ -3421,6 +3425,10 @@ function renderStats() {
   }
 
   stDrawChart(games);
+}
+
+function stDrawChart(games) {
+  // Wykresy nie są zaimplementowane — placeholder na przyszłość
 }
 
 function clearStats() {
@@ -5381,7 +5389,8 @@ function olStartListening() {
     G.firstPlayerLeg = ngs.firstPlayerLeg || 0;
     G.legs = ngs.legs || G.legs;
     G.diDone = [...(ngs.diDone||[])];
-    if (Array.isArray(ngs.history)) G.history = ngs.history;
+
+    // Przerysuj UI
     if (typeof renderScoreboard === 'function') renderScoreboard();
     if (G.mode === 'cricket' && typeof renderCricketBoard === 'function') renderCricketBoard();
     if (G.mode === 'atc' && typeof renderATC === 'function') renderATC();
@@ -5731,7 +5740,6 @@ async function olSyncGameState() {
       'gameState.cDarts': G.cDarts||0,
       'gameState.atcT': G.atcT||[],
       'gameState.atcDarts': G.atcDarts||0,
-      'gameState.history': G.history||[],
       'gameState.lastMove': { by: OL.myIndex, at: Date.now() }
     });
   } catch(e) { console.log('Sync error:', e.code); }
