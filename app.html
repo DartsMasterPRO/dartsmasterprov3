@@ -3423,6 +3423,126 @@ function renderStats() {
   stDrawChart(games);
 }
 
+function stDrawChart(games) {
+  const canvas = document.getElementById('st-chart');
+  const empty  = document.getElementById('st-chart-empty');
+  if (!canvas) return;
+
+  // Zbierz średnie per gra (ostatnie 10 gier, od najstarszej do najnowszej)
+  const last10 = games.slice(-10);
+  const avgs = last10.map(g => {
+    let rounds = [];
+    if (g.rounds_data) {
+      if (_stPlayer && typeof g.rounds_data === 'object' && !Array.isArray(g.rounds_data)) {
+        rounds = g.rounds_data[_stPlayer] || [];
+      } else if (Array.isArray(g.rounds_data)) {
+        rounds = g.rounds_data;
+      } else {
+        // object ale bez konkretnego gracza — spłaszcz wszystkie
+        rounds = Object.values(g.rounds_data).flat();
+      }
+    }
+    if (!rounds.length) return null;
+    return rounds.reduce((a, b) => a + b, 0) / rounds.length;
+  }).filter(v => v !== null);
+
+  if (!avgs.length) {
+    canvas.style.display = 'none';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  canvas.style.display = 'block';
+  if (empty) empty.style.display = 'none';
+
+  // Dopasuj rozmiar canvasu do wyświetlanej szerokości
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 300;
+  const H = 70;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { t: 8, r: 8, b: 20, l: 32 };
+  const cw = W - pad.l - pad.r;
+  const ch = H - pad.t - pad.b;
+
+  const minV = Math.max(0, Math.min(...avgs) - 5);
+  const maxV = Math.max(...avgs) + 5;
+
+  const xPos = i => pad.l + (avgs.length === 1 ? cw / 2 : i / (avgs.length - 1) * cw);
+  const yPos = v => pad.t + ch - ((v - minV) / (maxV - minV) * ch);
+
+  // Siatka pozioma
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  [0, 0.5, 1].forEach(f => {
+    const y = pad.t + ch * (1 - f);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + cw, y); ctx.stroke();
+  });
+
+  // Etykiety osi Y
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '9px monospace';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  [minV, (minV + maxV) / 2, maxV].forEach((v, i) => {
+    const y = yPos(v);
+    ctx.fillText(Math.round(v), pad.l - 4, y);
+  });
+
+  // Gradient wypełnienie pod wykresem
+  const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t + ch);
+  grad.addColorStop(0, 'rgba(0,229,255,0.25)');
+  grad.addColorStop(1, 'rgba(0,229,255,0.00)');
+  ctx.beginPath();
+  ctx.moveTo(xPos(0), yPos(avgs[0]));
+  avgs.forEach((v, i) => { if (i > 0) ctx.lineTo(xPos(i), yPos(v)); });
+  ctx.lineTo(xPos(avgs.length - 1), pad.t + ch);
+  ctx.lineTo(xPos(0), pad.t + ch);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Linia wykresu
+  ctx.beginPath();
+  ctx.strokeStyle = '#00e5ff';
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  avgs.forEach((v, i) => {
+    i === 0 ? ctx.moveTo(xPos(i), yPos(v)) : ctx.lineTo(xPos(i), yPos(v));
+  });
+  ctx.stroke();
+
+  // Punkty + wartości
+  avgs.forEach((v, i) => {
+    const x = xPos(i), y = yPos(v);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#00e5ff';
+    ctx.fill();
+    ctx.strokeStyle = '#0a0a0f';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 8px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = y < pad.t + 14 ? 'top' : 'bottom';
+    ctx.fillText(v.toFixed(0), x, y < pad.t + 14 ? y + 5 : y - 4);
+  });
+
+  // Etykiety X (numery gier)
+  ctx.fillStyle = '#8888aa';
+  ctx.font = '8px monospace';
+  ctx.textBaseline = 'top';
+  avgs.forEach((_, i) => {
+    ctx.textAlign = i === 0 ? 'left' : i === avgs.length - 1 ? 'right' : 'center';
+    ctx.fillText('G' + (i + 1), xPos(i), pad.t + ch + 4);
+  });
+}
+
 function clearStats() {
   if (_stPlayer) {
     if (!confirm('Wyczyścić statystyki gracza "' + _stPlayer + '"?')) return;
