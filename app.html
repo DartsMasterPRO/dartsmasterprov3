@@ -1112,6 +1112,13 @@ input{outline:none}
     <button class="st-filter-btn" onclick="stFilter('atc')">ATC</button>
   </div>
 
+  <!-- Kto jest właścicielem tych statystyk -->
+  <div id="st-owner-bar" style="display:none;align-items:center;gap:8px;margin-bottom:14px;padding:9px 12px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);border-radius:10px">
+    <span style="font-size:16px">👤</span>
+    <span id="st-owner-name" style="font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;color:#00ff88;flex:1"></span>
+    <button onclick="stChangeOwner()" style="background:transparent;border:1px solid rgba(0,255,136,.3);color:#00ff88;border-radius:6px;padding:3px 9px;font-family:'Bebas Neue',cursive;font-size:11px;cursor:pointer;letter-spacing:1px">ZMIEŃ</button>
+  </div>
+
   <!-- Karty agregowane - PDC Stats -->
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
     <div class="stat-card"><div class="stat-val" id="st-games">0</div><div class="stat-lbl">Gier</div></div>
@@ -1160,7 +1167,7 @@ input{outline:none}
     <div id="game-hist"></div>
   </div>
 
-  <button onclick="clearStats()" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(255,60,60,.3);border-radius:9px;color:#ff3c3c;font-family:'Bebas Neue',cursive;font-size:14px;cursor:pointer;margin-top:10px;margin-bottom:4px">🗑 WYCZYŚĆ STATYSTYKI</button>
+  <button onclick="clearStats()" style="width:100%;padding:11px;background:transparent;border:1px solid rgba(255,60,60,.3);border-radius:9px;color:#ff3c3c;font-family:'Bebas Neue',cursive;font-size:14px;cursor:pointer;margin-top:10px;margin-bottom:4px" id="st-clear-btn">🗑 WYCZYŚĆ STATYSTYKI</button>
 </div>
 
 <style>
@@ -1993,8 +2000,68 @@ let G = {
   stats: loadStats()
 };
 
-function loadStats(){ try{return JSON.parse(localStorage.getItem('dm3')||'null')||{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}}}catch{return{games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}}}}
+// ─── Per-player stats helpers ─────────────────────────────────────────────────
+function _emptyPlayerStats(){
+  return {games:0,wins:0,rounds:[],best:0,e180:0,coAttempts:0,coSuccess:0,
+    highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0};
+}
+function _emptyStatsStore(){
+  // games[] — shared history of all offline games
+  // players{} — per-nick aggregated totals
+  return {games:[], players:{}};
+}
+
+function loadStats(){
+  try {
+    const raw = JSON.parse(localStorage.getItem('dm3')||'null');
+    if (!raw) return _emptyStatsStore();
+    // Migrate old format (had .t and no .players)
+    if (raw.t && !raw.players) {
+      const migrated = _emptyStatsStore();
+      migrated.games = raw.games || [];
+      // Rebuild per-player stats from game history
+      migrated.games.forEach(g => {
+        (g.players||[]).forEach((nick, idx) => {
+          if (!migrated.players[nick]) migrated.players[nick] = _emptyPlayerStats();
+          const ps = migrated.players[nick];
+          ps.games++;
+          if (g.winner === nick) ps.wins++;
+          if (g.rounds_data) {
+            g.rounds_data.forEach(r => {
+              ps.rounds.push(r);
+              if (r > ps.best) ps.best = r;
+              if (r >= 100) ps.highest100++;
+              if (r >= 140) ps.highest140++;
+              if (r >= 180) ps.highest180++;
+            });
+          }
+        });
+      });
+      // Preserve global 180 count if available
+      const globalNick = migrated.games[0] && migrated.games[0].players && migrated.games[0].players[0];
+      if (globalNick && raw.t.e180 && migrated.players[globalNick]) {
+        migrated.players[globalNick].e180 = raw.t.e180;
+      }
+      return migrated;
+    }
+    if (!raw.players) raw.players = {};
+    if (!raw.games) raw.games = [];
+    return raw;
+  } catch(e) {
+    return _emptyStatsStore();
+  }
+}
+
 function saveStats(){ try{localStorage.setItem('dm3',JSON.stringify(G.stats))}catch{} }
+
+// Get or create per-player stats object
+function getPlayerStats(nick){
+  if(!G.stats.players[nick]) G.stats.players[nick] = _emptyPlayerStats();
+  return G.stats.players[nick];
+}
+
+// Currently selected player for stats screen (nick string or null = show all)
+let _stPlayer = null;
 
 // ===== NAV =====
 function goto(s){
@@ -2055,6 +2122,10 @@ function renderPlayers(){
       const val = e.target.value.trim().substring(0, 20); // Max 20 znaków
       G.players[idx] = val;
       document.getElementById('av'+idx).textContent = (val[0] || 'G').toUpperCase();
+      // Gracz 0 = właściciel urządzenia — zapisz jego nick
+      if (idx === 0 && val) {
+        try { const fbUser = getFbUser && getFbUser(); if (!fbUser) setLocalOwnerNick(val); } catch(e) { setLocalOwnerNick(val); }
+      }
     });
   });
   
@@ -2333,6 +2404,8 @@ function startGame(){
   G.players.forEach((_,pi)=>nums.forEach(n=>{G.cMarks[pi+'_'+n]=0;}));
   if(G.mode==='cricket') G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:0,cMult:1,cp:G.firstPlayerLeg||0,round:1});
   G.active=true;
+  // Reset per-game checkout counters (used by recGame)
+  G._gameCoAttempts=0; G._gameCoSuccess=0; G._gameHighestCheckout=0;
   document.getElementById('game-mode-lbl').textContent=G.mode.toUpperCase();
   const isX01=G.mode==='501'||G.mode==='301';
   
@@ -2562,7 +2635,7 @@ function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
     if(bust){
       announceScore(sc, true);
     } else if(sc===180){
-      toast('🏆 180!!!');G.stats.t.e180++;saveStats();
+      const _curNick=G.players[G.cp];if(_curNick){const _ps=getPlayerStats(_curNick);_ps.e180=(_ps.e180||0)+1;saveStats();}toast('🏆 180!!!');
       announceScore(180);
     } else {
       announceScore(sc);
@@ -2573,7 +2646,7 @@ function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
       SFX.bust();
       announceScore(sc, true);
     } else if(sc===180){
-      toast('🏆 180!!!');G.stats.t.e180++;saveStats();
+      const _curNick=G.players[G.cp];if(_curNick){const _ps=getPlayerStats(_curNick);_ps.e180=(_ps.e180||0)+1;saveStats();}toast('🏆 180!!!');
       announceScore(180);
     } else {
       SFX.confirm();
@@ -2610,10 +2683,10 @@ function processSum(sc){
         if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],nd,0,true,true);return;}
         if(rem===0){
           // Jeśli to koniec gry - akceptujemy
-          G.stats.t.coAttempts=(G.stats.t.coAttempts||0)+1;
+          G._gameCoAttempts=(G._gameCoAttempts||0)+1;
           if(!G.dOut){
             // Double-Out wyłączony, możemy skończyć
-            G.stats.t.coSuccess=(G.stats.t.coSuccess||0)+1;
+            G._gameCoSuccess=(G._gameCoSuccess||0)+1;
             const ns=[...G.scores];ns[pi]=0;G.scores=ns;G.diDone=nd;pushH(pi,sc,false,true);trigWin(pi,sc);return;
           } else {
             // Double-Out włączony - ostrzeżenie, ale czeka na kolejną rundę
@@ -2625,11 +2698,11 @@ function processSum(sc){
       }
       
       // Double-In już otwarty - normalnie liczymy
-      if(G.scores[pi]<=170)G.stats.t.coAttempts=(G.stats.t.coAttempts||0)+1;
+      if(G.scores[pi]<=170)G._gameCoAttempts=(G._gameCoAttempts||0)+1;
       if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
       if(rem===0){
         // Koniec gry - w trybie summary akceptujemy każdy wynik (bez walidacji double-out)
-        G.stats.t.coSuccess=(G.stats.t.coSuccess||0)+1;
+        G._gameCoSuccess=(G._gameCoSuccess||0)+1;
         const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sc,false);trigWin(pi,sc);return;
       }
       const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sc,false);
@@ -2651,11 +2724,11 @@ function processSum(sc){
       const ns=[...G.scores];ns[pi]=rem;toast('🎯 Double-In otwarty! -'+sc);advancePlayer(ns,nd,sc,false,true);return;
     }
     const rem=G.scores[pi]-sc;
-    if(G.scores[pi]<=170)G.stats.t.coAttempts=(G.stats.t.coAttempts||0)+1;
+    if(G.scores[pi]<=170)G._gameCoAttempts=(G._gameCoAttempts||0)+1;
     if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
     if(rem===0){
       if(G.dOut&&!isD){toast('Musisz double na koniec!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
-      G.stats.t.coSuccess=(G.stats.t.coSuccess||0)+1;
+      G._gameCoSuccess=(G._gameCoSuccess||0)+1;
       const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sc,false);trigWin(pi,sc);return;
     }
     const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sc,false);
@@ -2692,13 +2765,13 @@ function confirmThrow(){
   const sum=filled.reduce((a,b)=>a+b,0);
   const rem=G.scores[pi]-sum;
   // Track checkout attempt (score ≤170 = reachable finish)
-  if(G.scores[pi]<=170){G.stats.t.coAttempts=(G.stats.t.coAttempts||0)+1;}
+  if(G.scores[pi]<=170){G._gameCoAttempts=(G._gameCoAttempts||0)+1;}
   if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE! Runda nie liczy się');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
   if(rem===0){
     const lastIdx=G.throws.map((v,i)=>v!==null?i:-1).filter(i=>i!==-1).pop();
     const lastMult=G.throwMults[lastIdx]; const lastVal=G.throws[lastIdx];
     if(G.dOut&&!(lastMult===2||lastVal===50)){toast('Musisz zakończyć na double!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
-    G.stats.t.coSuccess=(G.stats.t.coSuccess||0)+1;
+    G._gameCoSuccess=(G._gameCoSuccess||0)+1;
     const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sum,false);trigWin(pi,sum);return;
   }
   const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sum,false);
@@ -3135,20 +3208,57 @@ function confetti(){
 // ===== STATS =====
 function recGame(winner){
   if(G._onlineRoomId) return; // W trybie online statystyki zapisuje Firebase
-  const t=G.stats.t;
-  t.games++;
-  t.wins[winner]=(t.wins[winner]||0)+1;
+
+  // Jeśli właściciel urządzenia nie ma jeszcze nicku, przypisz mu nick Gracza 0
+  if (!getLocalOwnerNick()) {
+    try { const fbUser = getFbUser && getFbUser(); if (!fbUser) setLocalOwnerNick(G.players[0]); } catch(e) { setLocalOwnerNick(G.players[0]); }
+  }
+
   const roundScores = [];
-  G.history.forEach(r=>{if(r.sc>t.best)t.best=r.sc;t.rounds.push(r.sc);roundScores.push(r.sc);});
-  G.stats.games.unshift({
-    date:new Date().toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
-    mode:G.mode.toUpperCase(),
+  G.history.forEach(r=>{ roundScores.push(r.sc); });
+
+  // Add game to shared history
+  const gameEntry = {
+    date: new Date().toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    mode: G.mode.toUpperCase(),
     winner,
-    rounds:G.round,
-    players:[...G.players],
+    rounds: G.round,
+    players: [...G.players],
     rounds_data: roundScores.length ? roundScores : undefined
+  };
+  G.stats.games.unshift(gameEntry);
+  if(G.stats.games.length > 200) G.stats.games = G.stats.games.slice(0, 200);
+
+  // Update per-player stats for each participant
+  G.players.forEach((nick, idx) => {
+    const ps = getPlayerStats(nick);
+    ps.games++;
+    if(nick === winner) ps.wins++;
+
+    if(roundScores.length){
+      roundScores.forEach(r => {
+        ps.rounds.push(r);
+        if(r > ps.best) ps.best = r;
+        if(r === 180){ ps.e180 = (ps.e180||0)+1; }
+        if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
+        if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
+        if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
+      });
+    }
   });
-  if(G.stats.games.length>20) G.stats.games=G.stats.games.slice(0,20);
+
+  // Checkout stats → tylko zwycięzca
+  const winnerIdx = G.players.indexOf(winner);
+  if(winnerIdx >= 0){
+    const ps = getPlayerStats(winner);
+    ps.coAttempts = (ps.coAttempts||0) + (G._gameCoAttempts||0);
+    ps.coSuccess  = (ps.coSuccess||0)  + (G._gameCoSuccess||0);
+    if(G._gameHighestCheckout && G._gameHighestCheckout > (ps.highestCheckout||0)){
+      ps.highestCheckout = G._gameHighestCheckout;
+    }
+  }
+  G._gameCoAttempts = 0; G._gameCoSuccess = 0; G._gameHighestCheckout = 0;
+
   saveStats();
 }
 
@@ -3161,58 +3271,103 @@ function stFilter(f) {
   renderStats();
 }
 
+// ─── Local owner nick ─────────────────────────────────────────────────────────
+// The "owner" is the local player whose stats this device shows by default.
+// Priority: Firebase display name > localStorage dm_owner > prompt on first use.
+
+function getLocalOwnerNick() {
+  // 1. Zalogowany user Firebase ma priorytet
+  try {
+    const fbUser = getFbUser && getFbUser();
+    if (fbUser) return fbUser.displayName || fbUser.email.split('@')[0];
+  } catch(e) {}
+  // 2. Zapisany lokalny nick
+  return localStorage.getItem('dm_owner') || null;
+}
+
+function setLocalOwnerNick(nick) {
+  localStorage.setItem('dm_owner', nick.trim().slice(0, 20));
+}
+
+function ensureOwnerNick(callback) {
+  const existing = getLocalOwnerNick();
+  if (existing) { callback(existing); return; }
+  // Brak ustawionego nicku — użyj aktualnego Gracza 0 jako fallback (bez promptu)
+  const fallback = (G.players && G.players[0]) || 'Gracz 1';
+  callback(fallback);
+}
+
+function stChangeOwner() {
+  const cur = getLocalOwnerNick() || (G.players && G.players[0]) || '';
+  const nick = prompt('Zmień swój nick:\n(gry pod starym nickiem zostaną zachowane — wpisz dokładnie ten sam nick co używasz w grze)', cur);
+  if (!nick || !nick.trim()) return;
+  setLocalOwnerNick(nick.trim().slice(0, 20));
+  // Aktualizuj też G.players[0] żeby nowe gry były spójne
+  if (G.players) G.players[0] = nick.trim().slice(0, 20);
+  renderStats();
+}
+
 function renderStats(){
-  const allGames = G.stats.games || [];
-  const t = G.stats.t;
-
-  // filtrowanie historii
-  const games = _stFilter === 'all' ? allGames : allGames.filter(g => (g.mode||'').toLowerCase() === _stFilter);
-
-  // agregaty z przefiltrowanej historii
-  const wins = games.filter(g => {
-    const me = G.stats._localNick || (g.players && g.players[0]);
-    return g.winner === me || games.length > 0; // licz wszystkie wygrane z filtered
+  ensureOwnerNick(ownerNick => {
+    _renderStatsForOwner(ownerNick);
   });
-  const totalWins = games.reduce((s,g) => {
-    const me = g.players && g.players[0];
-    return s + (g.winner === me ? 1 : 0);
-  }, 0);
-  const totalGames = games.length;
+}
 
-  // avg i best z odfiltrowanych rund (tylko x01)
+function _renderStatsForOwner(ownerNick) {
+  // Pokaż pasek właściciela
+  const ownerBar = document.getElementById('st-owner-bar');
+  const ownerName = document.getElementById('st-owner-name');
+  if (ownerBar) ownerBar.style.display = 'flex';
+  if (ownerName) ownerName.textContent = ownerNick;
+
+  // Aktualizuj przycisk czyszczenia
+  const clrBtn = document.getElementById('st-clear-btn');
+  if (clrBtn) clrBtn.textContent = '🗑 WYCZYŚĆ MOJE STATYSTYKI';
+
+  const allGames = G.stats.games || [];
+
+  // Pokaż TYLKO gry w których uczestniczył właściciel urządzenia
+  let playerGames = allGames.filter(g => (g.players||[]).includes(ownerNick));
+
+  // Filtr trybu
+  const games = _stFilter === 'all' ? playerGames : playerGames.filter(g => (g.mode||'').toLowerCase() === _stFilter);
+
+  // Wygrane właściciela
+  const totalWins = games.filter(g => g.winner === ownerNick).length;
+  const totalGames = games.length;
+  const wr = totalGames > 0 ? Math.round(totalWins/totalGames*100)+'%' : '—';
+
+  // Metryki z rund
   const x01Rounds = [];
-  let bestScore = 0;
-  let count100plus = 0, count140plus = 0;
+  let bestScore = 0, count100plus = 0, count140plus = 0;
   games.forEach(g => {
-    if (g.rounds_data) { 
-      g.rounds_data.forEach(r => { 
-        x01Rounds.push(r); 
-        if(r>bestScore) bestScore=r;
+    if (g.rounds_data) {
+      g.rounds_data.forEach(r => {
+        x01Rounds.push(r);
+        if(r > bestScore) bestScore = r;
         if(r >= 100) count100plus++;
         if(r >= 140) count140plus++;
-      }); 
+      });
     }
   });
-  
-  // fallback: jeśli brak per-game rounds_data, użyj globalnych
-  const avgVal = x01Rounds.length
-    ? (x01Rounds.reduce((a,b)=>a+b,0)/x01Rounds.length).toFixed(1)
-    : (_stFilter==='all' && t.rounds.length ? (t.rounds.reduce((a,b)=>a+b,0)/t.rounds.length).toFixed(1) : '—');
-  const bestVal = bestScore || (_stFilter==='all' ? t.best : '—') || 0;
 
-  // First 9 Average - średnia z pierwszych 9 lotek (pierwsza trzecia rundy)
+  const avgVal = x01Rounds.length
+    ? (x01Rounds.reduce((a,b)=>a+b,0)/x01Rounds.length).toFixed(1) : '—';
+
+  // Statystyki zapisane w profilu gracza
+  const ps = G.stats.players[ownerNick] || {};
+  const total180s = ps.e180 || 0;
+  const coA = ps.coAttempts || 0, coS = ps.coSuccess || 0;
+
+  // First 9 Average
   let first9Scores = [];
   games.forEach(g => {
-    if (g.rounds_data && g.rounds_data.length > 0) {
-      // Zakładamy że każda runda to 3 lotki, więc pierwsze 3 rundy to pierwszych 9 lotek
-      first9Scores.push(...g.rounds_data.slice(0, 3));
-    }
+    if (g.rounds_data && g.rounds_data.length > 0) first9Scores.push(...g.rounds_data.slice(0, 3));
   });
-  const first9Avg = first9Scores.length > 0 
-    ? (first9Scores.reduce((a,b)=>a+b,0)/first9Scores.length).toFixed(1)
-    : '—';
+  const first9Avg = first9Scores.length > 0
+    ? (first9Scores.reduce((a,b)=>a+b,0)/first9Scores.length).toFixed(1) : '—';
 
-  // Darts per Leg - średnia liczba lotek na lega
+  // Darts per Leg
   let totalLegs = 0, totalDarts = 0;
   games.forEach(g => {
     if (g.rounds && g.rounds > 0) {
@@ -3220,18 +3375,12 @@ function renderStats(){
       totalDarts += (g.rounds_data ? g.rounds_data.length : g.rounds);
     }
   });
-  const dartsPerLeg = totalLegs > 0 
-    ? (totalDarts / totalLegs).toFixed(1)
-    : '—';
+  const dartsPerLeg = totalLegs > 0 ? (totalDarts/totalLegs).toFixed(1) : '—';
 
-  const coA = t.coAttempts||0, coS = t.coSuccess||0;
-  const wr = totalGames > 0 ? Math.round(totalWins/totalGames*100)+'%' : '—';
-
-  // streak lokalny (ostatnie gry z rzędu wygrane przez gracza 0)
+  // Streak
   let streak = 0;
-  for (let i = 0; i < allGames.length; i++) {
-    const g = allGames[i];
-    if (g.winner === (g.players&&g.players[0])) streak++;
+  for (let i = 0; i < playerGames.length; i++) {
+    if (playerGames[i].winner === ownerNick) streak++;
     else break;
   }
 
@@ -3239,17 +3388,15 @@ function renderStats(){
   document.getElementById('st-wins').textContent = totalWins;
   document.getElementById('st-wr').textContent = wr;
   document.getElementById('st-avg').textContent = avgVal;
-  document.getElementById('st-best').textContent = bestVal;
-  document.getElementById('st-180').textContent = _stFilter==='all' ? (t.e180||0) : '—';
+  document.getElementById('st-best').textContent = bestScore || 0;
+  document.getElementById('st-180').textContent = _stFilter==='all' ? total180s : '—';
   document.getElementById('st-co').textContent = coA>0 ? Math.round(coS/coA*100)+'%' : '0%';
   document.getElementById('st-streak').textContent = streak;
-  
-  // Nowe metryki PDC
   document.getElementById('st-first9').textContent = first9Avg;
   document.getElementById('st-dpl').textContent = dartsPerLeg;
   document.getElementById('st-100plus').textContent = count100plus;
   document.getElementById('st-140plus').textContent = count140plus;
-  document.getElementById('st-180plus').textContent = _stFilter==='all' ? (t.e180||0) : '—';
+  document.getElementById('st-180plus').textContent = _stFilter==='all' ? total180s : '—';
 
   // Historia
   const hist = document.getElementById('game-hist');
@@ -3259,7 +3406,7 @@ function renderStats(){
   if (!games.length) {
     hist.innerHTML = '<div style="text-align:center;padding:24px 0;color:#8888aa;font-size:13px;font-family:monospace">Brak rozegranych gier</div>';
   } else {
-    const modeClass = { '501':'st-mode-501','301':'st-mode-301','cricket':'st-mode-cricket','atc':'st-mode-atc' };
+    const modeClass = {'501':'st-mode-501','301':'st-mode-301','cricket':'st-mode-cricket','atc':'st-mode-atc'};
     hist.innerHTML = games.map(g => {
       const mode = (g.mode||'501').toLowerCase();
       const mCls = modeClass[mode] || 'st-mode-501';
@@ -3267,19 +3414,18 @@ function renderStats(){
       const players = (g.players||[]).map(p=>p.toString().replace(/[<>]/g,'')).join(' <span style="color:#2a2a40">vs</span> ');
       const winner = (g.winner||'').toString().replace(/[<>]/g,'');
       const date = (g.date||'').toString().replace(/[<>]/g,'');
-      const isP0win = g.winner === (g.players&&g.players[0]);
+      const isMyWin = g.winner === ownerNick;
       return `<div class="st-hist-row">
         <span class="st-mode-badge ${mCls}">${mLbl}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${players}</div>
           <div style="font-size:10px;color:#8888aa;font-family:monospace;margin-top:2px">${date} · R${g.rounds||'?'}</div>
         </div>
-        <span class="st-win-badge">${isP0win?'🏆':'💀'} ${winner}</span>
+        <span class="st-win-badge">${isMyWin?'🏆':'💀'} ${winner}</span>
       </div>`;
     }).join('');
   }
 
-  // Wykres
   stDrawChart(games);
 }
 
@@ -3288,17 +3434,13 @@ function stDrawChart(games) {
   const empty = document.getElementById('st-chart-empty');
   if (!canvas) return;
 
-  // Zbierz dane: per-game avg (tylko gry z rounds_data, lub ostatnie 10 z globalnych rounds)
   const points = games
     .filter(g => g.rounds_data && g.rounds_data.length)
     .slice(0,10)
     .map(g => +(g.rounds_data.reduce((a,b)=>a+b,0)/g.rounds_data.length).toFixed(1))
     .reverse();
 
-  // Fallback: jeśli brak per-game data, pokaż ostatnie 10 rund globalnych
-  const fallback = _stFilter==='all' && (G.stats.t.rounds||[]).length >= 2
-    ? G.stats.t.rounds.slice(-10)
-    : [];
+  const fallback = [];
 
   const data = points.length >= 2 ? points : fallback;
 
@@ -3379,8 +3521,15 @@ function stDrawChart(games) {
 }
 
 function clearStats(){
-  if(!confirm('Wyczyścić wszystkie statystyki?'))return;
-  G.stats={games:[],t:{games:0,rounds:[],best:0,e180:0,wins:{},coAttempts:0,coSuccess:0,highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0}};
+  const nick = getLocalOwnerNick();
+  if (nick) {
+    if(!confirm('Wyczyścić Twoje statystyki ("'+nick+'")?')) return;
+    delete G.stats.players[nick];
+    G.stats.games = G.stats.games.filter(g => !(g.players||[]).includes(nick));
+  } else {
+    if(!confirm('Wyczyścić wszystkie statystyki?')) return;
+    G.stats = _emptyStatsStore();
+  }
   _stFilter='all';
   document.querySelectorAll('.st-filter-btn').forEach((b,i)=>b.classList.toggle('st-filter-active',i===0));
   saveStats(); renderStats(); toast('Wyczyszczono');
@@ -3956,6 +4105,9 @@ let gameActive = false;
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded',()=>{
   loadCustomSounds();  // Załaduj niestandardowe dźwięki
+  // Pre-fill Player 0 with the local owner nick if available
+  const ownerNick = getLocalOwnerNick();
+  if (ownerNick) G.players[0] = ownerNick;
   renderPlayers();
   renderEx('all');
   document.getElementById('x01-opts').style.display='block';
