@@ -4860,6 +4860,16 @@ function onFbAuthChange(user) {
     const nick = user.displayName || user.email.split('@')[0];
     document.getElementById('ol-username-display').textContent = nick.toUpperCase();
     document.getElementById('ol-avatar').textContent = nick[0].toUpperCase();
+    // Upewnij się że nick jest w Firestore (naprawia stare konta bez nicku)
+    try {
+      const fb2 = getFb();
+      if (fb2) {
+        const uRef = fb2.doc(fb2.db,'users',user.uid);
+        fb2.getDoc(uRef).then(s => {
+          if (s.exists() && !s.data().nick) fb2.updateDoc(uRef, { nick });
+        }).catch(()=>{});
+      }
+    } catch(e) {}
     olLoadUserStats(user.uid);
     // Sprawdź czy użytkownik ma niedokończoną sesję
     const lastRoom = localStorage.getItem('ol_last_room');
@@ -6027,6 +6037,7 @@ async function olRecordWin(winnerIdx) {
       : f9Avg.toFixed(2);
 
     const update = {
+      nick:           user.displayName || user.email.split('@')[0] || 'Gracz',
       wins:           (d.wins||0)           + (isWinner ? 1 : 0),
       losses:         (d.losses||0)         + (isWinner ? 0 : 1),
       games:          prevGames             + 1,
