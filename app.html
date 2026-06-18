@@ -596,6 +596,90 @@ input{outline:none}
   border: none; border-radius: 7px; color: #fff;
   font-size: 15px; padding: 0 11px; cursor: pointer;
 }
+
+/* ROOM CHAT (tylko podczas gry online) */
+#rchat-fab {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 14px);
+  right: 14px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00cc66, #006633);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,204,102,0.45);
+  transition: transform 0.15s;
+}
+#rchat-fab:active { transform: scale(0.9); }
+#rchat-badge {
+  position: absolute;
+  top: -2px; right: -2px;
+  background: #ffdd00;
+  color: #000;
+  font-size: 9px;
+  font-weight: 900;
+  border-radius: 50%;
+  width: 17px; height: 17px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  pointer-events: none;
+}
+#rchat-panel {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 70px);
+  right: 14px;
+  width: min(310px, calc(100vw - 28px));
+  height: 340px;
+  background: #13131f;
+  border: 1px solid #006633;
+  border-radius: 14px;
+  display: none;
+  flex-direction: column;
+  z-index: 1099;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+#rchat-panel.open { display: flex; }
+#rchat-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #006633;
+  background: #0a1a10;
+  flex-shrink: 0;
+}
+#rchat-head-title { flex:1; font-family:'Bebas Neue',cursive; font-size:15px; letter-spacing:1px; color:#00ff88; }
+#rchat-close-btn { background:none; border:none; color:#8888aa; font-size:18px; cursor:pointer; line-height:1; padding:0 2px; }
+#rchat-msgs {
+  flex: 1; overflow-y: auto; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 5px;
+  font-family: monospace; font-size: 11px;
+}
+#rchat-msgs::-webkit-scrollbar { width: 3px; }
+#rchat-msgs::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 2px; }
+#rchat-input-row {
+  display: flex; gap: 6px; padding: 7px 9px;
+  border-top: 1px solid #006633; background: #0a1a10;
+  flex-shrink: 0;
+}
+#rchat-input {
+  flex: 1; background: #0d1a14; border: 1px solid #006633;
+  border-radius: 7px; color: #e0e0ff; font-family: monospace;
+  font-size: 12px; padding: 6px 9px; outline: none;
+}
+#rchat-input:focus { border-color: #00ff88; }
+#rchat-send-btn {
+  background: linear-gradient(135deg,#00cc66,#006633);
+  border: none; border-radius: 7px; color: #fff;
+  font-size: 15px; padding: 0 11px; cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -5760,12 +5844,19 @@ function showOnlineGameBar() {
     const opponentName = G.players.find((_, i) => i !== OL.myIndex) || 'Rywal';
     wrcShowButton(OL.currentRoomId, opponentName);
   }
+  // Pokaż czat pokoju, ukryj globalny
+  if (typeof rchatSetVisible === 'function') rchatSetVisible(true);
+  chatSetVisible(false);
 }
 function hideOnlineGameBar() {
   const bar = document.getElementById('ol-game-bar');
   if (bar) bar.style.display = 'none';
   // WRC: ukryj okienko kamery
   wrcHideAll();
+  // Ukryj czat pokoju, przywróć globalny (jeśli zalogowany)
+  if (typeof rchatSetVisible === 'function') rchatSetVisible(false);
+  const fbUser = getFbUser();
+  if (fbUser) chatSetVisible(true);
 }
 
 // ===== TURN TIMER =====
@@ -6649,6 +6740,23 @@ function showMessage(element, text, type) {
   </div>
 </div>
 
+<!-- CZAT POKOJU (tylko podczas gry online) -->
+<button id="rchat-fab" onclick="rchatToggle()" title="Czat z rywalem">
+  🎯<span id="rchat-badge"></span>
+</button>
+<div id="rchat-panel">
+  <div id="rchat-head">
+    <span id="rchat-head-title">🎯 CZAT POKOJU</span>
+    <button id="rchat-close-btn" onclick="rchatToggle()">✕</button>
+  </div>
+  <div id="rchat-msgs"></div>
+  <div id="rchat-input-row">
+    <input id="rchat-input" type="text" placeholder="Napisz do rywala..." maxlength="200"
+      onkeydown="if(event.key==='Enter')rchatSend()">
+    <button id="rchat-send-btn" onclick="rchatSend()">➤</button>
+  </div>
+</div>
+
 <script>
 // ===== CHAT =====
 var _chatUnsub = null;
@@ -6773,6 +6881,130 @@ async function chatSend() {
       ts: fb.serverTimestamp()
     });
   } catch(e) { console.log('chat send err', e.code); }
+}
+</script>
+
+<script>
+// ===== CZAT POKOJU (prywatny, tylko gracze w pokoju) =====
+var _rchatUnsub = null;
+var _rchatOpen = false;
+var _rchatUnread = 0;
+
+function rchatSetVisible(show) {
+  var fab = document.getElementById('rchat-fab');
+  if (!fab) return;
+  fab.style.display = show ? 'flex' : 'none';
+  if (!show) {
+    var panel = document.getElementById('rchat-panel');
+    if (panel) panel.classList.remove('open');
+    _rchatOpen = false;
+    if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
+    _rchatUnread = 0;
+    _rchatBadgeUpdate();
+  }
+}
+
+function rchatToggle() {
+  var panel = document.getElementById('rchat-panel');
+  if (!panel) return;
+  _rchatOpen = !_rchatOpen;
+  panel.classList.toggle('open', _rchatOpen);
+  if (_rchatOpen) {
+    _rchatUnread = 0;
+    _rchatBadgeUpdate();
+    _rchatSubscribe();
+    setTimeout(function(){ var inp = document.getElementById('rchat-input'); if(inp) inp.focus(); }, 100);
+  } else {
+    if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
+  }
+}
+
+function _rchatBadgeUpdate() {
+  var b = document.getElementById('rchat-badge');
+  if (!b) return;
+  if (_rchatUnread > 0) {
+    b.style.display = 'flex';
+    b.textContent = _rchatUnread > 9 ? '9+' : _rchatUnread;
+  } else {
+    b.style.display = 'none';
+  }
+}
+
+function _rchatScrollBottom() {
+  var el = document.getElementById('rchat-msgs');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function _rchatSubscribe() {
+  if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
+  var fb = getFb();
+  if (!fb) return;
+  var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
+  if (!rid) return;
+  var ref = fb.collection(fb.db, 'rooms', rid, 'roomChat');
+  // Ustaw tytuł z nick rywala jeśli dostępny
+  var title = document.getElementById('rchat-head-title');
+  if (title && typeof G !== 'undefined' && G.players && typeof OL !== 'undefined') {
+    var opponentName = G.players.find(function(_, i){ return i !== OL.myIndex; }) || 'Rywal';
+    title.textContent = '🎯 CZAT Z: ' + opponentName;
+  }
+  var q = fb.query(ref, fb.orderBy('ts', 'asc'), fb.limit(80));
+  _rchatUnsub = fb.onSnapshot(q, function(snap) {
+    var msgs = document.getElementById('rchat-msgs');
+    if (!msgs) return;
+    var user = getFbUser();
+    msgs.innerHTML = '';
+    snap.forEach(function(docSnap) {
+      var d = docSnap.data();
+      var isMe = user && d.uid === user.uid;
+      var isSys = d.type === 'system';
+      var div = document.createElement('div');
+      div.className = 'cmsg' + (isSys ? ' sys' : '');
+      if (!isSys) {
+        var who = document.createElement('div');
+        who.className = 'cmsg-who' + (isMe ? ' mine' : '');
+        who.textContent = isMe ? '▶ ' + (d.nick || 'Ty') : (d.nick || 'Rywal');
+        div.appendChild(who);
+      }
+      var txt = document.createElement('div');
+      txt.className = 'cmsg-text';
+      txt.textContent = d.text;
+      div.appendChild(txt);
+      if (d.ts && d.ts.toDate) {
+        var tm = document.createElement('div');
+        tm.className = 'cmsg-time';
+        tm.textContent = d.ts.toDate().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
+        div.appendChild(tm);
+      }
+      msgs.appendChild(div);
+    });
+    _rchatScrollBottom();
+    if (!_rchatOpen) {
+      _rchatUnread++;
+      _rchatBadgeUpdate();
+    }
+  }, function(err) { console.log('rchat snap err', err.code); });
+}
+
+async function rchatSend() {
+  var input = document.getElementById('rchat-input');
+  if (!input) return;
+  var text = input.value.trim();
+  if (!text) return;
+  var fb = getFb(); var user = getFbUser();
+  if (!fb || !user) return;
+  var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
+  if (!rid) return;
+  var ref = fb.collection(fb.db, 'rooms', rid, 'roomChat');
+  input.value = '';
+  try {
+    await fb.addDoc(ref, {
+      uid: user.uid,
+      nick: user.displayName || user.email.split('@')[0] || 'Gracz',
+      text: text,
+      ts: fb.serverTimestamp()
+    });
+  } catch(e) { console.log('rchat send err', e.code); }
 }
 </script>
 
