@@ -2798,7 +2798,7 @@ function trigWin(pi,lastSc){
     // Single leg or non-x01 mode — show final win
     SFX.win();
     showWin(G.players[pi],G.round,avg,G.mode.toUpperCase());
-    recGame(G.players[pi]); return;
+    if(!OL.currentRoomId) recGame(G.players[pi]); return;
   }
 
   // Multi-leg: award leg win
@@ -2808,7 +2808,7 @@ function trigWin(pi,lastSc){
     // Won the match!
     SFX.win();
     showWin(G.players[pi],G.currentLeg,avg,G.mode.toUpperCase()+' ('+G.legWins[pi]+'/'+G.legs+')');
-    recGame(G.players[pi]); return;
+    if(!OL.currentRoomId) recGame(G.players[pi]); return;
   }
 
   // Start next leg
@@ -2933,7 +2933,7 @@ function cricketHit(num){
   const won=CNUMS.every(n=>(G.cMarks[G.cp+'_'+n]||0)>=3);
   if(won){
     const mx=Math.max(...G.cScores);
-    if(G.cScores[G.cp]===mx){SFX.win();showWin(G.players[G.cp],G.round,'—','CRICKET');recGame(G.players[G.cp]);return;}
+    if(G.cScores[G.cp]===mx){SFX.win();showWin(G.players[G.cp],G.round,'—','CRICKET');if(!OL.currentRoomId)recGame(G.players[G.cp]);return;}
   }
   if(G.cDarts>=3) toast('Kliknij KONIEC TURY');
 }
@@ -2995,7 +2995,7 @@ function atcAct(hit){
   G.atcHistory.push({atcT:[...G.atcT],atcDarts:G.atcDarts,cp:G.cp,round:G.round});
   if(hit){
     G.atcT[G.cp]++;
-    if(G.atcT[G.cp]>20){showWin(G.players[G.cp],G.round,'—','AROUND THE CLOCK');recGame(G.players[G.cp]);return;}
+    if(G.atcT[G.cp]>20){showWin(G.players[G.cp],G.round,'—','AROUND THE CLOCK');if(!OL.currentRoomId)recGame(G.players[G.cp]);return;}
   }
   G.atcDarts++;
   if(G.atcDarts>=3){
