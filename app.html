@@ -2397,8 +2397,9 @@ function startGame(){
   G.players.forEach((_,pi)=>nums.forEach(n=>{G.cMarks[pi+'_'+n]=0;}));
   if(G.mode==='cricket') G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:0,cMult:1,cp:G.firstPlayerLeg||0,round:1});
   G.active=true;
-  // Reset per-game checkout counters (used by recGame)
+  // Reset per-game counters
   G._gameCoAttempts=0; G._gameCoSuccess=0; G._gameHighestCheckout=0;
+  G._allHistory=[];
   document.getElementById('game-mode-lbl').textContent=G.mode.toUpperCase();
   const isX01=G.mode==='501'||G.mode==='301';
   
@@ -2804,8 +2805,14 @@ function trigWin(pi,lastSc){
   // Multi-leg: award leg win
   G.legWins[pi]++;
   const needed=Math.ceil(G.legs/2);
+
+  // Akumuluj historię rund przez wszystkie legi (potrzebne dla statystyk)
+  if(!G._allHistory) G._allHistory = [];
+  G._allHistory.push(...G.history);
+
   if(G.legWins[pi]>=needed){
-    // Won the match!
+    // Won the match! — użyj pełnej historii z wszystkich legów
+    G.history = G._allHistory;
     SFX.win();
     showWin(G.players[pi],G.currentLeg,avg,G.mode.toUpperCase()+' ('+G.legWins[pi]+'/'+G.legs+')');
     if(!OL.currentRoomId) recGame(G.players[pi]); return;
@@ -3357,16 +3364,16 @@ function renderStats() {
   });
   const first9Avg = f9.length ? (f9.reduce((a, b) => a + b, 0) / f9.length).toFixed(1) : '\u2014';
 
-  // Darts per leg — liczba rund gracza w grze
-  let tLegs = 0, tDarts = 0;
+  // Darts per leg — liczba rund gracza × 3 podzielona przez liczbę gier
+  let tGames = 0, tDarts = 0;
   games.forEach(g => {
-    if (g.rounds > 0) {
-      tLegs += g.rounds;
-      const playerRounds = _stPlayer ? getPlayerRounds(g, _stPlayer) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
-      tDarts += playerRounds.length > 0 ? playerRounds.length : g.rounds;
+    const playerRounds = _stPlayer ? getPlayerRounds(g, _stPlayer) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
+    if (playerRounds.length > 0) {
+      tGames++;
+      tDarts += playerRounds.length * 3; // każda runda = 3 lotki
     }
   });
-  const dartsPerLeg = tLegs > 0 ? (tDarts / tLegs).toFixed(1) : '\u2014';
+  const dartsPerLeg = tGames > 0 ? (tDarts / tGames).toFixed(1) : '—';
 
   // Streak
   let streak = 0;
