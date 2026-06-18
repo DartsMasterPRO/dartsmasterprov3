@@ -1130,7 +1130,7 @@ input{outline:none}
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
     <div class="stat-card"><div class="stat-val" id="st-180">0</div><div class="stat-lbl">180s</div></div>
     <div class="stat-card"><div class="stat-val" id="st-co">0%</div><div class="stat-lbl">Checkout %</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-highco">0</div><div class="stat-lbl">Highest CO</div></div>
+    <div class="stat-card"><div class="stat-val" id="st-best">0</div><div class="stat-lbl">Highest CO</div></div>
   </div>
   
   <!-- Dodatkowe metryki PDC -->
@@ -1145,12 +1145,6 @@ input{outline:none}
     <div class="stat-card"><div class="stat-val" id="st-100plus">0</div><div class="stat-lbl">100+</div></div>
     <div class="stat-card"><div class="stat-val" id="st-140plus">0</div><div class="stat-lbl">140+</div></div>
     <div class="stat-card"><div class="stat-val" id="st-180plus">0</div><div class="stat-lbl">180</div></div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
-    <div class="stat-card"><div class="stat-val" id="st-dbl">—</div><div class="stat-lbl">Double %</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-darts">0</div><div class="stat-lbl">Darts Thrown</div></div>
-    <div class="stat-card"><div class="stat-val" id="st-best">0</div><div class="stat-lbl">Best Round</div></div>
   </div>
 
   <!-- Mini wykres średniej -->
@@ -2004,21 +1998,8 @@ let G = {
 
 // ─── Per-player stats helpers ─────────────────────────────────────────────────
 function _emptyPlayerStats(){
-  return {
-    games: 0, wins: 0,
-    // Surowe sumy do prawidłowego wyliczania average (jak My Dart Training)
-    totalPoints: 0,    // suma wszystkich zdobytych punktów (bez bustów)
-    totalDarts: 0,     // suma wszystkich rzuconych lotek
-    // High scores
-    best: 0,           // najlepszy wynik w jednej rundzie
-    e180: 0,           // liczba 180
-    highest100: 0, highest140: 0, highest180: 0,
-    // Checkout
-    coAttempts: 0, coSuccess: 0,
-    highestCheckout: 0,
-    // Double
-    doubleAttempts: 0, doubleHits: 0,
-  };
+  return {games:0,wins:0,rounds:[],best:0,e180:0,coAttempts:0,coSuccess:0,
+    highest100:0,highest140:0,highest180:0,first9Scores:[],dartsPerLeg:[],highestCheckout:0};
 }
 function _emptyStatsStore(){
   // games[] — shared history of all offline games
@@ -2416,9 +2397,8 @@ function startGame(){
   G.players.forEach((_,pi)=>nums.forEach(n=>{G.cMarks[pi+'_'+n]=0;}));
   if(G.mode==='cricket') G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:0,cMult:1,cp:G.firstPlayerLeg||0,round:1});
   G.active=true;
-  // Reset per-game counters
+  // Reset per-game checkout counters (used by recGame)
   G._gameCoAttempts=0; G._gameCoSuccess=0; G._gameHighestCheckout=0;
-  G._allHistory=[]; G._gameDoubleAttempts=[]; G._gameDoubleHits=[];
   document.getElementById('game-mode-lbl').textContent=G.mode.toUpperCase();
   const isX01=G.mode==='501'||G.mode==='301';
   
@@ -2637,13 +2617,7 @@ function refreshThrows(){
   renderScoreboard();
 }
 
-function pushH(p,sc,bust,openedDI=false){
-  // Policz ile lotek faktycznie użyto w tej turze
-  const dartsUsed = G.countingMode === 'summary'
-    ? 3  // tryb sumaryczny: zawsze zakładamy 3 lotki
-    : G.throws.filter(t=>t!==null).length || 3;
-  G.history.push({p, round:G.round, sc, bust, openedDI, dartsUsed});
-}
+function pushH(p,sc,bust,openedDI=false){G.history.push({p,round:G.round,sc,bust,openedDI});}
 
 function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
   G.scores=newScores; G.diDone=newDI;
@@ -2785,26 +2759,12 @@ function confirmThrow(){
   const rem=G.scores[pi]-sum;
   // Track checkout attempt (score ≤170 = reachable finish)
   if(G.scores[pi]<=170){G._gameCoAttempts=(G._gameCoAttempts||0)+1;}
-  // Track double attempts: last dart aimed at a double segment
-  {
-    const lastIdx=G.throws.map((v,i)=>v!==null?i:-1).filter(i=>i!==-1).pop();
-    if(lastIdx !== undefined){
-      const lastMult=G.throwMults[lastIdx]; const lastVal=G.throws[lastIdx];
-      const isDoubleAttempt = (lastMult===2) || (lastVal===50); // double or bull
-      if(isDoubleAttempt){
-        if(!G._gameDoubleAttempts) G._gameDoubleAttempts=[];
-        G._gameDoubleAttempts[pi]=(G._gameDoubleAttempts[pi]||0)+1;
-      }
-    }
-  }
   if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE! Runda nie liczy się');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
   if(rem===0){
     const lastIdx=G.throws.map((v,i)=>v!==null?i:-1).filter(i=>i!==-1).pop();
     const lastMult=G.throwMults[lastIdx]; const lastVal=G.throws[lastIdx];
     if(G.dOut&&!(lastMult===2||lastVal===50)){toast('Musisz zakończyć na double!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
     G._gameCoSuccess=(G._gameCoSuccess||0)+1;
-    if(!G._gameDoubleHits) G._gameDoubleHits=[];
-    if(lastMult===2||lastVal===50) G._gameDoubleHits[pi]=(G._gameDoubleHits[pi]||0)+1;
     const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sum,false);trigWin(pi,sum);return;
   }
   const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sum,false);
@@ -3242,58 +3202,47 @@ function confetti(){
 
 // ===== STATS =====
 function recGame(winner){
-  if(OL && OL.currentRoomId) return; // W trybie online statystyki zapisuje Firebase
+  // Zawsze zapisuj statystyki lokalnie (offline i online)
+  // W trybie online olRecordWin dodatkowo synchronizuje z Firebase
 
-  // Zbuduj per-player dane z historii (p = indeks gracza)
-  const dataByPlayer = {};
+  // Build per-player round scores from history (p = player index)
+  const roundsByPlayer = {};
   G.players.forEach((nick, idx) => {
-    const myTurns   = G.history.filter(r => r.p === idx);
-    const validTurns = myTurns.filter(r => !r.bust);
-    dataByPlayer[nick] = {
-      totalPoints: validTurns.reduce((s, r) => s + r.sc, 0),
-      totalDarts:  myTurns.reduce((s, r) => s + (r.dartsUsed || 3), 0),
-      scores:      validTurns.map(r => r.sc),
-    };
+    roundsByPlayer[nick] = G.history
+      .filter(r => r.p === idx && !r.bust)
+      .map(r => r.sc);
   });
 
-  // Zapis gry do historii (rounds_data per gracz dla wykresu)
-  const rounds_data = {};
-  G.players.forEach(nick => { rounds_data[nick] = dataByPlayer[nick].scores; });
-  const hasData = G.players.some(n => dataByPlayer[n].scores.length > 0);
+  // rounds_data stores per-player arrays (keyed by nick)
+  const hasRounds = G.players.some(n => roundsByPlayer[n].length > 0);
 
-  G.stats.games.unshift({
+  // Add game to shared history
+  const gameEntry = {
     date: new Date().toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}),
     mode: G.mode.toUpperCase(),
     winner,
     rounds: G.round,
     players: [...G.players],
-    rounds_data: hasData ? rounds_data : undefined
-  });
+    rounds_data: hasRounds ? roundsByPlayer : undefined
+  };
+  G.stats.games.unshift(gameEntry);
   if(G.stats.games.length > 200) G.stats.games = G.stats.games.slice(0, 200);
 
-  // Aktualizuj profil każdego gracza — sumując surowe wartości
+  // Update per-player stats for each participant
   G.players.forEach((nick, idx) => {
     const ps = getPlayerStats(nick);
-    const d  = dataByPlayer[nick];
     ps.games++;
     if(nick === winner) ps.wins++;
 
-    // Surowe sumy (do prawidłowego average jak My Dart Training)
-    ps.totalPoints = (ps.totalPoints||0) + d.totalPoints;
-    ps.totalDarts  = (ps.totalDarts||0)  + d.totalDarts;
-
-    // High scores
-    d.scores.forEach(r => {
+    const myRounds = roundsByPlayer[nick] || [];
+    myRounds.forEach(r => {
+      ps.rounds.push(r);
       if(r > ps.best) ps.best = r;
+      // NOTE: e180 is already incremented in advancePlayer — do NOT count again here
       if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
       if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
       if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
-      // e180 zliczane live w advancePlayer — nie dublujemy
     });
-
-    // Double attempts/hits
-    ps.doubleAttempts = (ps.doubleAttempts||0) + (G._gameDoubleAttempts[idx]||0);
-    ps.doubleHits     = (ps.doubleHits||0)     + (G._gameDoubleHits[idx]||0);
   });
 
   // Checkout stats → tylko zwycięzca
@@ -3306,9 +3255,7 @@ function recGame(winner){
       ps.highestCheckout = G._gameHighestCheckout;
     }
   }
-
   G._gameCoAttempts = 0; G._gameCoSuccess = 0; G._gameHighestCheckout = 0;
-  G._gameDoubleAttempts = []; G._gameDoubleHits = [];
 
   saveStats();
 }
@@ -3352,67 +3299,48 @@ function stSelectPlayer(nick) {
 }
 
 function renderStats() {
+  // Jeśli user zalogowany — pobierz statystyki z Firebase
+  try {
+    const fbUser = getFbUser && getFbUser();
+    if (fbUser) {
+      _renderStatsFromFirebase(fbUser.uid);
+      return;
+    }
+  } catch(e) {}
+  // Offline — statystyki lokalne
+  _renderStatsLocal();
+}
+
+async function _renderStatsFromFirebase(uid) {
+  renderPlayerBar(); // ukryj/pokaż player bar
+  const fb = getFb();
+  if (!fb) { _renderStatsLocal(); return; }
+  try {
+    const snap = await fb.getDoc(fb.doc(fb.db, 'users', uid));
+    const ps = snap.exists() ? snap.data() : {};
+    _renderStatsFromProfile(ps);
+  } catch(e) {
+    console.log('Firebase stats load error:', e);
+    _renderStatsLocal();
+  }
+}
+
+function _renderStatsLocal() {
   renderPlayerBar();
   const allGames = G.stats.games || [];
-
-  // Filtruj po wybranym graczu
   const playerGames = _stPlayer
     ? allGames.filter(g => (g.players || []).includes(_stPlayer))
     : allGames;
-
-  // Filtruj po trybie gry
   const games = _stFilter === 'all'
     ? playerGames
     : playerGames.filter(g => (g.mode || '').toLowerCase() === _stFilter);
 
-  // Wygrane
+  const ps = (_stPlayer && G.stats.players[_stPlayer]) || {};
+
   const totalWins = _stPlayer
     ? games.filter(g => g.winner === _stPlayer).length
     : games.reduce((s, g) => s + (g.winner === (g.players && g.players[0]) ? 1 : 0), 0);
   const totalGames = games.length;
-  const wr = totalGames > 0 ? Math.round(totalWins / totalGames * 100) + '%' : '\u2014';
-
-  // Profil gracza — surowe sumy
-  const ps = (_stPlayer && G.stats.players[_stPlayer]) || {};
-
-  // 3-dart average = (totalPoints / totalDarts) * 3  — metoda MDT, nie srednia srednich
-  const avgVal = (ps.totalDarts > 0)
-    ? ((ps.totalPoints / ps.totalDarts) * 3).toFixed(2)
-    : '\u2014';
-
-  // High scores
-  const bestScore      = ps.best || 0;
-  const count100plus   = ps.highest100 || 0;
-  const count140plus   = ps.highest140 || 0;
-  const total180s      = ps.e180 || 0;
-
-  // Checkout %
-  const coA = ps.coAttempts || 0, coS = ps.coSuccess || 0;
-  const coPct = coA > 0 ? Math.round(coS / coA * 100) + '%' : '0%';
-
-  // Double %
-  const dblA = ps.doubleAttempts || 0, dblH = ps.doubleHits || 0;
-  const dblPct = dblA > 0 ? Math.round(dblH / dblA * 100) + '%' : '\u2014';
-
-  // Darts per leg (average darts to finish one game)
-  const dartsPerLeg = (ps.games > 0 && ps.totalDarts > 0)
-    ? (ps.totalDarts / ps.games).toFixed(1)
-    : '\u2014';
-
-  // First 9 average — pierwsze 3 rundy każdej gry (= pierwsze 9 lotek)
-  let f9Points = 0, f9Darts = 0;
-  games.forEach(g => {
-    if (!g.rounds_data) return;
-    const myRounds = (typeof g.rounds_data === 'object' && !Array.isArray(g.rounds_data))
-      ? (g.rounds_data[_stPlayer] || [])
-      : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
-    const first3 = myRounds.slice(0, 3);
-    f9Points += first3.reduce((a, b) => a + b, 0);
-    f9Darts  += first3.length * 3;
-  });
-  const first9Avg = f9Darts > 0
-    ? ((f9Points / f9Darts) * 3).toFixed(2)
-    : '\u2014';
 
   // Streak
   let streak = 0;
@@ -3421,70 +3349,104 @@ function renderStats() {
     else break;
   }
 
-  document.getElementById('st-games').textContent = totalGames;
-  document.getElementById('st-wins').textContent = totalWins;
-  document.getElementById('st-wr').textContent = wr;
-  document.getElementById('st-avg').textContent = avgVal;
-  document.getElementById('st-best').textContent = bestScore;
-  const highcoEl = document.getElementById('st-highco');
-  if (highcoEl) highcoEl.textContent = ps.highestCheckout || 0;
-  document.getElementById('st-180').textContent = total180s;
-  document.getElementById('st-co').textContent = coPct;
-  document.getElementById('st-streak').textContent = streak;
-  document.getElementById('st-first9').textContent = first9Avg;
-  document.getElementById('st-dpl').textContent = dartsPerLeg;
-  document.getElementById('st-100plus').textContent = count100plus;
-  document.getElementById('st-140plus').textContent = count140plus;
-  document.getElementById('st-180plus').textContent = total180s;
+  // First 9 avg
+  let f9Points = 0, f9Darts = 0;
+  games.forEach(g => {
+    if (!g.rounds_data) return;
+    const myRounds = (typeof g.rounds_data === 'object' && !Array.isArray(g.rounds_data))
+      ? (g.rounds_data[_stPlayer] || []) : (Array.isArray(g.rounds_data) ? g.rounds_data : []);
+    const first3 = myRounds.slice(0, 3);
+    f9Points += first3.reduce((a, b) => a + b, 0);
+    f9Darts  += first3.length * 3;
+  });
 
-  // Double % — pokaż jeśli element istnieje
+  const mergedPs = {
+    ...ps,
+    games: totalGames,
+    wins: totalWins,
+    streak,
+    first9Avg: f9Darts > 0 ? ((f9Points / f9Darts) * 3).toFixed(2) : '—',
+  };
+  _renderStatsFromProfile(mergedPs, games);
+}
+
+// _renderStatsFromProfile: renderuje statystyki z profilu (lokalnego lub Firebase)
+// ps = obiekt profilu (local G.stats.players[nick] lub Firestore user doc)
+// games = opcjonalne (lokalna historia gier do wykresu/historii)
+function _renderStatsFromProfile(ps, games) {
+  const avgVal = (ps.totalDarts > 0)
+    ? ((ps.totalPoints / ps.totalDarts) * 3).toFixed(2) : '—';
+  const wr = (ps.games > 0)
+    ? Math.round((ps.wins||0) / ps.games * 100) + '%' : '—';
+  const coA = ps.coAttempts||0, coS = ps.coSuccess||0;
+  const coPct = coA > 0 ? Math.round(coS/coA*100)+'%' : '0%';
+  const dblA = ps.doubleAttempts||0, dblH = ps.doubleHits||0;
+  const dblPct = dblA > 0 ? Math.round(dblH/dblA*100)+'%' : '—';
+  const dartsPerLeg = (ps.games > 0 && ps.totalDarts > 0)
+    ? (ps.totalDarts / ps.games).toFixed(1) : '—';
+  const first9Avg = ps.first9Avg || '—';
+
+  document.getElementById('st-games').textContent    = ps.games || 0;
+  document.getElementById('st-wins').textContent     = ps.wins  || 0;
+  document.getElementById('st-wr').textContent       = wr;
+  document.getElementById('st-avg').textContent      = avgVal;
+  document.getElementById('st-best').textContent     = ps.best  || 0;
+  document.getElementById('st-180').textContent      = ps.e180  || 0;
+  document.getElementById('st-co').textContent       = coPct;
+  document.getElementById('st-streak').textContent   = ps.streak || 0;
+  document.getElementById('st-first9').textContent   = first9Avg;
+  document.getElementById('st-dpl').textContent      = dartsPerLeg;
+  document.getElementById('st-100plus').textContent  = ps.highest100 || 0;
+  document.getElementById('st-140plus').textContent  = ps.highest140 || 0;
+  document.getElementById('st-180plus').textContent  = ps.e180 || 0;
   const dblEl = document.getElementById('st-dbl');
   if (dblEl) dblEl.textContent = dblPct;
-
-  // Total darts thrown
   const dartsThrownEl = document.getElementById('st-darts');
   if (dartsThrownEl) dartsThrownEl.textContent = ps.totalDarts || 0;
+  const highcoEl = document.getElementById('st-highco');
+  if (highcoEl) highcoEl.textContent = ps.highestCheckout || 0;
 
   // Przycisk czyszczenia
   const clrBtn = document.getElementById('st-clear-btn');
   if (clrBtn) clrBtn.textContent = _stPlayer
-    ? '\ud83d\uddd1 WYCZY\u015a\u0106 STATYSTYKI: ' + _stPlayer
-    : '\ud83d\uddd1 WYCZY\u015a\u0106 WSZYSTKIE STATYSTYKI';
+    ? '🗑 WYCZYŚĆ STATYSTYKI: ' + _stPlayer
+    : '🗑 WYCZYŚĆ WSZYSTKIE STATYSTYKI';
 
-  // Historia
+  // Historia — tylko offline (Firebase nie przechowuje historii gier)
   const hist = document.getElementById('game-hist');
   const countEl = document.getElementById('st-hist-count');
-  if (countEl) countEl.textContent = games.length ? games.length + ' gier' : '';
+  const gamesToShow = games || [];
+  if (countEl) countEl.textContent = gamesToShow.length ? gamesToShow.length + ' gier' : '';
 
-  if (!games.length) {
-    hist.innerHTML = '<div style="text-align:center;padding:24px 0;color:#8888aa;font-size:13px;font-family:monospace">Brak rozegranych gier</div>';
+  if (!gamesToShow.length) {
+    hist.innerHTML = '<div style="text-align:center;padding:24px 0;color:#8888aa;font-size:13px;font-family:monospace">Brak historii gier</div>';
   } else {
-    const modeClass = { '501': 'st-mode-501', '301': 'st-mode-301', 'cricket': 'st-mode-cricket', 'atc': 'st-mode-atc' };
-    hist.innerHTML = games.map(g => {
-      const mode = (g.mode || '501').toLowerCase();
-      const mCls = modeClass[mode] || 'st-mode-501';
-      const myRounds = (g.rounds_data && _stPlayer && typeof g.rounds_data === 'object' && !Array.isArray(g.rounds_data))
-        ? (g.rounds_data[_stPlayer] || []) : [];
-      const gameAvg = (myRounds.length > 0)
-        ? ((myRounds.reduce((a,b)=>a+b,0) / (myRounds.length * 3)) * 3).toFixed(1)
-        : null;
-      const players = (g.players || []).map(p => p.toString().replace(/[<>]/g, '')).join(' <span style="color:#2a2a40">vs</span> ');
-      const winner = (g.winner || '').toString().replace(/[<>]/g, '');
-      const date = (g.date || '').toString().replace(/[<>]/g, '');
-      const isMyWin = _stPlayer ? g.winner === _stPlayer : g.winner === (g.players && g.players[0]);
+    const modeClass = {'501':'st-mode-501','301':'st-mode-301','cricket':'st-mode-cricket','atc':'st-mode-atc'};
+    hist.innerHTML = gamesToShow.map(g => {
+      const mode = (g.mode||'501').toLowerCase();
+      const mCls = modeClass[mode]||'st-mode-501';
+      const myRounds = (g.rounds_data && _stPlayer && typeof g.rounds_data==='object' && !Array.isArray(g.rounds_data))
+        ? (g.rounds_data[_stPlayer]||[]) : [];
+      const gameAvg = myRounds.length > 0
+        ? ((myRounds.reduce((a,b)=>a+b,0)/(myRounds.length*3))*3).toFixed(1) : null;
+      const players = (g.players||[]).map(p=>p.toString().replace(/[<>]/g,'')).join(' <span style="color:#2a2a40">vs</span> ');
+      const winner = (g.winner||'').toString().replace(/[<>]/g,'');
+      const date = (g.date||'').toString().replace(/[<>]/g,'');
+      const isMyWin = _stPlayer ? g.winner===_stPlayer : g.winner===(g.players&&g.players[0]);
       return `<div class="st-hist-row">
         <span class="st-mode-badge ${mCls}">${mode.toUpperCase()}</span>
         <div style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${players}</div>
-          <div style="font-size:10px;color:#8888aa;font-family:monospace;margin-top:2px">${date} \u00b7 R${g.rounds || '?'}${gameAvg ? ' \u00b7 avg ' + gameAvg : ''}</div>
+          <div style="font-size:10px;color:#8888aa;font-family:monospace;margin-top:2px">${date} · R${g.rounds||'?'}${gameAvg?' · avg '+gameAvg:''}</div>
         </div>
-        <span class="st-win-badge">${isMyWin ? '\ud83c\udfc6' : '\ud83d\udc80'} ${winner}</span>
+        <span class="st-win-badge">${isMyWin?'🏆':'💀'} ${winner}</span>
       </div>`;
     }).join('');
   }
 
-  stDrawChart(games);
+  stDrawChart(gamesToShow);
 }
+
 function stDrawChart(games) {
   const canvas = document.getElementById('st-chart');
   const empty  = document.getElementById('st-chart-empty');
@@ -4900,9 +4862,15 @@ async function olLoadUserStats(uid) {
     const snap = await fb.getDoc(fb.doc(fb.db, 'users', uid));
     if (snap.exists()) {
       const d = snap.data();
+      const avg = (d.totalDarts > 0)
+        ? ((d.totalPoints / d.totalDarts) * 3).toFixed(2)
+        : '—';
+      const coA = d.coAttempts||0, coS = d.coSuccess||0;
+      const coPct = coA > 0 ? Math.round(coS/coA*100)+'%' : '—';
+      const wr = d.games > 0 ? Math.round((d.wins||0)/d.games*100)+'%' : '—';
       const streakTxt = (d.streak||0) >= 2 ? ` | 🔥${d.streak}` : '';
       document.getElementById('ol-stats-display').textContent =
-        `W: ${d.wins||0} | P: ${d.losses||0} | Gry: ${d.games||0}${streakTxt}`;
+        `W:${d.wins||0} P:${d.losses||0} WR:${wr} | Avg:${avg} CO:${coPct}${streakTxt}`;
     }
   } catch(e) { console.log('Stats load error:', e); }
 }
@@ -5981,7 +5949,6 @@ async function olSyncWinner(winnerIdx) {
 async function olRecordWin(winnerIdx) {
   const fb = getFb(); const user = getFbUser();
   if (!fb || !user) return;
-  // Każdy gracz zapisuje TYLKO swój własny dokument (Firestore rules: tylko owner może pisać)
   try {
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
     const snap = await fb.getDoc(roomRef);
@@ -5989,33 +5956,68 @@ async function olRecordWin(winnerIdx) {
     const r = snap.data();
     const playerUids = r.gameState?.playerUids || [];
     const myIdx = playerUids.indexOf(user.uid);
-    if (myIdx === -1) return; // nie jesteśmy w tej grze
+    if (myIdx === -1) return;
+
+    const isWinner = myIdx === winnerIdx;
+
+    // Zbierz moje rundy z G.history (myIdx = mój indeks gracza)
+    const myTurns    = G.history.filter(h => h.p === myIdx);
+    const validTurns = myTurns.filter(h => !h.bust);
+    const myPoints   = validTurns.reduce((s, h) => s + h.sc, 0);
+    const myDarts    = myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
+    const myBest     = validTurns.reduce((best, h) => Math.max(best, h.sc), 0);
+    const my100plus  = validTurns.filter(h => h.sc >= 100).length;
+    const my140plus  = validTurns.filter(h => h.sc >= 140).length;
+    const my180s     = validTurns.filter(h => h.sc >= 180).length;
+
+    // Checkout stats (tylko zwycięzca ma coSuccess)
+    const myCoA = isWinner ? (G._gameCoAttempts || 0) : 0;
+    const myCoS = isWinner ? (G._gameCoSuccess  || 0) : 0;
+    const myHighCo = isWinner ? (G._gameHighestCheckout || 0) : 0;
+
+    // Double stats
+    const myDblA = (G._gameDoubleAttempts && G._gameDoubleAttempts[myIdx]) || 0;
+    const myDblH = (G._gameDoubleHits     && G._gameDoubleHits[myIdx])     || 0;
 
     const userRef = fb.doc(fb.db,'users',user.uid);
     const uSnap = await fb.getDoc(userRef);
-    const d = uSnap.exists() ? uSnap.data() : { wins:0, losses:0, games:0, streak:0, bestStreak:0 };
-    const isWinner = myIdx === winnerIdx;
-    const newStreak = isWinner ? (d.streak||0) + 1 : 0;
-    const newBest   = Math.max(d.bestStreak||0, newStreak);
-    try {
-      if (!uSnap.exists()) {
-        await fb.setDoc(userRef, {
-          wins: isWinner ? 1 : 0, losses: isWinner ? 0 : 1, games: 1,
-          streak: newStreak, bestStreak: newBest
-        });
-      } else {
-        await fb.updateDoc(userRef, {
-          wins:   (d.wins||0)   + (isWinner ? 1 : 0),
-          losses: (d.losses||0) + (isWinner ? 0 : 1),
-          games:  (d.games||0)  + 1,
-          streak: newStreak,
-          bestStreak: newBest
-        });
-      }
-      olLoadUserStats(user.uid);
-      if (isWinner && newStreak >= 2) toast('🔥 Seria: ' + newStreak + ' wygranych z rzędu!');
-    } catch(e) { console.log('Update player error:', e.code); }
-  } catch(e) { console.log('Record win error:', e.code); }
+    const d = uSnap.exists() ? uSnap.data() : {};
+
+    const newStreak    = isWinner ? (d.streak||0) + 1 : 0;
+    const newBestStreak = Math.max(d.bestStreak||0, newStreak);
+    const newHighCo    = Math.max(d.highestCheckout||0, myHighCo);
+    const newBest      = Math.max(d.best||0, myBest);
+
+    const update = {
+      // W/L/Games/Streak
+      wins:      (d.wins||0)   + (isWinner ? 1 : 0),
+      losses:    (d.losses||0) + (isWinner ? 0 : 1),
+      games:     (d.games||0)  + 1,
+      streak:    newStreak,
+      bestStreak: newBestStreak,
+      // MDT-style raw totals
+      totalPoints:    (d.totalPoints||0)    + myPoints,
+      totalDarts:     (d.totalDarts||0)     + myDarts,
+      coAttempts:     (d.coAttempts||0)     + myCoA,
+      coSuccess:      (d.coSuccess||0)      + myCoS,
+      doubleAttempts: (d.doubleAttempts||0) + myDblA,
+      doubleHits:     (d.doubleHits||0)     + myDblH,
+      highest100:     (d.highest100||0)     + my100plus,
+      highest140:     (d.highest140||0)     + my140plus,
+      e180:           (d.e180||0)           + my180s,
+      highestCheckout: newHighCo,
+      best:           newBest,
+    };
+
+    if (!uSnap.exists()) {
+      await fb.setDoc(userRef, { nick: user.displayName || user.email.split('@')[0], email: user.email, ...update });
+    } else {
+      await fb.updateDoc(userRef, update);
+    }
+
+    olLoadUserStats(user.uid);
+    if (isWinner && newStreak >= 2) toast('🔥 Seria: ' + newStreak + ' wygranych z rzędu!');
+  } catch(e) { console.log('Record win error:', e.code, e.message); }
 }
 
 // ---- LEADERBOARD ----
@@ -6039,6 +6041,9 @@ async function olRefreshLb() {
       const u = d.data();
       const rankCls = medals[i-1] || '';
       const wr = u.games > 0 ? Math.round((u.wins/u.games)*100) : 0;
+      const avg = (u.totalDarts > 0)
+        ? ((u.totalPoints / u.totalDarts) * 3).toFixed(2)
+        : '—';
       const streakStr = (u.streak||0) >= 2 ? ` | 🔥${u.streak}` : '';
       html += `
         <div class="lb-row">
@@ -6046,7 +6051,7 @@ async function olRefreshLb() {
           <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ff3c3c,#880000);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:16px;flex-shrink:0">${(u.nick||'?')[0].toUpperCase()}</div>
           <div style="flex:1">
             <div style="font-weight:700;font-size:13px">${u.nick||'Gracz'}</div>
-            <div style="font-size:10px;color:#8888aa;font-family:monospace">W: ${u.wins||0} | P: ${u.losses||0} | WR: ${wr}%${streakStr}</div>
+            <div style="font-size:10px;color:#8888aa;font-family:monospace">W:${u.wins||0} P:${u.losses||0} WR:${wr}% | Avg:${avg}${streakStr}</div>
           </div>
           <div class="lb-wins">${u.wins||0}</div>
         </div>`;
