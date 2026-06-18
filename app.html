@@ -506,6 +506,96 @@ input{outline:none}
   .slide-menu{width:260px;left:-260px}
   .menu-toggle{top:12px;left:12px;width:40px;height:40px}
 }
+
+/* ===== CHAT ===== */
+#chat-fab {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 14px);
+  right: 14px;
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff3c3c, #880000);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+  z-index: 1100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(255,60,60,0.45);
+  transition: transform 0.15s;
+}
+#chat-fab:active { transform: scale(0.9); }
+#chat-badge {
+  position: absolute;
+  top: -2px; right: -2px;
+  background: #ffdd00;
+  color: #000;
+  font-size: 9px;
+  font-weight: 900;
+  border-radius: 50%;
+  width: 17px; height: 17px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  pointer-events: none;
+}
+#chat-panel {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 70px);
+  right: 14px;
+  width: min(310px, calc(100vw - 28px));
+  height: 340px;
+  background: #13131f;
+  border: 1px solid #2a2a40;
+  border-radius: 14px;
+  display: none;
+  flex-direction: column;
+  z-index: 1099;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+  overflow: hidden;
+}
+#chat-panel.open { display: flex; }
+#chat-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #2a2a40;
+  background: #0d0d1a;
+  flex-shrink: 0;
+}
+#chat-head-title { flex:1; font-family:'Bebas Neue',cursive; font-size:15px; letter-spacing:1px; color:#e0e0ff; }
+#chat-close-btn { background:none; border:none; color:#8888aa; font-size:18px; cursor:pointer; line-height:1; padding:0 2px; }
+#chat-msgs {
+  flex: 1; overflow-y: auto; padding: 8px 10px;
+  display: flex; flex-direction: column; gap: 5px;
+  font-family: monospace; font-size: 11px;
+}
+#chat-msgs::-webkit-scrollbar { width: 3px; }
+#chat-msgs::-webkit-scrollbar-thumb { background: #2a2a40; border-radius: 2px; }
+.cmsg { display:flex; flex-direction:column; gap:1px; }
+.cmsg-who { font-size: 10px; font-weight: 700; color: #ff5555; }
+.cmsg-who.mine { color: #00cc66; }
+.cmsg-text { color: #cccce0; line-height: 1.35; word-break: break-word; }
+.cmsg-time { color: #44445a; font-size: 9px; }
+.cmsg.sys .cmsg-text { color: #8888aa; font-style: italic; font-size: 10px; }
+#chat-input-row {
+  display: flex; gap: 6px; padding: 7px 9px;
+  border-top: 1px solid #2a2a40; background: #0d0d1a;
+  flex-shrink: 0;
+}
+#chat-input {
+  flex: 1; background: #1a1a2e; border: 1px solid #2a2a40;
+  border-radius: 7px; color: #e0e0ff; font-family: monospace;
+  font-size: 12px; padding: 6px 9px; outline: none;
+}
+#chat-input:focus { border-color: #ff3c3c; }
+#chat-send-btn {
+  background: linear-gradient(135deg,#ff3c3c,#880000);
+  border: none; border-radius: 7px; color: #fff;
+  font-size: 15px; padding: 0 11px; cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -4893,6 +4983,7 @@ function onFbAuthChange(user) {
       }, 1500);
     }
     olRefreshRooms();
+    chatSetVisible(true);
   } else {
     // Wylogowany
     document.getElementById('ol-auth-panel').style.display = 'block';
@@ -4900,6 +4991,7 @@ function onFbAuthChange(user) {
     // schowaj wszystkie sub-panele
     document.getElementById('ol-register-panel').style.display = 'none';
     document.getElementById('ol-login-panel').style.display = 'none';
+    chatSetVisible(false);
   }
 }
 
@@ -6539,6 +6631,150 @@ function showMessage(element, text, type) {
     </div>
   </div>
 </div>
+
+<!-- CHAT -->
+<button id="chat-fab" onclick="chatToggle()" title="Czat">
+  💬<span id="chat-badge"></span>
+</button>
+<div id="chat-panel">
+  <div id="chat-head">
+    <span id="chat-head-title">💬 CZAT</span>
+    <button id="chat-close-btn" onclick="chatToggle()">✕</button>
+  </div>
+  <div id="chat-msgs"></div>
+  <div id="chat-input-row">
+    <input id="chat-input" type="text" placeholder="Napisz..." maxlength="200"
+      onkeydown="if(event.key==='Enter')chatSend()">
+    <button id="chat-send-btn" onclick="chatSend()">➤</button>
+  </div>
+</div>
+
+<script>
+// ===== CHAT =====
+var _chatUnsub = null;
+var _chatOpen = false;
+var _chatUnread = 0;
+
+function _chatCollRef() {
+  var fb = getFb();
+  if (!fb) return null;
+  var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
+  if (rid) return fb.collection(fb.db, 'rooms', rid, 'chat');
+  return fb.collection(fb.db, 'globalChat');
+}
+
+function chatSetVisible(show) {
+  var fab = document.getElementById('chat-fab');
+  if (!fab) return;
+  fab.style.display = show ? 'flex' : 'none';
+  if (!show) {
+    var panel = document.getElementById('chat-panel');
+    if (panel) panel.classList.remove('open');
+    _chatOpen = false;
+    if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+  }
+}
+
+function chatToggle() {
+  var panel = document.getElementById('chat-panel');
+  if (!panel) return;
+  _chatOpen = !_chatOpen;
+  panel.classList.toggle('open', _chatOpen);
+  if (_chatOpen) {
+    _chatUnread = 0;
+    _chatBadgeUpdate();
+    _chatSubscribe();
+    setTimeout(function(){ document.getElementById('chat-input') && document.getElementById('chat-input').focus(); }, 100);
+  } else {
+    if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+  }
+}
+
+function _chatBadgeUpdate() {
+  var b = document.getElementById('chat-badge');
+  if (!b) return;
+  if (_chatUnread > 0) {
+    b.style.display = 'flex';
+    b.textContent = _chatUnread > 9 ? '9+' : _chatUnread;
+  } else {
+    b.style.display = 'none';
+  }
+}
+
+function _chatScrollBottom() {
+  var el = document.getElementById('chat-msgs');
+  if (el) el.scrollTop = el.scrollHeight;
+}
+
+function _chatSubscribe() {
+  if (_chatUnsub) { _chatUnsub(); _chatUnsub = null; }
+  var fb = getFb();
+  if (!fb) return;
+  var ref = _chatCollRef();
+  if (!ref) return;
+  var title = document.getElementById('chat-head-title');
+  if (title) {
+    var rid = (typeof OL !== 'undefined' && OL.currentRoomId);
+    title.textContent = rid ? '💬 CZAT POKOJU' : '💬 CZAT GLOBALNY';
+  }
+  var q = fb.query(ref, fb.orderBy('ts', 'asc'), fb.limit(80));
+  _chatUnsub = fb.onSnapshot(q, function(snap) {
+    var msgs = document.getElementById('chat-msgs');
+    if (!msgs) return;
+    var user = getFbUser();
+    msgs.innerHTML = '';
+    snap.forEach(function(docSnap) {
+      var d = docSnap.data();
+      var isMe = user && d.uid === user.uid;
+      var isSys = d.type === 'system';
+      var div = document.createElement('div');
+      div.className = 'cmsg' + (isSys ? ' sys' : '');
+      if (!isSys) {
+        var who = document.createElement('div');
+        who.className = 'cmsg-who' + (isMe ? ' mine' : '');
+        who.textContent = isMe ? '▶ ' + (d.nick || 'Ty') : (d.nick || 'Gracz');
+        div.appendChild(who);
+      }
+      var txt = document.createElement('div');
+      txt.className = 'cmsg-text';
+      txt.textContent = d.text;
+      div.appendChild(txt);
+      if (d.ts && d.ts.toDate) {
+        var tm = document.createElement('div');
+        tm.className = 'cmsg-time';
+        tm.textContent = d.ts.toDate().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
+        div.appendChild(tm);
+      }
+      msgs.appendChild(div);
+    });
+    _chatScrollBottom();
+    if (!_chatOpen) {
+      _chatUnread++;
+      _chatBadgeUpdate();
+    }
+  }, function(err) { console.log('chat snap err', err.code); });
+}
+
+async function chatSend() {
+  var input = document.getElementById('chat-input');
+  if (!input) return;
+  var text = input.value.trim();
+  if (!text) return;
+  var fb = getFb(); var user = getFbUser();
+  if (!fb || !user) return;
+  var ref = _chatCollRef();
+  if (!ref) return;
+  input.value = '';
+  try {
+    await fb.addDoc(ref, {
+      uid: user.uid,
+      nick: user.displayName || user.email.split('@')[0] || 'Gracz',
+      text: text,
+      ts: fb.serverTimestamp()
+    });
+  } catch(e) { console.log('chat send err', e.code); }
+}
+</script>
 
 </body>
 </html>
