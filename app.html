@@ -3082,6 +3082,7 @@ async function closeWin(){
         if(snap.exists()) await fb.deleteDoc(roomRef);
       }catch(e){}
     }
+    olStopHostHeartbeat();
     hideOnlineGameBar();
     wrcHideAll();
     G._onlineRoomId=null;
@@ -3176,6 +3177,7 @@ async function olReturnToLobby(){
     } catch(e){ console.log('olReturnToLobby cleanup:', e); }
   }
 
+  olStopHostHeartbeat();
   hideOnlineGameBar();
   wrcHideAll();
   G._onlineRoomId=null;
@@ -4754,13 +4756,32 @@ const OL = {
   mode: '501',
   maxPlayers: 2,
   currentRoomId: null,
-  roomUnsub: null,      // unsubscribe Firestore listener
+  roomUnsub: null,
   isHost: false,
-  myIndex: -1,          // indeks gracza w pokoju
+  myIndex: -1,
   gameUnsub: null,
-  rematchUnsub: null,   // unsubscribe rematch listener
-  _lastGameStartedAt: 0,  // startedAt ostatniej gry — do wykrywania rewanżu
+  rematchUnsub: null,
+  _lastGameStartedAt: 0,
+  heartbeatInterval: null,
 };
+
+// ---- HOST HEARTBEAT ----
+// Co 60s host aktualizuje hostLastSeen. Pokoje bez sygnału >30 min są usuwane przy cleanup.
+function olStartHostHeartbeat(roomId) {
+  olStopHostHeartbeat();
+  const beat = async () => {
+    const fb = getFb(); const user = getFbUser();
+    if (!fb || !user || !roomId) return;
+    try { await fb.updateDoc(fb.doc(fb.db,'rooms',roomId), { hostLastSeen: fb.serverTimestamp() }); }
+    catch(e) {}
+  };
+  beat();
+  OL.heartbeatInterval = setInterval(beat, 60000);
+}
+
+function olStopHostHeartbeat() {
+  if (OL.heartbeatInterval) { clearInterval(OL.heartbeatInterval); OL.heartbeatInterval = null; }
+}
 
 // Pomocnicza funkcja do czekania na Firebase
 function getFb() {
@@ -4993,6 +5014,7 @@ async function olCreateRoom() {
     olMsg('ol-create-msg','✅ Pokój stworzony!','success');
     OL.isHost = true;
     OL.currentRoomId = roomRef.id;
+    olStartHostHeartbeat(roomRef.id);
     setTimeout(() => olOpenRoomModal(roomRef.id), 400);
   } catch(e) {
     olMsg('ol-create-msg','❌ '+e.message,'error');
@@ -5006,10 +5028,22 @@ async function olRefreshRooms() {
   const list = document.getElementById('ol-rooms-list');
   list.innerHTML = '<div style="text-align:center;color:#8888aa;padding:20px;font-family:monospace;font-size:12px">🔄 Ładowanie...</div>';
   try {
-    // Cleanup: usuń pokoje finished i stare (>2h)
+    // Cleanup: usuń pokoje finished/closed + pokoje gdzie host nieobecny >30 min
     const cleanQ = fb.query(fb.collection(fb.db,'rooms'), fb.where('status','in',['finished','closed']));
     const cleanSnap = await fb.getDocs(cleanQ);
     cleanSnap.forEach(async d => { try { await fb.deleteDoc(d.ref); } catch(e){} });
+
+    // Pokoje waiting/playing bez aktywnego hosta przez >30 min
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const staleQ = fb.query(fb.collection(fb.db,'rooms'), fb.where('status','in',['waiting','playing']));
+    const staleSnap = await fb.getDocs(staleQ);
+    staleSnap.forEach(async d => {
+      const data = d.data();
+      const lastSeen = data.hostLastSeen?.toDate?.() || data.createdAt?.toDate?.() || null;
+      if (lastSeen && lastSeen < thirtyMinAgo) {
+        try { await fb.deleteDoc(d.ref); } catch(e) {}
+      }
+    });
     const q = fb.query(fb.collection(fb.db,'rooms'), fb.where('status','in',['waiting','playing']), fb.orderBy('createdAt','desc'), fb.limit(20));
     const snap = await fb.getDocs(q);
     if (snap.empty) {
@@ -5109,6 +5143,7 @@ function olOpenRoomModal(roomId) {
     
     OL.currentRoomId = roomId;
     OL.isHost = r.hostUid === user.uid;
+    if (OL.isHost && !OL.heartbeatInterval) olStartHostHeartbeat(roomId);
 
     // Tytuł
     const modeIcon = {501:'🎯',301:'🎯',cricket:'🏏',atc:'🔄'}[r.mode]||'🎯';
@@ -5217,6 +5252,7 @@ async function olLeaveRoom() {
       }
     } catch(e) { console.log('Leave room error:', e); }
   }
+  olStopHostHeartbeat();
   OL.currentRoomId = null;
   OL.isHost = false;
   OL.myIndex = -1;
