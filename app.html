@@ -5981,7 +5981,6 @@ async function olSyncWinner(winnerIdx) {
 async function olRecordWin(winnerIdx) {
   const fb = getFb(); const user = getFbUser();
   if (!fb || !user) return;
-  // Każdy gracz zapisuje TYLKO swój własny dokument (Firestore rules: tylko owner może pisać)
   try {
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
     const snap = await fb.getDoc(roomRef);
@@ -5989,31 +5988,74 @@ async function olRecordWin(winnerIdx) {
     const r = snap.data();
     const playerUids = r.gameState?.playerUids || [];
     const myIdx = playerUids.indexOf(user.uid);
-    if (myIdx === -1) return; // nie jesteśmy w tej grze
+    if (myIdx === -1) return;
 
+    // Zbierz statystyki tej gry z lokalnego G
+    const myTurns    = G.history.filter(h => h.p === myIdx);
+    const validTurns = myTurns.filter(h => !h.bust);
+    const gameTotalDarts  = myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
+    const gameTotalPoints = validTurns.reduce((s, h) => s + h.sc, 0);
+    const gameScores = validTurns.map(h => h.sc);
+
+    // First 9 avg z tej gry
+    const f9 = gameScores.slice(0, 3);
+    const f9Avg = f9.length > 0 ? (f9.reduce((a,b)=>a+b,0) / (f9.length * 3)) * 3 : 0;
+
+    // High scores
+    let game180s = 0, game100s = 0, game140s = 0, gameBest = 0;
+    gameScores.forEach(sc => {
+      if (sc > gameBest) gameBest = sc;
+      if (sc >= 100) game100s++;
+      if (sc >= 140) game140s++;
+      if (sc >= 180) game180s++;
+    });
+
+    const isWinner = myIdx === winnerIdx;
     const userRef = fb.doc(fb.db,'users',user.uid);
     const uSnap = await fb.getDoc(userRef);
-    const d = uSnap.exists() ? uSnap.data() : { wins:0, losses:0, games:0, streak:0, bestStreak:0 };
-    const isWinner = myIdx === winnerIdx;
-    const newStreak = isWinner ? (d.streak||0) + 1 : 0;
-    const newBest   = Math.max(d.bestStreak||0, newStreak);
+    const d = uSnap.exists() ? uSnap.data() : {};
+
+    const prevGames     = d.games     || 0;
+    const prevStreak    = d.streak    || 0;
+    const newStreak     = isWinner ? prevStreak + 1 : 0;
+    const newBestStreak = Math.max(d.bestStreak||0, newStreak);
+
+    // First9Avg jako średnia krocząca
+    const prevF9Avg = parseFloat(d.first9Avg) || 0;
+    const newF9Avg  = prevGames > 0
+      ? ((prevF9Avg * prevGames + f9Avg) / (prevGames + 1)).toFixed(2)
+      : f9Avg.toFixed(2);
+
+    const update = {
+      wins:           (d.wins||0)           + (isWinner ? 1 : 0),
+      losses:         (d.losses||0)         + (isWinner ? 0 : 1),
+      games:          prevGames             + 1,
+      streak:         newStreak,
+      bestStreak:     newBestStreak,
+      totalDarts:     (d.totalDarts||0)     + gameTotalDarts,
+      totalPoints:    (d.totalPoints||0)    + gameTotalPoints,
+      e180:           (d.e180||0)           + game180s,
+      highest100:     (d.highest100||0)     + game100s,
+      highest140:     (d.highest140||0)     + game140s,
+      first9Avg:      newF9Avg,
+      best:           Math.max(d.best||0, gameBest),
+      doubleAttempts: (d.doubleAttempts||0) + (G._gameDoubleAttempts[myIdx]||0),
+      doubleHits:     (d.doubleHits||0)     + (G._gameDoubleHits[myIdx]||0),
+    };
+    if (isWinner) {
+      update.coAttempts      = (d.coAttempts||0)      + (G._gameCoAttempts||0);
+      update.coSuccess       = (d.coSuccess||0)       + (G._gameCoSuccess||0);
+      update.highestCheckout = Math.max(d.highestCheckout||0, G._gameHighestCheckout||0);
+    }
+
     try {
       if (!uSnap.exists()) {
-        await fb.setDoc(userRef, {
-          wins: isWinner ? 1 : 0, losses: isWinner ? 0 : 1, games: 1,
-          streak: newStreak, bestStreak: newBest
-        });
+        await fb.setDoc(userRef, update);
       } else {
-        await fb.updateDoc(userRef, {
-          wins:   (d.wins||0)   + (isWinner ? 1 : 0),
-          losses: (d.losses||0) + (isWinner ? 0 : 1),
-          games:  (d.games||0)  + 1,
-          streak: newStreak,
-          bestStreak: newBest
-        });
+        await fb.updateDoc(userRef, update);
       }
       olLoadUserStats(user.uid);
-      if (isWinner && newStreak >= 2) toast('🔥 Seria: ' + newStreak + ' wygranych z rzędu!');
+      if (isWinner && newStreak >= 2) toast('\uD83D\uDD25 Seria: ' + newStreak + ' wygranych z rzędu!');
     } catch(e) { console.log('Update player error:', e.code); }
   } catch(e) { console.log('Record win error:', e.code); }
 }
@@ -6034,14 +6076,16 @@ async function olRefreshLb() {
     const medals = ['gold','silver','bronze'];
     let html = '';
     let i = 0;
-    snap.forEach(d => {
+    snap.forEach(doc => {
       i++;
-      const u = d.data();
+      const u = doc.data();
+      const uid = doc.id;
       const rankCls = medals[i-1] || '';
       const wr = u.games > 0 ? Math.round((u.wins/u.games)*100) : 0;
       const streakStr = (u.streak||0) >= 2 ? ` | 🔥${u.streak}` : '';
+      const safeUid = uid.replace(/'/g,"\\'");
       html += `
-        <div class="lb-row">
+        <div class="lb-row" onclick="olShowPlayerStats('${safeUid}')" style="cursor:pointer;transition:background 0.15s" onmouseover="this.style.background='#1a1a2e'" onmouseout="this.style.background=''">
           <div class="lb-rank ${rankCls}">${i}</div>
           <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#ff3c3c,#880000);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:16px;flex-shrink:0">${(u.nick||'?')[0].toUpperCase()}</div>
           <div style="flex:1">
@@ -6054,6 +6098,72 @@ async function olRefreshLb() {
     list.innerHTML = html;
   } catch(e) {
     list.innerHTML = '<div style="text-align:center;color:#ff3c3c;padding:20px;font-family:monospace;font-size:12px">❌ Błąd: '+e.message+'</div>';
+  }
+}
+
+async function olShowPlayerStats(uid) {
+  const fb = getFb();
+  if (!fb) return;
+  // Pokaż modal z loadingiem
+  let modal = document.getElementById('lb-player-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'lb-player-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.onclick = e => { if(e.target===modal) modal.remove(); };
+    document.body.appendChild(modal);
+  }
+  modal.innerHTML = '<div style="background:#13131f;border:1px solid #2a2a40;border-radius:16px;padding:24px;width:100%;max-width:360px;text-align:center;color:#8888aa;font-family:monospace;font-size:13px">🔄 Ładowanie...</div>';
+
+  try {
+    const snap = await fb.getDoc(fb.doc(fb.db,'users',uid));
+    if (!snap.exists()) { modal.innerHTML=''; return; }
+    const u = snap.data();
+    const nick = u.nick || 'Gracz';
+    const wr   = (u.games||0) > 0 ? Math.round((u.wins||0)/(u.games)*100) : 0;
+    const avg  = (u.totalDarts||0) > 0 ? ((u.totalPoints||0)/(u.totalDarts)*3).toFixed(2) : '—';
+    const coA  = u.coAttempts||0, coS = u.coSuccess||0;
+    const coPct = coA > 0 ? Math.round(coS/coA*100)+'%' : '0%';
+    const dblA = u.doubleAttempts||0, dblH = u.doubleHits||0;
+    const dblPct = dblA > 0 ? Math.round(dblH/dblA*100)+'%' : '—';
+    const dpl  = (u.games||0) > 0 && (u.totalDarts||0) > 0 ? ((u.totalDarts)/(u.games)).toFixed(1) : '—';
+    const streak = (u.streak||0) >= 2 ? '🔥 '+u.streak : u.streak||0;
+
+    const row = (label, val) =>
+      `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e1e30">
+        <span style="color:#8888aa;font-size:11px">${label}</span>
+        <span style="color:#e0e0ff;font-weight:700;font-size:12px">${val}</span>
+      </div>`;
+
+    modal.innerHTML = `
+      <div style="background:#13131f;border:1px solid #2a2a40;border-radius:16px;padding:20px 20px 16px;width:100%;max-width:360px" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#ff3c3c,#880000);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:22px;flex-shrink:0">${nick[0].toUpperCase()}</div>
+          <div style="text-align:left">
+            <div style="font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:1px">${nick}</div>
+            <div style="font-size:10px;color:#8888aa;font-family:monospace">${u.games||0} gier · WR ${wr}%</div>
+          </div>
+          <button onclick="document.getElementById('lb-player-modal').remove()" style="margin-left:auto;background:none;border:none;color:#8888aa;font-size:20px;cursor:pointer;line-height:1">✕</button>
+        </div>
+        <div style="font-family:monospace">
+          ${row('Wygrane / Porażki', (u.wins||0)+' / '+(u.losses||0))}
+          ${row('Win Rate', wr+'%')}
+          ${row('3-dart Average', avg)}
+          ${row('First 9 Avg', u.first9Avg||'—')}
+          ${row('Darts / leg', dpl)}
+          ${row('180s', u.e180||0)}
+          ${row('100+', u.highest100||0)}
+          ${row('140+', u.highest140||0)}
+          ${row('Best score', u.best||0)}
+          ${row('Checkout %', coPct)}
+          ${row('Najwyższy checkout', u.highestCheckout||0)}
+          ${row('Double %', dblPct)}
+          ${row('Aktualna seria', streak)}
+          ${row('Najlepsza seria', u.bestStreak||0)}
+        </div>
+      </div>`;
+  } catch(e) {
+    modal.innerHTML = '<div style="background:#13131f;border:1px solid #2a2a40;border-radius:16px;padding:24px;color:#ff3c3c;font-family:monospace;font-size:12px">❌ Błąd: '+e.message+'</div>';
   }
 }
 
