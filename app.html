@@ -5945,6 +5945,20 @@ async function olSyncGameState() {
   if (!fb || !OL.currentRoomId) return;
   try {
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
+
+    // Oblicz bieżące statystyki gracza z lokalnej historii i wyślij do Firebase
+    const myIdx = OL.myIndex;
+    const myTurns    = G.history.filter(h => h.p === myIdx);
+    const validTurns = myTurns.filter(h => !h.bust);
+    const runningStats = {
+      totalDarts:     myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0),
+      totalPoints:    validTurns.reduce((s, h) => s + h.sc, 0),
+      scores:         validTurns.map(h => h.sc),
+      doubleAttempts: G._gameDoubleAttempts[myIdx] || 0,
+      doubleHits:     G._gameDoubleHits[myIdx] || 0,
+    };
+
+    const statsKey = 'gameState.playerStats.' + myIdx;
     await fb.updateDoc(roomRef, {
       'gameState.scores': G.scores,
       'gameState.cp': G.cp,
@@ -5958,7 +5972,8 @@ async function olSyncGameState() {
       'gameState.cDarts': G.cDarts||0,
       'gameState.atcT': G.atcT||[],
       'gameState.atcDarts': G.atcDarts||0,
-      'gameState.lastMove': { by: OL.myIndex, at: Date.now() }
+      'gameState.lastMove': { by: OL.myIndex, at: Date.now() },
+      [statsKey]: runningStats,
     });
   } catch(e) { console.log('Sync error:', e.code); }
 }
@@ -6000,20 +6015,35 @@ async function olRecordWin(winnerIdx) {
     const myIdx = playerUids.indexOf(user.uid);
     if (myIdx === -1) return;
 
-    // Zbierz statystyki tej gry z lokalnego G
-    const myTurns    = G.history.filter(h => h.p === myIdx);
-    const validTurns = myTurns.filter(h => !h.bust);
-    const gameTotalDarts  = myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
-    const gameTotalPoints = validTurns.reduce((s, h) => s + h.sc, 0);
-    const gameScores = validTurns.map(h => h.sc);
+    // Pobierz statystyki tej gry z Firebase (zsynchronizowane po każdej turze)
+    const ps = r.gameState?.playerStats?.[myIdx] || {};
+    const gameTotalDarts  = ps.totalDarts  || 0;
+    const gameTotalPoints = ps.totalPoints || 0;
+    const gameScores      = ps.scores      || [];
+
+    // Uzupełnij ze swoich lokalnych danych jeśli jesteśmy aktywnym graczem
+    // (fallback gdy playerStats nie zdążył się zapisać)
+    if (gameTotalDarts === 0 && G.history.length > 0) {
+      const myTurns    = G.history.filter(h => h.p === myIdx);
+      const validTurns = myTurns.filter(h => !h.bust);
+      ps.totalDarts  = myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
+      ps.totalPoints = validTurns.reduce((s, h) => s + h.sc, 0);
+      ps.scores      = validTurns.map(h => h.sc);
+      ps.doubleAttempts = G._gameDoubleAttempts[myIdx] || 0;
+      ps.doubleHits     = G._gameDoubleHits[myIdx] || 0;
+    }
+
+    const finalDarts  = ps.totalDarts  || 0;
+    const finalPoints = ps.totalPoints || 0;
+    const finalScores = ps.scores      || [];
 
     // First 9 avg z tej gry
-    const f9 = gameScores.slice(0, 3);
+    const f9 = finalScores.slice(0, 3);
     const f9Avg = f9.length > 0 ? (f9.reduce((a,b)=>a+b,0) / (f9.length * 3)) * 3 : 0;
 
     // High scores
     let game180s = 0, game100s = 0, game140s = 0, gameBest = 0;
-    gameScores.forEach(sc => {
+    finalScores.forEach(sc => {
       if (sc > gameBest) gameBest = sc;
       if (sc >= 100) game100s++;
       if (sc >= 140) game140s++;
@@ -6043,15 +6073,15 @@ async function olRecordWin(winnerIdx) {
       games:          prevGames             + 1,
       streak:         newStreak,
       bestStreak:     newBestStreak,
-      totalDarts:     (d.totalDarts||0)     + gameTotalDarts,
-      totalPoints:    (d.totalPoints||0)    + gameTotalPoints,
+      totalDarts:     (d.totalDarts||0)     + finalDarts,
+      totalPoints:    (d.totalPoints||0)    + finalPoints,
       e180:           (d.e180||0)           + game180s,
       highest100:     (d.highest100||0)     + game100s,
       highest140:     (d.highest140||0)     + game140s,
       first9Avg:      newF9Avg,
       best:           Math.max(d.best||0, gameBest),
-      doubleAttempts: (d.doubleAttempts||0) + (G._gameDoubleAttempts[myIdx]||0),
-      doubleHits:     (d.doubleHits||0)     + (G._gameDoubleHits[myIdx]||0),
+      doubleAttempts: (d.doubleAttempts||0) + (ps.doubleAttempts || G._gameDoubleAttempts[myIdx] || 0),
+      doubleHits:     (d.doubleHits||0)     + (ps.doubleHits     || G._gameDoubleHits[myIdx]     || 0),
     };
     if (isWinner) {
       update.coAttempts      = (d.coAttempts||0)      + (G._gameCoAttempts||0);
