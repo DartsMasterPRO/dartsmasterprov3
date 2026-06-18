@@ -3226,7 +3226,6 @@ async function olReturnToLobby(){
   OL.myIndex=-1;
   OL.winRecorded=false;
   OL._lastGameStartedAt=0;
-  chatShow(true);
   gotoOnline();
 }
 window.olReturnToLobby=olReturnToLobby;
@@ -4894,7 +4893,6 @@ function onFbAuthChange(user) {
       }, 1500);
     }
     olRefreshRooms();
-    chatShow(true);
   } else {
     // Wylogowany
     document.getElementById('ol-auth-panel').style.display = 'block';
@@ -4902,7 +4900,6 @@ function onFbAuthChange(user) {
     // schowaj wszystkie sub-panele
     document.getElementById('ol-register-panel').style.display = 'none';
     document.getElementById('ol-login-panel').style.display = 'none';
-    chatShow(false);
   }
 }
 
@@ -5087,8 +5084,6 @@ async function olCreateRoom() {
     olMsg('ol-create-msg','✅ Pokój stworzony!','success');
     OL.isHost = true;
     OL.currentRoomId = roomRef.id;
-    chatShow(true);
-    setTimeout(()=>chatSendSystem('🎯 Pokój utworzony przez ' + (getFbUser()?.displayName || 'Hosta')), 500);
     olStartHostHeartbeat(roomRef.id);
     setTimeout(() => olOpenRoomModal(roomRef.id), 400);
   } catch(e) {
@@ -5177,8 +5172,6 @@ async function olJoinRoom(roomId) {
     }
     OL.isHost = r.hostUid === user.uid;
     OL.currentRoomId = roomId;
-    chatShow(true);
-    setTimeout(()=>chatSendSystem('🎯 ' + (getFbUser()?.displayName || 'Gracz') + ' dołączył do pokoju'), 500);
     olOpenRoomModal(roomId);
   } catch(e) { toast('❌ '+e.message); }
 }
@@ -5384,8 +5377,6 @@ async function olRejoinRoom(roomId) {
     }
     OL.isHost = r.hostUid === user.uid;
     OL.currentRoomId = roomId;
-    chatShow(true);
-    setTimeout(()=>chatSendSystem('🎯 ' + (getFbUser()?.displayName || 'Gracz') + ' dołączył do pokoju'), 500);
     olOpenRoomModal(roomId);
   } catch(e) { toast('❌ '+e.message); }
 }
@@ -5431,7 +5422,6 @@ async function olStartOnlineGame() {
     };
 
     await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {} });
-    chatSendSystem('🏹 GRA ROZPOCZĘTA! Powodzenia!');
   } catch(e) { toast('❌ '+e.message); }
 }
 
