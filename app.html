@@ -6689,6 +6689,42 @@ function chatSetVisible(show) { /* no-op: czat w zakładce */ }
 </script>
 
 <script>
+// ===== FILTR WULGARYZMÓW (cenzura czatu) =====
+// Lista rdzeni słów do ocenzurowania (dopasowanie częściowe, bez rozróżniania wielkości liter)
+var PROFANITY_LIST = [
+  'kurw','chuj','huj','pierdol','pierdal','jeb','zjeb','wyjeb','odjeb','pojeb',
+  'spierdal','pizd','cipa','cipk','dziwk','suka','skurw','gówno','gowno',
+  'debil','idiot','kretyn','matole','pojeban','zasrane','zasrany','zajeb',
+  'cwel','cwelu','pedal','pedał','fiut','dupa','dupek','wkurw','jebac','jebać',
+  'pierdole','pierdolę','jebal','jebał','huja','chuja','kurwa','kurwy','kurwo',
+  'fuck','shit','bitch','asshole','dick','bastard'
+];
+// Budujemy regex z granicami słów (uwzględniając polskie znaki jako część "słowa")
+var _profRegex = new RegExp(
+  '(' + PROFANITY_LIST.map(function(w){
+    return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }).join('|') + ')[\\wąćęłńóśźżĄĆĘŁŃÓŚŹŻ]*',
+  'gi'
+);
+
+function censorText(text) {
+  if (!text) return text;
+  return String(text).replace(_profRegex, function(match) {
+    // zostaw pierwszą literę, resztę zamień na gwiazdki - czytelne że było ocenzurowane
+    if (match.length <= 1) return '*';
+    return match[0] + '*'.repeat(match.length - 1);
+  });
+}
+
+// true jeśli wiadomość zawiera wulgaryzm (do ew. blokowania / ostrzeżenia)
+function containsProfanity(text) {
+  if (!text) return false;
+  _profRegex.lastIndex = 0;
+  return _profRegex.test(text);
+}
+</script>
+
+<script>
 // ===== CZAT POKOJU (prywatny, tylko gracze w pokoju) =====
 var _rchatUnsub = null;
 var _rchatOpen = false;
@@ -6772,7 +6808,7 @@ function _rchatSubscribe() {
       }
       var txt = document.createElement('div');
       txt.className = 'cmsg-text';
-      txt.textContent = d.text;
+      txt.textContent = censorText(d.text);
       div.appendChild(txt);
       if (d.ts && d.ts.toDate) {
         var tm = document.createElement('div');
@@ -6801,6 +6837,7 @@ async function rchatSend() {
   if (!rid) return;
   var ref = fb.collection(fb.db, 'rooms', rid, 'roomChat');
   input.value = '';
+  text = censorText(text);
   try {
     await fb.addDoc(ref, {
       uid: user.uid,
@@ -6841,7 +6878,7 @@ function olChatSubscribe() {
       }
       var txt = document.createElement('div');
       txt.className = 'cmsg-text';
-      txt.textContent = d.text;
+      txt.textContent = censorText(d.text);
       div.appendChild(txt);
       if (d.ts && d.ts.toDate) {
         var tm = document.createElement('div');
@@ -6873,6 +6910,7 @@ async function olChatSend() {
   if (!fb || !user) return;
   var ref = fb.collection(fb.db, 'globalChat');
   input.value = '';
+  text = censorText(text);
   try {
     await fb.addDoc(ref, {
       uid: user.uid,
