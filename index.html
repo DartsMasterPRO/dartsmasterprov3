@@ -2,77 +2,61 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="description" content="Profesjonalna aplikacja do gry w darta - 501, 301, Cricket, ATC">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DartsMaster">
 <meta name="msapplication-TileColor" content="#0a0a0f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:;">
 <title>DartsMaster Pro</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="icon-192x192.png">
-<link rel="shortcut icon" href="favicon.ico">
-<link rel="apple-touch-icon" href="icon-192x192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="manifest" href="https://dartsmasterpro.vercel.app/manifest.json">
+<link rel="icon" type="image/png" href="/icon-192x192.png">
+<link rel="shortcut icon" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/icon-192x192.png">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0a0a0f;color:#e8e8f0;font-family:'Rajdhani',sans-serif;min-height:100dvh;display:flex;align-items:center;justify-content:center}
-.container{text-align:center;padding:20px;max-width:600px;width:100%;padding-top:max(20px, env(safe-area-inset-top));padding-bottom:max(20px, env(safe-area-inset-bottom));padding-left:max(20px, env(safe-area-inset-left));padding-right:max(20px, env(safe-area-inset-right))}
-h1{font-family:'Bebas Neue', sans-serif;font-size:48px;letter-spacing:2px;color:#ff3c3c;margin-bottom:20px}
-.logo{font-size:120px;margin:30px 0;line-height:1}
-p{font-size:18px;color:#a0a0cc;margin:15px 0}
-.btn{background:linear-gradient(135deg,#ff3c3c,#cc1f1f);color:#fff;border:none;padding:15px 40px;font-size:18px;border-radius:10px;cursor:pointer;font-family:'Bebas Neue', sans-serif;letter-spacing:1px;margin:20px 0;width:100%;max-width:400px;transition:transform 0.2s, box-shadow 0.2s;-webkit-tap-highlight-color:transparent}
+body{background:#0a0a0f;color:#e8e8f0;font-family:'Rajdhani',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{text-align:center;padding:20px;max-width:600px}
+h1{font-family:'Bebas Neue',cursive;font-size:48px;letter-spacing:2px;color:#ff3c3c;margin-bottom:20px}
+.logo{font-size:120px;margin:30px 0}
+p{font-size:18px;color:#8888aa;margin:15px 0}
+.btn{background:linear-gradient(135deg,#ff3c3c,#cc1f1f);color:#fff;border:none;padding:15px 40px;font-size:18px;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;letter-spacing:1px;margin:20px 0;width:100%;max-width:400px;transition:all 0.3s}
 .btn:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(255,60,60,0.4)}
 .btn:active{transform:translateY(0)}
-.btn-secondary{background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0;margin-top:10px}
 .info{background:rgba(255,60,60,0.1);border:1px solid rgba(255,60,60,0.3);border-radius:10px;padding:20px;margin:30px 0;font-size:16px}
-.toast{position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-150%);max-width:90%;width:400px;padding:15px 20px;border-radius:10px;font-weight:600;text-align:center;transition:transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);z-index:1000;pointer-events:none}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.success{background:rgba(0,255,136,0.15);border:1px solid rgba(0,255,136,0.4);color:#00ff88}
-.toast.warning{background:rgba(255,193,7,0.15);border:1px solid rgba(255,193,7,0.4);color:#ffc107}
-.toast.info-toast{background:rgba(100,150,255,0.15);border:1px solid rgba(100,150,255,0.4);color:#64a0ff}
-.status-box{display:none;padding:15px;border-radius:10px;margin:20px 0;font-weight:600}
-.status-box.success{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88}
-.status-box.offline{background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);color:#ffc107}
-@media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
-}
+.success{background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:#00ff88;display:none;padding:15px;border-radius:10px;margin:20px 0;font-weight:bold}
+.offline{background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);color:#ffc107;display:none;padding:15px;border-radius:10px;margin:20px 0}
 </style>
-<base target="_blank">
 </head>
 <body>
 
 <div class="container">
-  <div class="logo" aria-hidden="true">🎯</div>
-  <h1>DARTS MASTER PRO</h1>
-  <p>Gra w Darta na Telefonie</p>
+<div class="logo">🎯</div>
+<h1>DARTS MASTER PRO</h1>
+<p>Gra w Darta na Telefonie</p>
 
-  <div class="info">
-    📱 Zainstaluj aplikację dla najlepszych wrażeń!
-  </div>
-
-  <button class="btn" id="installBtn" style="display:none" onclick="install()" aria-label="Zainstaluj aplikację DartsMaster Pro">
-    📱 ZAINSTALUJ APLIKACJĘ
-  </button>
-
-  <button class="btn btn-secondary" onclick="window.location.href='app.html'" aria-label="Zagraj teraz bez instalacji">
-    ▶ ZAGRAJ TERAZ
-  </button>
-
-  <div class="status-box success" id="success" role="status" aria-live="polite">
-    ✅ Aplikacja zainstalowana pomyślnie!
-  </div>
-
-  <div class="status-box offline" id="offline" role="alert" aria-live="assertive">
-    ⚠️ Offline - ale aplikacja działa!
-  </div>
+<div class="info">
+📱 Zainstaluj aplikację dla najlepszych wrażeń!
 </div>
 
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<button class="btn" id="installBtn" onclick="install()">
+📱 ZAINSTALUJ APLIKACJĘ
+</button>
+
+<button class="btn" style="background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0;margin-top:10px" onclick="window.location.href='/app.html'">
+▶ ZAGRAJ TERAZ
+</button>
+
+<div class="success" id="success">
+✅ Aplikacja zainstalowana pomyślnie!
+</div>
+
+<div class="offline" id="offline">
+⚠️ Offline - ale aplikacja działa!
+</div>
+</div>
 
 <script>
 // Register Service Worker
@@ -80,34 +64,10 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('./sw.js', { scope: './' })
     .then(reg => {
       console.log('✅ Service Worker zarejestrowany');
-
       // Sprawdzaj aktualizacje co 30 minut
       setInterval(() => reg.update(), 30*60*1000);
-
-      // Obsługa nowej wersji
-      reg.addEventListener('updatefound', () => {
-        const newWorker = reg.installing;
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            showToast('🔄 Dostępna nowa wersja! Odśwież stronę.', 'info-toast');
-          }
-        });
-      });
     })
     .catch(e => console.log('⚠️ SW error:', e));
-}
-
-// Toast system
-function showToast(message, type = 'info-toast') {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.className = 'toast ' + type;
-  requestAnimationFrame(() => {
-    toast.classList.add('show');
-  });
-  setTimeout(() => {
-    toast.classList.remove('show');
-  }, 4000);
 }
 
 // Offline detection
@@ -116,16 +76,18 @@ window.addEventListener('offline', () => {
 });
 window.addEventListener('online', () => {
   document.getElementById('offline').style.display = 'none';
-  showToast('🌐 Połączenie przywrócone', 'success');
 });
 
-let deferredPrompt = null;
+let deferredPrompt;
+let installShown = false;
 
 // Przechwycenie prompt'a instalacji
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
+  installShown = true;
   console.log('✅ Prompt instalacji gotowy');
+  // Pokaż przycisk instalacji
   document.getElementById('installBtn').style.display = 'block';
 });
 
@@ -143,24 +105,19 @@ function install() {
       deferredPrompt = null;
     }).catch(err => {
       console.error('Błąd podczas instalacji:', err);
-      showToast('❌ Wystąpił błąd podczas instalacji', 'warning');
     });
   } else {
     // Fallback dla przeglądarek bez native prompt'a
     const userAgent = navigator.userAgent.toLowerCase();
-    let message = '📱 Użyj menu przeglądarki aby zainstalować aplikację';
-
-    if (userAgent.includes('chrome') && !userAgent.includes('edg')) {
-      message = '📱 Kliknij menu (⋮) > "Zainstaluj aplikację" lub "Dodaj do ekranu głównego"';
-    } else if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      message = '📱 Kliknij Udostępnij (⬆️) > "Dodaj do ekranu głównego"';
+    if (userAgent.includes('chrome')) {
+      alert('📱 Kliknij menu (⋮) > "Zainstaluj aplikację" lub "Dodaj do ekranu głównego"');
+    } else if (userAgent.includes('safari')) {
+      alert('📱 Kliknij Udostępnij > "Dodaj do ekranu głównego"');
     } else if (userAgent.includes('firefox')) {
-      message = '📱 Kliknij menu (⋮) > "Zainstaluj aplikację"';
-    } else if (userAgent.includes('edg')) {
-      message = '📱 Kliknij menu (⋯) > "Aplikacje" > "Zainstaluj tę witrynę jako aplikację"';
+      alert('📱 Kliknij menu (⋮) > "Zainstaluj aplikację"');
+    } else {
+      alert('📱 Użyj menu przeglądarki aby zainstalować aplikację');
     }
-
-    showToast(message, 'info-toast');
   }
 }
 
@@ -170,26 +127,14 @@ window.addEventListener('appinstalled', () => {
   document.getElementById('success').style.display = 'block';
   document.getElementById('installBtn').style.display = 'none';
   deferredPrompt = null;
-  showToast('🎯 Aplikacja zainstalowana!', 'success');
 });
 
-// Sprawdź czy aplikacja jest już zainstalowana lub czy to iOS bez promptu
+// Sprawdź czy aplikacja jest już zainstalowana
 window.addEventListener('load', () => {
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-  const isIOS = /ipad|iphone|ipod/.test(navigator.userAgent.toLowerCase());
-
-  if (isStandalone) {
+  if (window.matchMedia('(display-mode: standalone)').matches) {
     console.log('✅ Uruchomiona jako aplikacja');
     document.getElementById('installBtn').style.display = 'none';
     document.getElementById('success').style.display = 'block';
-  } else if (isIOS && !deferredPrompt) {
-    // iOS Safari nie wspiera beforeinstallprompt - pokaż przycisk z fallbackiem
-    document.getElementById('installBtn').style.display = 'block';
-  }
-
-  // Początkowy stan offline
-  if (!navigator.onLine) {
-    document.getElementById('offline').style.display = 'block';
   }
 });
 </script>
