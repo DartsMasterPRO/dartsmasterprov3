@@ -2222,7 +2222,7 @@ function renderPlayers(){
         data-index="${i}"
         value="${p.replace(/"/g, '&quot;')}" 
         maxlength="20"
-        style="flex:1;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;padding:9px 12px;color:#e8e8f0;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600">
+        style="flex:1;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;padding:9px 12px;color:#e8e8f0;font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:600" />
       ${i>0?`<button class="remove-player-btn" data-index="${i}" style="width:34px;height:34px;background:rgba(255,60,60,.1);border:1px solid rgba(255,60,60,.3);color:#ff3c3c;border-radius:8px;cursor:pointer;font-size:15px">✕</button>`:''}
     </div>
   `).join('');
@@ -6567,7 +6567,7 @@ function showMessage(element, text, type) {
           <input id="ol-chat-input" type="text" placeholder="Napisz do wszystkich..." maxlength="200"
             style="flex:1;background:#1a1a2e;border:1px solid #2a2a40;border-radius:7px;color:#e0e0ff;font-family:monospace;font-size:12px;padding:6px 9px;outline:none"
             onkeydown="if(event.key==='Enter')olChatSend()"
-            onfocus="this.style.borderColor='#ff3c3c'" onblur="this.style.borderColor='#2a2a40'">
+            onfocus="this.style.borderColor='#ff3c3c'" onblur="this.style.borderColor='#2a2a40'" />
           <button onclick="olChatSend()" style="background:linear-gradient(135deg,#ff3c3c,#880000);border:none;border-radius:7px;color:#fff;font-size:15px;padding:0 11px;cursor:pointer">➤</button>
         </div>
       </div>
@@ -6678,7 +6678,7 @@ function showMessage(element, text, type) {
   <div id="rchat-msgs"></div>
   <div id="rchat-input-row">
     <input id="rchat-input" type="text" placeholder="Napisz do rywala..." maxlength="200"
-      onkeydown="if(event.key==='Enter')rchatSend()">
+      onkeydown="if(event.key==='Enter')rchatSend()" />
     <button id="rchat-send-btn" onclick="rchatSend()">➤</button>
   </div>
 </div>
