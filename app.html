@@ -612,6 +612,46 @@ input{outline:none}
   border: none; border-radius: 7px; color: #fff;
   font-size: 15px; padding: 0 11px; cursor: pointer;
 }
+#rchat-mic-btn {
+  background: linear-gradient(135deg,#3a3a52,#22222e);
+  border: none; border-radius: 7px; color: #fff;
+  font-size: 15px; padding: 0 11px; cursor: pointer;
+  transition: background .15s;
+}
+#rchat-mic-btn.recording {
+  background: linear-gradient(135deg,#ff3c3c,#880000);
+  animation: rchatMicPulse 1s ease-in-out infinite;
+}
+@keyframes rchatMicPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,60,60,.5); }
+  50% { box-shadow: 0 0 0 8px rgba(255,60,60,0); }
+}
+#rchat-rec-bar {
+  display: none;
+  align-items: center; gap: 8px;
+  padding: 7px 9px;
+  border-top: 1px solid #006633; background: #1a0808;
+  flex-shrink: 0;
+}
+#rchat-rec-bar.active { display: flex; }
+#rchat-rec-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #ff3c3c;
+  animation: rchatDotBlink 1s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes rchatDotBlink { 0%,100%{opacity:1} 50%{opacity:.25} }
+#rchat-rec-time { font-family: monospace; font-size: 12px; color: #ff8888; flex:1; }
+#rchat-rec-cancel {
+  background: #1a1a26; border: 1px solid #2a2a40; color: #8888aa;
+  border-radius: 6px; padding: 4px 9px; cursor: pointer; font-size: 11px;
+}
+#rchat-rec-stop {
+  background: linear-gradient(135deg,#00cc66,#006633); border: none; color: #fff;
+  border-radius: 6px; padding: 4px 11px; cursor: pointer; font-size: 13px;
+}
+.cmsg-audio { display:flex; align-items:center; gap:6px; }
+.cmsg-audio audio { height: 32px; max-width: 190px; }
 </style>
 </head>
 <body>
@@ -5364,8 +5404,16 @@ function olOpenRoomModal(roomId) {
     }
 
     // Jeśli gra się zaczęła
+    // 🐛 BUG FIX: onSnapshot odpala się przy KAŻDEJ zmianie dokumentu pokoju
+    // (każdy rzut, zmiana tury itd.), więc bez poniższego zabezpieczenia
+    // olEnterOnlineGame() (a w nim startGame() -> "Game on!") wywoływało się
+    // wielokrotnie w trakcie tej samej gry, a nie tylko raz na jej starcie.
     if (r.status === 'playing' && r.gameState) {
-      olEnterOnlineGame(r, players);
+      const startedAt = r.gameState.startedAt || 0;
+      if (startedAt !== OL._lastGameStartedAt) {
+        OL._lastGameStartedAt = startedAt;
+        olEnterOnlineGame(r, players);
+      }
     }
   });
 }
@@ -6688,7 +6736,14 @@ function showMessage(element, text, type) {
   <div id="rchat-input-row">
     <input id="rchat-input" type="text" placeholder="Napisz do rywala..." maxlength="200"
       onkeydown="if(event.key==='Enter')rchatSend()" />
+    <button id="rchat-mic-btn" onclick="rchatMicToggle()" title="Nagraj głosówkę">🎤</button>
     <button id="rchat-send-btn" onclick="rchatSend()">➤</button>
+  </div>
+  <div id="rchat-rec-bar">
+    <span id="rchat-rec-dot"></span>
+    <span id="rchat-rec-time">0:00</span>
+    <button id="rchat-rec-cancel" onclick="rchatCancelRecording()">Anuluj</button>
+    <button id="rchat-rec-stop" onclick="rchatStopRecording()">Wyślij ➤</button>
   </div>
 </div>
 
@@ -6834,10 +6889,21 @@ function _rchatSubscribe() {
           who.textContent = isMe ? '▶ ' + (d.nick || 'Ty') : (d.nick || 'Rywal');
           div.appendChild(who);
         }
-        var txt = document.createElement('div');
-        txt.className = 'cmsg-text';
-        txt.textContent = censorText(d.text);
-        div.appendChild(txt);
+        if (d.audio) {
+          var adiv = document.createElement('div');
+          adiv.className = 'cmsg-audio';
+          var audioEl = document.createElement('audio');
+          audioEl.controls = true;
+          audioEl.preload = 'none';
+          audioEl.src = d.audio;
+          adiv.appendChild(audioEl);
+          div.appendChild(adiv);
+        } else {
+          var txt = document.createElement('div');
+          txt.className = 'cmsg-text';
+          txt.textContent = censorText(d.text);
+          div.appendChild(txt);
+        }
         if (d.ts && d.ts.toDate) {
           var tm = document.createElement('div');
           tm.className = 'cmsg-time';
@@ -6895,6 +6961,132 @@ async function rchatSend() {
       ts: fb.serverTimestamp()
     });
   } catch(e) { console.log('rchat send err', e.code); }
+}
+
+// ===== NAGRYWANIE GŁOSÓWEK (czat pokoju) =====
+var _rchatMediaRecorder = null;
+var _rchatAudioChunks = [];
+var _rchatRecStream = null;
+var _rchatRecTimer = null;
+var _rchatRecSeconds = 0;
+var _rchatRecCancelled = false;
+var RCHAT_MAX_REC_SEC = 60; // limit nagrania, żeby dokument zmieścił się w Firestore (max 1MB/dok.)
+
+function rchatMicToggle() {
+  if (_rchatMediaRecorder && _rchatMediaRecorder.state === 'recording') {
+    rchatStopRecording();
+  } else {
+    rchatStartRecording();
+  }
+}
+
+async function rchatStartRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    if (typeof toast === 'function') toast('❌ Ta przeglądarka nie obsługuje nagrywania');
+    return;
+  }
+  var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
+  if (!rid) {
+    if (typeof toast === 'function') toast('❌ Brak aktywnego pokoju');
+    return;
+  }
+  try {
+    _rchatRecStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    if (typeof toast === 'function') toast('❌ Brak dostępu do mikrofonu');
+    return;
+  }
+  _rchatAudioChunks = [];
+  _rchatRecCancelled = false;
+  var mimeType = 'audio/webm';
+  if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+    if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mimeType = 'audio/webm;codecs=opus';
+    else if (MediaRecorder.isTypeSupported('audio/mp4')) mimeType = 'audio/mp4';
+  }
+  try {
+    _rchatMediaRecorder = new MediaRecorder(_rchatRecStream, { mimeType: mimeType });
+  } catch (e) {
+    _rchatMediaRecorder = new MediaRecorder(_rchatRecStream);
+  }
+  _rchatMediaRecorder.ondataavailable = function(e) {
+    if (e.data && e.data.size > 0) _rchatAudioChunks.push(e.data);
+  };
+  _rchatMediaRecorder.onstop = function() {
+    if (_rchatRecStream) {
+      _rchatRecStream.getTracks().forEach(function(t){ t.stop(); });
+      _rchatRecStream = null;
+    }
+    if (_rchatRecCancelled) { _rchatAudioChunks = []; return; }
+    if (!_rchatAudioChunks.length) return;
+    var recordedType = (_rchatMediaRecorder && _rchatMediaRecorder.mimeType) || mimeType;
+    var blob = new Blob(_rchatAudioChunks, { type: recordedType });
+    var duration = _rchatRecSeconds;
+    var reader = new FileReader();
+    reader.onload = function() { rchatSendAudio(reader.result, duration); };
+    reader.readAsDataURL(blob);
+  };
+  _rchatMediaRecorder.start();
+  _rchatRecSeconds = 0;
+  var bar = document.getElementById('rchat-rec-bar');
+  var mic = document.getElementById('rchat-mic-btn');
+  if (bar) bar.classList.add('active');
+  if (mic) mic.classList.add('recording');
+  _rchatUpdateRecTime();
+  _rchatRecTimer = setInterval(function() {
+    _rchatRecSeconds++;
+    _rchatUpdateRecTime();
+    if (_rchatRecSeconds >= RCHAT_MAX_REC_SEC) rchatStopRecording();
+  }, 1000);
+}
+
+function _rchatUpdateRecTime() {
+  var el = document.getElementById('rchat-rec-time');
+  if (!el) return;
+  var m = Math.floor(_rchatRecSeconds / 60);
+  var s = _rchatRecSeconds % 60;
+  el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+function rchatStopRecording() {
+  if (_rchatRecTimer) { clearInterval(_rchatRecTimer); _rchatRecTimer = null; }
+  var bar = document.getElementById('rchat-rec-bar');
+  var mic = document.getElementById('rchat-mic-btn');
+  if (bar) bar.classList.remove('active');
+  if (mic) mic.classList.remove('recording');
+  if (_rchatMediaRecorder && _rchatMediaRecorder.state !== 'inactive') {
+    _rchatMediaRecorder.stop();
+  }
+}
+
+function rchatCancelRecording() {
+  _rchatRecCancelled = true;
+  rchatStopRecording();
+}
+
+async function rchatSendAudio(dataUrl, durationSec) {
+  var fb = getFb(); var user = getFbUser();
+  if (!fb || !user) return;
+  var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
+  if (!rid) return;
+  // Zabezpieczenie przed przekroczeniem limitu dokumentu Firestore (1MB)
+  if (dataUrl.length > 900000) {
+    if (typeof toast === 'function') toast('❌ Nagranie za długie, spróbuj krócej');
+    return;
+  }
+  var ref = fb.collection(fb.db, 'rooms', rid, 'roomChat');
+  try {
+    await fb.addDoc(ref, {
+      uid: user.uid,
+      nick: user.displayName || user.email.split('@')[0] || 'Gracz',
+      audio: dataUrl,
+      audioDuration: durationSec,
+      text: '🎤 Wiadomość głosowa (' + durationSec + 's)',
+      ts: fb.serverTimestamp()
+    });
+  } catch(e) {
+    console.log('rchat audio send err', e.code);
+    if (typeof toast === 'function') toast('❌ Nie udało się wysłać głosówki');
+  }
 }
 </script>
 
