@@ -540,6 +540,15 @@ input{outline:none}
   transition: transform 0.15s;
 }
 #rchat-fab:active { transform: scale(0.9); }
+@keyframes rchatPulse {
+  0%   { box-shadow: 0 4px 16px rgba(0,204,102,0.45); transform: scale(1); }
+  50%  { box-shadow: 0 4px 28px rgba(255,221,0,0.9), 0 0 0 9px rgba(255,221,0,0.25); transform: scale(1.08); }
+  100% { box-shadow: 0 4px 16px rgba(0,204,102,0.45); transform: scale(1); }
+}
+#rchat-fab.rchat-alert {
+  animation: rchatPulse 1.1s ease-in-out infinite;
+  background: linear-gradient(135deg, #ffdd00, #cc8800);
+}
 #rchat-badge {
   position: absolute;
   top: -2px; right: -2px;
@@ -1183,6 +1192,7 @@ input{outline:none}
     <button onclick="goto('home')" style="padding:11px;background:#1a1a26;border:1px solid #2a2a40;border-radius:9px;color:#8888aa;font-family:'Bebas Neue',cursive;font-size:14px;cursor:pointer">⬅ MENU</button>
     <button onclick="undoTurn()" style="padding:11px;background:#1a1a26;border:1px solid #2a2a40;border-radius:9px;color:#8888aa;font-family:'Bebas Neue',cursive;font-size:14px;cursor:pointer">↩ COFNIJ TURĘ</button>
   </div>
+</div>
 
 <!-- TRAINING -->
 <div class="screen" id="training-screen">
@@ -4413,6 +4423,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </script>
 <!-- Audio elements for sounds -->
+<audio id="win-sound"></audio>
 <!-- INTRO OVERLAY -->
 <div id="intro-overlay" style="position:fixed;inset:0;z-index:99999;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;">
   <video id="intro-video" style="width:100%;height:100%;object-fit:cover;" playsinline webkit-playsinline preload="auto">
@@ -6727,16 +6738,22 @@ function containsProfanity(text) {
 var _rchatUnsub = null;
 var _rchatOpen = false;
 var _rchatUnread = 0;
+var _rchatFirstSnap = true;
 
 function rchatSetVisible(show) {
   var fab = document.getElementById('rchat-fab');
   if (!fab) return;
   fab.style.display = show ? 'flex' : 'none';
-  if (!show) {
+  if (show) {
+    // Subskrybuj od razu, żeby wiadomości od rywala były wykrywane
+    // nawet gdy okno czatu jest zamknięte (żeby czat mógł "zaświecić się").
+    _rchatSubscribe();
+  } else {
     var panel = document.getElementById('rchat-panel');
     if (panel) panel.classList.remove('open');
     _rchatOpen = false;
     if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
+    _rchatSubRid = null;
     _rchatUnread = 0;
     _rchatBadgeUpdate();
   }
@@ -6752,19 +6769,22 @@ function rchatToggle() {
     _rchatBadgeUpdate();
     _rchatSubscribe();
     setTimeout(function(){ var inp = document.getElementById('rchat-input'); if(inp) inp.focus(); }, 100);
-  } else {
-    if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
   }
+  // Uwaga: subskrypcja NIE jest zamykana przy chowaniu panelu — musi działać
+  // w tle, żeby wykrywać nowe wiadomości i podświetlać przycisk czatu.
 }
 
 function _rchatBadgeUpdate() {
   var b = document.getElementById('rchat-badge');
+  var fab = document.getElementById('rchat-fab');
   if (!b) return;
   if (_rchatUnread > 0) {
     b.style.display = 'flex';
     b.textContent = _rchatUnread > 9 ? '9+' : _rchatUnread;
+    if (fab) fab.classList.add('rchat-alert');
   } else {
     b.style.display = 'none';
+    if (fab) fab.classList.remove('rchat-alert');
   }
 }
 
@@ -6773,12 +6793,18 @@ function _rchatScrollBottom() {
   if (el) el.scrollTop = el.scrollHeight;
 }
 
+var _rchatSubRid = null;
+
 function _rchatSubscribe() {
-  if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
   var fb = getFb();
   if (!fb) return;
   var rid = (typeof OL !== 'undefined' && OL.currentRoomId) ? OL.currentRoomId : null;
   if (!rid) return;
+  // Jeśli już subskrybujemy ten sam pokój, nic nie rób (uniknij duplikatów listenerów).
+  if (_rchatUnsub && _rchatSubRid === rid) return;
+  if (_rchatUnsub) { _rchatUnsub(); _rchatUnsub = null; }
+  _rchatSubRid = rid;
+  _rchatFirstSnap = true;
   var ref = fb.collection(fb.db, 'rooms', rid, 'roomChat');
   // Ustaw tytuł z nick rywala jeśli dostępny
   var title = document.getElementById('rchat-head-title');
@@ -6789,37 +6815,62 @@ function _rchatSubscribe() {
   var q = fb.query(ref, fb.orderBy('ts', 'asc'), fb.limit(80));
   _rchatUnsub = fb.onSnapshot(q, function(snap) {
     var msgs = document.getElementById('rchat-msgs');
-    if (!msgs) return;
     var user = getFbUser();
-    msgs.innerHTML = '';
-    snap.forEach(function(docSnap) {
-      var d = docSnap.data();
-      var isMe = user && d.uid === user.uid;
-      var isSys = d.type === 'system';
-      var div = document.createElement('div');
-      div.className = 'cmsg' + (isSys ? ' sys' : '');
-      if (!isSys) {
-        var who = document.createElement('div');
-        who.className = 'cmsg-who' + (isMe ? ' mine' : '');
-        who.textContent = isMe ? '▶ ' + (d.nick || 'Ty') : (d.nick || 'Rywal');
-        div.appendChild(who);
-      }
-      var txt = document.createElement('div');
-      txt.className = 'cmsg-text';
-      txt.textContent = censorText(d.text);
-      div.appendChild(txt);
-      if (d.ts && d.ts.toDate) {
-        var tm = document.createElement('div');
-        tm.className = 'cmsg-time';
-        tm.textContent = d.ts.toDate().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
-        div.appendChild(tm);
-      }
-      msgs.appendChild(div);
-    });
-    _rchatScrollBottom();
-    if (!_rchatOpen) {
-      _rchatUnread++;
+    var isFirst = _rchatFirstSnap;
+    var newFromOpponent = 0;
+    var lastOpponentText = '';
+
+    if (msgs) {
+      msgs.innerHTML = '';
+      snap.forEach(function(docSnap) {
+        var d = docSnap.data();
+        var isMe = user && d.uid === user.uid;
+        var isSys = d.type === 'system';
+        var div = document.createElement('div');
+        div.className = 'cmsg' + (isSys ? ' sys' : '');
+        if (!isSys) {
+          var who = document.createElement('div');
+          who.className = 'cmsg-who' + (isMe ? ' mine' : '');
+          who.textContent = isMe ? '▶ ' + (d.nick || 'Ty') : (d.nick || 'Rywal');
+          div.appendChild(who);
+        }
+        var txt = document.createElement('div');
+        txt.className = 'cmsg-text';
+        txt.textContent = censorText(d.text);
+        div.appendChild(txt);
+        if (d.ts && d.ts.toDate) {
+          var tm = document.createElement('div');
+          tm.className = 'cmsg-time';
+          tm.textContent = d.ts.toDate().toLocaleTimeString('pl-PL', {hour:'2-digit',minute:'2-digit'});
+          div.appendChild(tm);
+        }
+        msgs.appendChild(div);
+      });
+      _rchatScrollBottom();
+    }
+
+    // Policz realnie NOWE wiadomości od rywala (nie licz pierwszego,
+    // wstępnego wczytania historii, tylko wiadomości dodane od tej pory).
+    if (!isFirst) {
+      snap.docChanges().forEach(function(ch) {
+        if (ch.type !== 'added') return;
+        var d = ch.doc.data();
+        var isMe = user && d.uid === user.uid;
+        var isSys = d.type === 'system';
+        if (!isMe && !isSys) {
+          newFromOpponent++;
+          lastOpponentText = censorText(d.text || '');
+        }
+      });
+    }
+    _rchatFirstSnap = false;
+
+    if (newFromOpponent > 0 && !_rchatOpen) {
+      _rchatUnread += newFromOpponent;
       _rchatBadgeUpdate();
+      if (typeof toast === 'function') {
+        toast('💬 Nowa wiadomość: ' + lastOpponentText.slice(0, 40));
+      }
     }
   }, function(err) { console.log('rchat snap err', err.code); });
 }
