@@ -5691,7 +5691,21 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
   const tableW = table.clientWidth;
   const dir = playerIdx === 0 ? 1 : -1; // gracz 1 rzuca w prawo, gracz 2 w lewo
   let x = playerIdx === 0 ? -DICE_SIZE * 0.6 : tableW - DICE_SIZE * 0.4;
-  const restX = Math.round(tableW * (playerIdx === 0 ? (0.30 + Math.random() * 0.18) : (0.52 + Math.random() * 0.18)));
+
+  // Strefy lądowania obu kostek NIE MOGĄ na siebie nachodzić - wymuszamy sztywny
+  // margines bezpieczeństwa (szerokość kostki + zapas) po obu stronach środka stołu.
+  const half = tableW / 2;
+  const margin = DICE_SIZE / 2 + 18;
+  let restX;
+  if (playerIdx === 0) {
+    const lo = tableW * 0.08;
+    const hi = Math.max(lo, half - margin);
+    restX = Math.round(lo + Math.random() * (hi - lo));
+  } else {
+    const hi = tableW * 0.92 - DICE_SIZE;
+    const lo = Math.min(hi, half + margin);
+    restX = Math.round(lo + Math.random() * (hi - lo));
+  }
 
   let vx = dir * (8 + Math.random() * 3);      // prędkość pozioma (px/klatkę @60fps)
   let h = 0;                                   // wysokość nad stołem
