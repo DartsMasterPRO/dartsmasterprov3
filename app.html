@@ -523,27 +523,38 @@ input{outline:none}
 
 /* PRAWDZIWA KOSTKA 3D - każda ścianka ma inne cieniowanie (jak realne oświetlenie z góry),
    dzięki czemu bryła wygląda jak sześcian, a nie płaski kwadrat */
-.dice3d-face{position:absolute;width:64px;height:64px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:11px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;box-shadow:inset 0 0 10px rgba(0,0,0,.18);backface-visibility:hidden}
-.dice3d-pip{width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
+.dice3d-face{position:absolute;width:72px;height:72px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:12px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:10px;box-shadow:inset 0 0 10px rgba(0,0,0,.18);backface-visibility:hidden}
+.dice3d-pip{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
 .dice3d-pip.on{opacity:1}
-.dice3d-face.f1{transform:rotateY(0deg) translateZ(32px)}
-.dice3d-face.f6{transform:rotateY(180deg) translateZ(32px);background:linear-gradient(150deg,#e6e9ed,#c0c4cb)}
-.dice3d-face.f2{transform:rotateY(90deg) translateZ(32px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
-.dice3d-face.f5{transform:rotateY(-90deg) translateZ(32px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
-.dice3d-face.f3{transform:rotateX(90deg) translateZ(32px);background:linear-gradient(150deg,#ffffff,#eef0f3)}
-.dice3d-face.f4{transform:rotateX(-90deg) translateZ(32px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
+.dice3d-face.f1{transform:rotateY(0deg) translateZ(36px)}
+.dice3d-face.f6{transform:rotateY(180deg) translateZ(36px);background:linear-gradient(150deg,#e6e9ed,#c0c4cb)}
+.dice3d-face.f2{transform:rotateY(90deg) translateZ(36px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f5{transform:rotateY(-90deg) translateZ(36px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f3{transform:rotateX(90deg) translateZ(36px);background:linear-gradient(150deg,#ffffff,#eef0f3)}
+.dice3d-face.f4{transform:rotateX(-90deg) translateZ(36px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
 .dice3d-face.f1 .dice3d-pip.on,.dice3d-face.f6 .dice3d-pip.on{background:radial-gradient(circle at 30% 30%,#ff5252,#c62828)}
 
-/* WSPÓLNE POLE RZUTÓW - kostki fizycznie turlają się po stole i dopiero po zatrzymaniu pokazują wynik */
+/* WSPÓLNY STÓŁ - jedno duże pole, obie kostki fizycznie się po nim toczą */
 .dice-table-label{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;margin-bottom:8px;letter-spacing:1px}
 .dice-table-wrap{margin-bottom:20px}
-.dice-table{position:relative;height:130px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 115%,rgba(0,229,255,.10),transparent 65%),linear-gradient(180deg,#181826,#0c0c13);border:1px solid rgba(0,229,255,.18);perspective:340px;box-shadow:inset 0 0 30px rgba(0,0,0,.5)}
-.dice-table::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.35),transparent)}
-.dice3d-cube{position:absolute;width:64px;height:64px;top:33px;transform-style:preserve-3d;transition-property:left,transform;transition-timing-function:cubic-bezier(.36,.07,.19,.97)}
-.dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.35)}
-.dice3d-cube.p1 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(255,140,0,.35)}
-.dice3d-cube.thrown{}
-.dice-shadow{position:absolute;width:50px;height:14px;top:88px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.55),transparent 70%);transition:left .12s linear,transform .12s linear,opacity .12s linear;pointer-events:none}
+.dice-table{position:relative;height:210px;border-radius:14px;overflow:hidden;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 20%, rgba(255,255,255,.06), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 50% 110%, rgba(0,229,255,.09), transparent 60%),
+    linear-gradient(180deg,#1b1b28,#0a0a10);
+  border:1px solid rgba(0,229,255,.2);
+  perspective:480px;
+  box-shadow:inset 0 0 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05)}
+.dice-table::before{content:'';position:absolute;inset:0;background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.015) 0 1px, transparent 1px 26px);
+  pointer-events:none}
+.dice-table::after{content:'';position:absolute;left:6%;right:6%;bottom:14px;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.3),transparent)}
+.dice3d-cube{position:absolute;width:72px;height:72px;top:50%;margin-top:-36px;transform-style:preserve-3d;will-change:transform,left}
+.dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.4)}
+.dice3d-cube.p1 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(255,140,0,.4)}
+.dice-shadow{position:absolute;width:56px;height:16px;top:50%;margin-top:32px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.6),transparent 72%);pointer-events:none}
+
 
 @media(max-width:480px){
   .slide-menu{width:260px;left:-260px}
@@ -5608,7 +5619,8 @@ const DICE_ROT = {
   1:{x:0,y:0}, 2:{x:0,y:-90}, 3:{x:-90,y:0},
   4:{x:90,y:0}, 5:{x:0,y:90}, 6:{x:0,y:180}
 };
-const DICE_IDLE_ROT = { 0:{x:-22,y:-32}, 1:{x:-22,y:32} };
+const DICE_IDLE_ROT = { 0:{x:-24,y:-34}, 1:{x:-24,y:34} };
+const DICE_SIZE = 72;
 
 // Buduje 6 ścianek prawdziwej kostki 3D (raz na dany element) z realistycznym układem oczek
 function ensureDiceCubeBuilt(cubeEl) {
@@ -5625,6 +5637,21 @@ function ensureDiceCubeBuilt(cubeEl) {
   }
 }
 
+// Najkrótsza droga kątowa "do przodu" (w kierunku, w którym kostka już się kręciła)
+// od aktualnego kąta do najbliższego wystąpienia kąta docelowego (mod 360).
+function olForwardAngleDelta(current, targetMod, dir) {
+  const cur360 = ((current % 360) + 360) % 360;
+  const tgt360 = ((targetMod % 360) + 360) % 360;
+  if (dir >= 0) {
+    let d = tgt360 - cur360;
+    if (d < 0) d += 360;
+    return d;
+  }
+  let d = cur360 - tgt360;
+  if (d < 0) d += 360;
+  return -d;
+}
+
 // Ustawia kostkę na jej "domowej" krawędzi stołu (gracz 1 z lewej, gracz 2 z prawej),
 // gotową do rzutu, z wynikiem jeszcze niewidocznym.
 function olResetDiceOnTable(playerIdx) {
@@ -5633,75 +5660,131 @@ function olResetDiceOnTable(playerIdx) {
   const shadow = document.getElementById('dice-shadow-' + playerIdx);
   if (!table || !cube) return;
   ensureDiceCubeBuilt(cube);
-  cube.classList.remove('thrown');
-  cube.style.transitionDuration = '0ms';
-  const homeLeft = playerIdx === 0 ? 10 : Math.max(10, table.clientWidth - 74);
+  if (cube._olAnimId) { cancelAnimationFrame(cube._olAnimId); cube._olAnimId = null; }
+  const homeLeft = playerIdx === 0 ? 14 : Math.max(14, table.clientWidth - DICE_SIZE - 14);
   const rot = DICE_IDLE_ROT[playerIdx];
+  cube._olRotX = rot.x;
+  cube._olRotY = rot.y;
   cube.style.left = homeLeft + 'px';
   cube.style.transform = `translateY(0px) rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
   if (shadow) {
-    shadow.style.transitionDuration = '0ms';
-    shadow.style.left = (homeLeft + 7) + 'px';
-    shadow.style.opacity = '0.35';
-    shadow.style.transform = 'scale(1)';
+    shadow.style.left = (homeLeft + DICE_SIZE / 2 - 28) + 'px';
+    shadow.style.opacity = '0.3';
+    shadow.style.transform = 'scale(0.9)';
   }
 }
 
-// Rzuca kostką gracza playerIdx po wspólnym stole: kostka "leci" z jego strony,
-// turla się/podskakuje kilka razy tracąc rozpęd, i DOPIERO gdy się całkowicie
-// zatrzyma, ląduje dokładnie na wylosowanej wartości - wtedy wywoływany jest onDone.
+// Rzuca kostką gracza playerIdx po wspólnym stole: prawdziwa symulacja fizyki
+// (grawitacja, odbicia z tarciem, opadający moment obrotowy) klatka po klatce.
+// Kostka swobodnie "turla się" po stole i DOPIERO gdy fizyka naturalnie ją
+// zatrzyma, następuje płynne domknięcie obrotu dokładnie na wylosowanej wartości.
 function olThrowDiceOnTable(playerIdx, value, onDone) {
   const table = document.getElementById('dice-table');
   const cube = document.getElementById('dice-p' + (playerIdx + 1) + '-visual');
   const shadow = document.getElementById('dice-shadow-' + playerIdx);
   if (!table || !cube) { if (onDone) onDone(); return; }
   ensureDiceCubeBuilt(cube);
+  if (cube._olAnimId) cancelAnimationFrame(cube._olAnimId);
 
-  const dieSize = 64;
   const tableW = table.clientWidth;
-  const startLeft = playerIdx === 0 ? -dieSize * 0.5 : tableW - dieSize * 0.5;
-  const restLeft = Math.round(tableW * (0.32 + Math.random() * 0.32)) + (playerIdx === 1 ? 6 : -6);
+  const dir = playerIdx === 0 ? 1 : -1; // gracz 1 rzuca w prawo, gracz 2 w lewo
+  let x = playerIdx === 0 ? -DICE_SIZE * 0.6 : tableW - DICE_SIZE * 0.4;
+  const restX = Math.round(tableW * (playerIdx === 0 ? (0.30 + Math.random() * 0.18) : (0.52 + Math.random() * 0.18)));
+
+  let vx = dir * (8 + Math.random() * 3);      // prędkość pozioma (px/klatkę @60fps)
+  let h = 0;                                   // wysokość nad stołem
+  let vh = 10 + Math.random() * 4;              // pierwszy "odskok" tuż po rzucie z ręki
+  const gravity = 0.62;
+  const restitution = 0.42;                     // ile energii zostaje po odbiciu
+
+  let rotX = cube._olRotX || 0, rotY = cube._olRotY || 0;
+  let angVelX = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
+  let angVelY = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
+  const angFriction = 0.965;
+  const vxFriction = 0.965;
+
   const target = DICE_ROT[value] || DICE_ROT[1];
+  let bounces = 0;
+  let settling = false, settleStart = 0, settleFromX = 0, settleFromRotX = 0, settleFromRotY = 0;
+  let dRotX = 0, dRotY = 0;
+  const settleDur = 300;
+  let lastT = null;
 
-  const nTumbles = 5 + Math.floor(Math.random() * 2); // 5-6 "przewrotów" kostki
-  const steps = [];
-  let curRotX = 0, curRotY = 0;
-  for (let i = 0; i < nTumbles; i++) {
-    const progress = (i + 1) / nTumbles;
-    const left = Math.round(startLeft + (restLeft - startLeft) * progress);
-    curRotX += (Math.random() < 0.5 ? 1 : -1) * (Math.random() < 0.5 ? 90 : 180);
-    curRotY += (Math.random() < 0.5 ? 1 : -1) * (Math.random() < 0.5 ? 90 : 180);
-    const bounceUp = i < nTumbles - 1 ? Math.max(4, 20 - i * 3) : 0; // coraz mniejsze podskoki
-    const dur = Math.max(75, 190 - i * 18);
-    steps.push({ left, y: -bounceUp, rx: curRotX, ry: curRotY, dur });
-  }
-  // finalny krok: kostka DOKŁADNIE zatrzymuje się na wylosowanej wartości
-  steps.push({ left: restLeft, y: 0, rx: target.x, ry: target.y, dur: 260, settle: true });
+  function frame(now) {
+    if (lastT === null) lastT = now;
+    const dt = Math.min(2.2, (now - lastT) / 16.67); // znormalizowane do "klatek 60fps"
+    lastT = now;
 
-  cube.classList.add('thrown');
-  let i = 0;
-  function next() {
-    if (i >= steps.length) {
-      if (onDone) onDone();
+    if (!settling) {
+      x += vx * dt;
+      vx *= Math.pow(vxFriction, dt);
+
+      vh -= gravity * dt;
+      h += vh * dt;
+      if (h <= 0) {
+        h = 0;
+        if (Math.abs(vh) > 0.9 && bounces < 4) {
+          vh = -vh * restitution;
+          bounces++;
+        } else {
+          vh = 0;
+        }
+      }
+
+      rotX += angVelX * dt;
+      rotY += angVelY * dt;
+      angVelX *= Math.pow(angFriction, dt);
+      angVelY *= Math.pow(angFriction, dt);
+
+      if (shadow) {
+        shadow.style.left = (x + DICE_SIZE / 2 - 28) + 'px';
+        const s = Math.max(0.4, 1 - h / 46);
+        shadow.style.transform = `scale(${s})`;
+        shadow.style.opacity = String(0.14 + s * 0.26);
+      }
+      cube.style.left = x + 'px';
+      cube.style.transform = `translateY(${-h}px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+
+      const grounded = h === 0 && bounces >= 2;
+      const slow = grounded && Math.abs(vx) < 0.5 && Math.abs(angVelX) < 4 && Math.abs(angVelY) < 4;
+      if (slow) {
+        settling = true;
+        settleStart = now;
+        settleFromX = x;
+        settleFromRotX = rotX;
+        settleFromRotY = rotY;
+        dRotX = olForwardAngleDelta(rotX, target.x, angVelX >= 0 ? 1 : -1);
+        dRotY = olForwardAngleDelta(rotY, target.y, angVelY >= 0 ? 1 : -1);
+      }
+      cube._olAnimId = requestAnimationFrame(frame);
       return;
     }
-    const s = steps[i++];
-    cube.style.transitionDuration = s.dur + 'ms';
-    cube.style.transitionTimingFunction = s.settle
-      ? 'cubic-bezier(.22,.68,.15,1.02)'
-      : 'cubic-bezier(.36,.07,.19,.97)';
-    cube.style.left = s.left + 'px';
-    cube.style.transform = `translateY(${s.y}px) rotateX(${s.rx}deg) rotateY(${s.ry}deg)`;
+
+    // Faza osadzania - płynne, malejące domknięcie obrotu DOKŁADNIE na wylosowanej wartości
+    const t = Math.min(1, (now - settleStart) / settleDur);
+    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const curX = settleFromX + (restX - settleFromX) * e;
+    const curRotX = settleFromRotX + dRotX * e;
+    const curRotY = settleFromRotY + dRotY * e;
+
+    cube.style.left = curX + 'px';
+    cube.style.transform = `translateY(0px) rotateX(${curRotX}deg) rotateY(${curRotY}deg)`;
     if (shadow) {
-      shadow.style.transitionDuration = s.dur + 'ms';
-      shadow.style.left = (s.left + 7) + 'px';
-      const shrink = s.y < 0 ? Math.max(0.5, 1 + s.y / 40) : 1;
-      shadow.style.transform = `scale(${shrink})`;
-      shadow.style.opacity = s.y < 0 ? String(0.15 + shrink * 0.2) : '0.4';
+      shadow.style.left = (curX + DICE_SIZE / 2 - 28) + 'px';
+      shadow.style.transform = 'scale(1)';
+      shadow.style.opacity = '0.4';
     }
-    setTimeout(next, s.dur);
+
+    if (t < 1) {
+      cube._olAnimId = requestAnimationFrame(frame);
+    } else {
+      cube._olRotX = target.x;
+      cube._olRotY = target.y;
+      cube._olAnimId = null;
+      if (onDone) onDone();
+    }
   }
-  next();
+  cube._olAnimId = requestAnimationFrame(frame);
 }
 
 // ---- RZUT KOSTKĄ - LOSOWANIE PIERWSZEGO GRACZA (ZSYNCHRONIZOWANY) ----
