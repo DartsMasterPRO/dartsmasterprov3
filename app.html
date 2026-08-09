@@ -6931,11 +6931,14 @@ function _rchatSubscribe() {
     }
     _rchatFirstSnap = false;
 
-    if (newFromOpponent > 0 && !_rchatOpen) {
-      _rchatUnread += newFromOpponent;
-      _rchatBadgeUpdate();
-      if (typeof toast === 'function') {
-        toast('💬 Nowa wiadomość: ' + lastOpponentText.slice(0, 40));
+    if (newFromOpponent > 0) {
+      playChatSound();
+      if (!_rchatOpen) {
+        _rchatUnread += newFromOpponent;
+        _rchatBadgeUpdate();
+        if (typeof toast === 'function') {
+          toast('💬 Nowa wiadomość: ' + lastOpponentText.slice(0, 40));
+        }
       }
     }
   }, function(err) { console.log('rchat snap err', err.code); });
@@ -7091,8 +7094,32 @@ async function rchatSendAudio(dataUrl, durationSec) {
 </script>
 
 <script>
+// ===== DŹWIĘK POWIADOMIENIA O NOWEJ WIADOMOŚCI (WebAudio, bez plików) =====
+function playChatSound() {
+  try {
+    var ctx = window._chatAudioCtx || (window._chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)());
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+    [880, 1320].forEach(function(freq, i) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      var start = now + i * 0.09;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.2);
+    });
+  } catch(e) { console.log('chat sound err', e); }
+}
+
 // ===== CZAT GLOBALNY (wbudowany w zakładkę ONLINE) =====
 var _olChatUnsub = null;
+var _olChatFirstSnap = true;
 
 function olChatSubscribe() {
   if (_olChatUnsub) return; // już subskrybowany
@@ -7100,10 +7127,26 @@ function olChatSubscribe() {
   if (!fb) return;
   var ref = fb.collection(fb.db, 'globalChat');
   var q = fb.query(ref, fb.orderBy('ts', 'asc'), fb.limit(80));
+  _olChatFirstSnap = true;
   _olChatUnsub = fb.onSnapshot(q, function(snap) {
     var msgs = document.getElementById('ol-chat-msgs');
     if (!msgs) return;
     var user = getFbUser();
+    var isFirst = _olChatFirstSnap;
+    var newFromOthers = 0;
+
+    if (!isFirst) {
+      snap.docChanges().forEach(function(ch) {
+        if (ch.type !== 'added') return;
+        var d = ch.doc.data();
+        var isMe = user && d.uid === user.uid;
+        var isSys = d.type === 'system';
+        if (!isMe && !isSys) newFromOthers++;
+      });
+    }
+    _olChatFirstSnap = false;
+    if (newFromOthers > 0) playChatSound();
+
     msgs.innerHTML = '';
     snap.forEach(function(docSnap) {
       var d = docSnap.data();
