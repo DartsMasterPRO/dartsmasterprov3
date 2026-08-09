@@ -502,6 +502,28 @@ input{outline:none}
 .order-cancel-btn{flex:1;background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0;border-radius:8px;padding:12px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;transition:all .2s}
 .order-cancel-btn:hover{border-color:#ff3c3c;color:#ff3c3c}
 
+/* DICE ROLL MODAL */
+.dice-roll-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:3000;align-items:center;justify-content:center}
+.dice-roll-overlay.active{display:flex}
+.dice-roll-box{background:#12121a;border:2px solid #00e5ff;border-radius:12px;padding:28px;max-width:500px;width:95%;box-shadow:0 0 40px rgba(0,229,255,.3);animation:popIn .3s ease-out}
+.dice-roll-title{font-family:'Bebas Neue',cursive;font-size:24px;color:#00e5ff;margin-bottom:20px;text-align:center;letter-spacing:2px;text-transform:uppercase}
+.dice-roll-subtitle{text-align:center;color:#8888aa;font-family:monospace;font-size:12px;margin-bottom:20px}
+.dice-players-container{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.dice-player-section{background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:10px;padding:16px;text-align:center}
+.dice-player-name{font-family:'Bebas Neue',cursive;font-size:16px;color:#00e5ff;margin-bottom:12px;letter-spacing:1px}
+.dice-container{display:flex;align-items:center;justify-content:center;margin-bottom:12px;min-height:80px}
+.dice-cube{font-size:56px;display:inline-block;animation:rollDice 0.6s ease-out;transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg)}
+.dice-cube.rolling{animation:rollDice 0.6s ease-out}
+.dice-result{font-family:'Bebas Neue',cursive;font-size:32px;color:#00ff88;font-weight:700;min-height:48px;display:flex;align-items:center;justify-content:center}
+.dice-button{background:linear-gradient(135deg,#00e5ff,#00b8d4);color:#000;border:none;border-radius:8px;padding:12px 20px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;font-weight:700;transition:all .2s;width:100%}
+.dice-button:hover{transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,229,255,.4)}
+.dice-button:disabled{background:#555;color:#888;cursor:not-allowed;transform:none}
+.dice-status{text-align:center;color:#00ff88;font-family:monospace;font-size:12px;margin-bottom:16px;min-height:20px}
+.dice-final-message{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);border-radius:8px;padding:14px;text-align:center;font-family:'Bebas Neue',cursive;font-size:16px;color:#00ff88;letter-spacing:1px;margin-bottom:16px;display:none}
+.dice-final-message.show{display:block;animation:slideDown .4s ease-out}
+@keyframes rollDice{0%{transform:rotateX(720deg) rotateY(720deg) rotateZ(720deg);opacity:.5}100%{transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg);opacity:1}}
+@keyframes slideDown{0%{opacity:0;transform:translateY(-10px)}100%{opacity:1;transform:translateY(0)}}
+
 @media(max-width:480px){
   .slide-menu{width:260px;left:-260px}
   .menu-toggle{top:12px;left:12px;width:40px;height:40px}
@@ -5540,6 +5562,137 @@ async function olRejoinRoom(roomId) {
   } catch(e) { toast('❌ '+e.message); }
 }
 
+// ---- RZUT KOSTKĄ - LOSOWANIE PIERWSZEGO GRACZA ----
+let OL_diceState = {
+  roomId: null,
+  players: [],
+  rolls: {},
+  allRolled: false
+};
+
+async function olShowDiceRoll() {
+  const fb = getFb(); const user = getFbUser();
+  if (!fb || !user || !OL.currentRoomId) return;
+  
+  try {
+    const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
+    const snap = await fb.getDoc(roomRef);
+    if (!snap.exists()) return;
+    const r = snap.data();
+    const players = r.players || [];
+    
+    // Jeśli mniej niż 2 graczy, uruchom grę normalnie
+    if (players.length < 2) {
+      olStartOnlineGame();
+      return;
+    }
+    
+    // Przygotuj state
+    OL_diceState.roomId = OL.currentRoomId;
+    OL_diceState.players = players;
+    OL_diceState.rolls = {};
+    OL_diceState.allRolled = false;
+    
+    // Pokaż modalę
+    document.getElementById('dice-roll-modal').classList.add('active');
+    document.getElementById('dice-status').textContent = '⏳ Oczekiwanie na rzuty...';
+    document.getElementById('dice-final-message').classList.remove('show');
+    
+    // Ustaw nazwy graczy
+    document.getElementById('dice-p1-name').textContent = players[0]?.nick || 'Gracz 1';
+    document.getElementById('dice-p2-name').textContent = players[1]?.nick || 'Gracz 2';
+    
+    // Zresetuj wyniki
+    document.getElementById('dice-p1-result').textContent = '-';
+    document.getElementById('dice-p2-result').textContent = '-';
+    
+    // Włącz przyciski
+    document.getElementById('dice-p1-btn').disabled = false;
+    document.getElementById('dice-p2-btn').disabled = false;
+    
+    // Ustaw statusy
+    document.getElementById('dice-p1-btn').textContent = 'RZUĆ';
+    document.getElementById('dice-p2-btn').textContent = 'RZUĆ';
+    
+  } catch(e) { toast('❌ '+e.message); }
+}
+
+async function olRollDice(playerIndex) {
+  // Wylosuj liczbę 1-6
+  const diceValue = Math.floor(Math.random() * 6) + 1;
+  
+  // Ustaw wynik
+  OL_diceState.rolls[playerIndex] = diceValue;
+  
+  // Pokaż animację kostki
+  const diceVisual = document.getElementById(`dice-p${playerIndex+1}-visual`);
+  const diceResult = document.getElementById(`dice-p${playerIndex+1}-result`);
+  const diceBtn = document.getElementById(`dice-p${playerIndex+1}-btn`);
+  
+  // Animacja - obrót
+  diceVisual.classList.add('rolling');
+  await new Promise(resolve => setTimeout(resolve, 600));
+  diceVisual.classList.remove('rolling');
+  
+  // Pokaż wynik
+  diceResult.textContent = diceValue;
+  diceResult.style.animation = 'none';
+  setTimeout(() => { diceResult.style.animation = 'slideDown 0.3s ease-out'; }, 10);
+  
+  // Wyłącz przycisk
+  diceBtn.disabled = true;
+  diceBtn.textContent = '✓ ' + diceValue;
+  
+  // Sprawdź czy obaj gracze rzucili
+  if (Object.keys(OL_diceState.rolls).length === 2) {
+    olFinalizeDiceRoll();
+  }
+}
+
+async function olFinalizeDiceRoll() {
+  const p1Roll = OL_diceState.rolls[0];
+  const p2Roll = OL_diceState.rolls[1];
+  const p1Name = OL_diceState.players[0]?.nick || 'Gracz 1';
+  const p2Name = OL_diceState.players[1]?.nick || 'Gracz 2';
+  
+  // Wyznacz zwycięzcę
+  let winner;
+  let winnerIndex;
+  if (p1Roll > p2Roll) {
+    winner = p1Name;
+    winnerIndex = 0;
+  } else if (p2Roll > p1Roll) {
+    winner = p2Name;
+    winnerIndex = 1;
+  } else {
+    // Remis - ponów
+    document.getElementById('dice-status').textContent = '🔄 REMIS! Rzucajcie znowu...';
+    OL_diceState.rolls = {};
+    document.getElementById('dice-p1-result').textContent = '-';
+    document.getElementById('dice-p2-result').textContent = '-';
+    document.getElementById('dice-p1-btn').disabled = false;
+    document.getElementById('dice-p2-btn').disabled = false;
+    document.getElementById('dice-p1-btn').textContent = 'RZUĆ';
+    document.getElementById('dice-p2-btn').textContent = 'RZUĆ';
+    return;
+  }
+  
+  // Pokaż komunikat
+  const finalMsg = document.getElementById('dice-final-message');
+  finalMsg.textContent = `🎲 ZACZYNA ${winner.toUpperCase()} LOS TAK CHCIAŁ...`;
+  finalMsg.classList.add('show');
+  document.getElementById('dice-status').textContent = '✓ Rzuty ukończone!';
+  
+  // Poczekaj na widok wyniku
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Zamknij modalę
+  document.getElementById('dice-roll-modal').classList.remove('active');
+  
+  // Uruchom grę z wybranym graczem na starcie
+  await olStartOnlineGameWithWinner(winnerIndex);
+}
+
 // ---- START GRY ONLINE ----
 async function olStartOnlineGame() {
   const fb = getFb(); const user = getFbUser();
@@ -5575,6 +5728,50 @@ async function olStartOnlineGame() {
       legs: r.legs || 1,
       currentLeg: 1,
       firstPlayerLeg: 0,
+      turnTimer: r.turnTimer || false,
+      turnTimerSecs: r.turnTimerSecs || 0,
+      startedAt: Date.now()
+    };
+
+    await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {} });
+  } catch(e) { toast('❌ '+e.message); }
+}
+
+// ---- START GRY ONLINE (z wybranym graczem na starcie po rzucie kostką) ----
+async function olStartOnlineGameWithWinner(firstPlayerIndex) {
+  const fb = getFb(); const user = getFbUser();
+  if (!fb || !user || !OL.currentRoomId) return;
+  try {
+    const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
+    const snap = await fb.getDoc(roomRef);
+    if (!snap.exists()) return;
+    const r = snap.data();
+    const players = r.players || [];
+
+    // Zbuduj stan gry z wybranym graczem na starcie
+    const startScore = r.mode === '501' ? 501 : r.mode === '301' ? 301 : 0;
+    const gameState = {
+      mode: r.mode,
+      players: players.map(p => p.nick),
+      playerUids: players.map(p => p.uid),
+      cp: firstPlayerIndex,  // ← Tutaj ustawiamy zwycięzcę z rzutu kostką
+      round: 1,
+      scores: players.map(() => startScore),
+      legWins: players.map(() => 0),
+      diDone: players.map(() => !(r.dIn||false)),
+      dIn: r.dIn || false,
+      dOut: r.dOut || false,
+      cMarks: {},
+      cScores: players.map(() => 0),
+      cDarts: 0,
+      atcT: players.map(() => 0),
+      atcDarts: 0,
+      history: [],
+      lastMove: null,
+      winner: null,
+      legs: r.legs || 1,
+      currentLeg: 1,
+      firstPlayerLeg: firstPlayerIndex,  // ← Pamiętaj pierwszego gracza na wypadek remiszu legow
       turnTimer: r.turnTimer || false,
       turnTimerSecs: r.turnTimerSecs || 0,
       startedAt: Date.now()
@@ -6673,7 +6870,7 @@ function showMessage(element, text, type) {
 
     <div id="ol-room-msg" style="margin-bottom:10px"></div>
 
-    <button class="btn btn-green" id="ol-start-btn" onclick="olStartOnlineGame()" style="display:none;margin-top:0">▶ ROZPOCZNIJ GRĘ</button>
+    <button class="btn btn-green" id="ol-start-btn" onclick="olShowDiceRoll()" style="display:none;margin-top:0">▶ ROZPOCZNIJ GRĘ</button>
     <div id="ol-waiting-msg" style="text-align:center;color:#8888aa;font-family:monospace;font-size:12px;padding:10px;display:none">
       ⏳ Oczekiwanie na hosta...
     </div>
@@ -6738,6 +6935,37 @@ function showMessage(element, text, type) {
   } catch(e) { /* ignoruj */ }
 })();
 </script>
+<!-- DICE ROLL MODAL -->
+<div class="dice-roll-overlay" id="dice-roll-modal">
+  <div class="dice-roll-box">
+    <div class="dice-roll-title">🎲 RZUT KOSTKĄ</div>
+    <div class="dice-roll-subtitle">Wylosuj kto zaczyna grę</div>
+    
+    <div class="dice-players-container">
+      <div class="dice-player-section">
+        <div class="dice-player-name" id="dice-p1-name">Gracz 1</div>
+        <div class="dice-container">
+          <div class="dice-cube" id="dice-p1-visual">🎲</div>
+        </div>
+        <div class="dice-result" id="dice-p1-result">-</div>
+        <button class="dice-button" id="dice-p1-btn" onclick="olRollDice(0)">RZUĆ</button>
+      </div>
+      
+      <div class="dice-player-section">
+        <div class="dice-player-name" id="dice-p2-name">Gracz 2</div>
+        <div class="dice-container">
+          <div class="dice-cube" id="dice-p2-visual">🎲</div>
+        </div>
+        <div class="dice-result" id="dice-p2-result">-</div>
+        <button class="dice-button" id="dice-p2-btn" onclick="olRollDice(1)">RZUĆ</button>
+      </div>
+    </div>
+    
+    <div class="dice-status" id="dice-status"></div>
+    <div class="dice-final-message" id="dice-final-message"></div>
+  </div>
+</div>
+
 <!-- ORDER SELECTION MODAL -->
 <div class="order-modal-overlay" id="order-modal-overlay">
   <div class="order-modal-box">
