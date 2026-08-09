@@ -507,28 +507,42 @@ input{outline:none}
 .dice-roll-overlay.active{display:flex}
 .dice-roll-box{background:#12121a;border:2px solid #00e5ff;border-radius:12px;padding:28px;max-width:500px;width:95%;box-shadow:0 0 40px rgba(0,229,255,.3);animation:popIn .3s ease-out}
 .dice-roll-title{font-family:'Bebas Neue',cursive;font-size:24px;color:#00e5ff;margin-bottom:20px;text-align:center;letter-spacing:2px;text-transform:uppercase}
-.dice-roll-subtitle{text-align:center;color:#8888aa;font-family:monospace;font-size:12px;margin-bottom:20px}
+.dice-roll-subtitle{text-align:center;color:#8888aa;font-family:monospace;font-size:12px;margin-bottom:16px}
 .dice-players-container{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 .dice-player-section{background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.2);border-radius:10px;padding:16px;text-align:center}
-.dice-player-name{font-family:'Bebas Neue',cursive;font-size:16px;color:#00e5ff;margin-bottom:12px;letter-spacing:1px}
-.dice-container{display:flex;align-items:center;justify-content:center;margin-bottom:12px;min-height:80px;perspective:1000px}
-.dice-cube{font-size:56px;display:inline-block;transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg);transition:transform 0.1s ease-out;text-shadow:0 4px 12px rgba(0,0,0,.4)}
-.dice-cube.rolling{animation:rollDice 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94)}
-.dice-result{font-family:'Bebas Neue',cursive;font-size:32px;color:#00ff88;font-weight:700;min-height:48px;display:flex;align-items:center;justify-content:center}
+.dice-player-name{font-family:'Bebas Neue',cursive;font-size:16px;color:#00e5ff;margin-bottom:8px;letter-spacing:1px}
+.dice-result{font-family:'Bebas Neue',cursive;font-size:32px;color:#00ff88;font-weight:700;min-height:40px;display:flex;align-items:center;justify-content:center;transition:opacity .15s}
+.dice-result.pending{color:#4a4a5e}
 .dice-button{background:linear-gradient(135deg,#00e5ff,#00b8d4);color:#000;border:none;border-radius:8px;padding:12px 20px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;font-weight:700;transition:all .2s;width:100%}
 .dice-button:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,229,255,.4)}
 .dice-button:disabled{background:linear-gradient(135deg,#2a2a40,#1a1a30);color:#8888aa;cursor:not-allowed;transform:none;box-shadow:inset 0 2px 8px rgba(0,0,0,.4)}
 .dice-status{text-align:center;color:#00ff88;font-family:monospace;font-size:12px;margin-bottom:16px;min-height:20px}
 .dice-final-message{background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.3);border-radius:8px;padding:14px;text-align:center;font-family:'Bebas Neue',cursive;font-size:16px;color:#00ff88;letter-spacing:1px;margin-bottom:16px;display:none}
 .dice-final-message.show{display:block;animation:slideDown .4s ease-out}
-@keyframes rollDice{
-  0%{transform:rotateX(720deg) rotateY(720deg) rotateZ(360deg);opacity:0.7;filter:blur(2px)}
-  25%{transform:rotateX(900deg) rotateY(1080deg) rotateZ(540deg)}
-  50%{transform:rotateX(1080deg) rotateY(900deg) rotateZ(720deg)}
-  75%{transform:rotateX(900deg) rotateY(720deg) rotateZ(900deg)}
-  100%{transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg);opacity:1;filter:blur(0px)}
-}
 @keyframes slideDown{0%{opacity:0;transform:translateY(-10px)}100%{opacity:1;transform:translateY(0)}}
+
+/* PRAWDZIWA KOSTKA 3D */
+.dice3d-face{position:absolute;width:64px;height:64px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:11px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;box-shadow:inset 0 0 10px rgba(0,0,0,.18)}
+.dice3d-pip{width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
+.dice3d-pip.on{opacity:1}
+.dice3d-face.f1{transform:rotateY(0deg) translateZ(32px)}
+.dice3d-face.f6{transform:rotateY(180deg) translateZ(32px)}
+.dice3d-face.f2{transform:rotateY(90deg) translateZ(32px)}
+.dice3d-face.f5{transform:rotateY(-90deg) translateZ(32px)}
+.dice3d-face.f3{transform:rotateX(90deg) translateZ(32px)}
+.dice3d-face.f4{transform:rotateX(-90deg) translateZ(32px)}
+.dice3d-face.f1 .dice3d-pip.on,.dice3d-face.f6 .dice3d-pip.on{background:radial-gradient(circle at 30% 30%,#ff5252,#c62828)}
+
+/* WSPÓLNE POLE RZUTÓW - kostki fizycznie turlają się po stole i dopiero po zatrzymaniu pokazują wynik */
+.dice-table-label{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;margin-bottom:8px;letter-spacing:1px}
+.dice-table-wrap{margin-bottom:20px}
+.dice-table{position:relative;height:130px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 115%,rgba(0,229,255,.10),transparent 65%),linear-gradient(180deg,#181826,#0c0c13);border:1px solid rgba(0,229,255,.18);perspective:600px;box-shadow:inset 0 0 30px rgba(0,0,0,.5)}
+.dice-table::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.35),transparent)}
+.dice3d-cube{position:absolute;width:64px;height:64px;top:33px;transform-style:preserve-3d;transition-property:left,transform;transition-timing-function:cubic-bezier(.36,.07,.19,.97);filter:drop-shadow(0 8px 6px rgba(0,0,0,.55))}
+.dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.35)}
+.dice3d-cube.p1 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(255,140,0,.35)}
+.dice3d-cube.thrown{filter:drop-shadow(0 8px 6px rgba(0,0,0,.55)) brightness(1.05)}
+.dice-shadow{position:absolute;width:50px;height:14px;top:88px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.55),transparent 70%);transition:left .12s linear,transform .12s linear,opacity .12s linear;pointer-events:none}
 
 @media(max-width:480px){
   .slide-menu{width:260px;left:-260px}
@@ -5579,6 +5593,116 @@ async function olRejoinRoom(roomId) {
   } catch(e) { toast('❌ '+e.message); }
 }
 
+// ---- PRAWDZIWA FIZYCZNA KOSTKA 3D - turla się po wspólnym polu i dopiero po ----
+// ---- zatrzymaniu pokazuje wynik (jak prawdziwy rzut kostką z ręki)        ----
+const DICE_PIP_LAYOUT = {
+  1:[0,0,0, 0,1,0, 0,0,0],
+  2:[1,0,0, 0,0,0, 0,0,1],
+  3:[1,0,0, 0,1,0, 0,0,1],
+  4:[1,0,1, 0,0,0, 1,0,1],
+  5:[1,0,1, 0,1,0, 1,0,1],
+  6:[1,0,1, 1,0,1, 1,0,1]
+};
+const DICE_ROT = {
+  1:{x:0,y:0}, 2:{x:0,y:-90}, 3:{x:-90,y:0},
+  4:{x:90,y:0}, 5:{x:0,y:90}, 6:{x:0,y:180}
+};
+const DICE_IDLE_ROT = { 0:{x:-15,y:-25}, 1:{x:-15,y:25} };
+
+// Buduje 6 ścianek prawdziwej kostki 3D (raz na dany element) z realistycznym układem oczek
+function ensureDiceCubeBuilt(cubeEl) {
+  if (!cubeEl || cubeEl.children.length > 0) return;
+  for (let n = 1; n <= 6; n++) {
+    const face = document.createElement('div');
+    face.className = 'dice3d-face f' + n;
+    DICE_PIP_LAYOUT[n].forEach(on => {
+      const pip = document.createElement('div');
+      pip.className = 'dice3d-pip' + (on ? ' on' : '');
+      face.appendChild(pip);
+    });
+    cubeEl.appendChild(face);
+  }
+}
+
+// Ustawia kostkę na jej "domowej" krawędzi stołu (gracz 1 z lewej, gracz 2 z prawej),
+// gotową do rzutu, z wynikiem jeszcze niewidocznym.
+function olResetDiceOnTable(playerIdx) {
+  const table = document.getElementById('dice-table');
+  const cube = document.getElementById('dice-p' + (playerIdx + 1) + '-visual');
+  const shadow = document.getElementById('dice-shadow-' + playerIdx);
+  if (!table || !cube) return;
+  ensureDiceCubeBuilt(cube);
+  cube.classList.remove('thrown');
+  cube.style.transitionDuration = '0ms';
+  const homeLeft = playerIdx === 0 ? 10 : Math.max(10, table.clientWidth - 74);
+  const rot = DICE_IDLE_ROT[playerIdx];
+  cube.style.left = homeLeft + 'px';
+  cube.style.transform = `translateY(0px) rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
+  if (shadow) {
+    shadow.style.transitionDuration = '0ms';
+    shadow.style.left = (homeLeft + 7) + 'px';
+    shadow.style.opacity = '0.35';
+    shadow.style.transform = 'scale(1)';
+  }
+}
+
+// Rzuca kostką gracza playerIdx po wspólnym stole: kostka "leci" z jego strony,
+// turla się/podskakuje kilka razy tracąc rozpęd, i DOPIERO gdy się całkowicie
+// zatrzyma, ląduje dokładnie na wylosowanej wartości - wtedy wywoływany jest onDone.
+function olThrowDiceOnTable(playerIdx, value, onDone) {
+  const table = document.getElementById('dice-table');
+  const cube = document.getElementById('dice-p' + (playerIdx + 1) + '-visual');
+  const shadow = document.getElementById('dice-shadow-' + playerIdx);
+  if (!table || !cube) { if (onDone) onDone(); return; }
+  ensureDiceCubeBuilt(cube);
+
+  const dieSize = 64;
+  const tableW = table.clientWidth;
+  const startLeft = playerIdx === 0 ? -dieSize * 0.5 : tableW - dieSize * 0.5;
+  const restLeft = Math.round(tableW * (0.32 + Math.random() * 0.32)) + (playerIdx === 1 ? 6 : -6);
+  const target = DICE_ROT[value] || DICE_ROT[1];
+
+  const nTumbles = 5 + Math.floor(Math.random() * 2); // 5-6 "przewrotów" kostki
+  const steps = [];
+  let curRotX = 0, curRotY = 0;
+  for (let i = 0; i < nTumbles; i++) {
+    const progress = (i + 1) / nTumbles;
+    const left = Math.round(startLeft + (restLeft - startLeft) * progress);
+    curRotX += (Math.random() < 0.5 ? 1 : -1) * (Math.random() < 0.5 ? 90 : 180);
+    curRotY += (Math.random() < 0.5 ? 1 : -1) * (Math.random() < 0.5 ? 90 : 180);
+    const bounceUp = i < nTumbles - 1 ? Math.max(4, 20 - i * 3) : 0; // coraz mniejsze podskoki
+    const dur = Math.max(75, 190 - i * 18);
+    steps.push({ left, y: -bounceUp, rx: curRotX, ry: curRotY, dur });
+  }
+  // finalny krok: kostka DOKŁADNIE zatrzymuje się na wylosowanej wartości
+  steps.push({ left: restLeft, y: 0, rx: target.x, ry: target.y, dur: 260, settle: true });
+
+  cube.classList.add('thrown');
+  let i = 0;
+  function next() {
+    if (i >= steps.length) {
+      if (onDone) onDone();
+      return;
+    }
+    const s = steps[i++];
+    cube.style.transitionDuration = s.dur + 'ms';
+    cube.style.transitionTimingFunction = s.settle
+      ? 'cubic-bezier(.22,.68,.15,1.02)'
+      : 'cubic-bezier(.36,.07,.19,.97)';
+    cube.style.left = s.left + 'px';
+    cube.style.transform = `translateY(${s.y}px) rotateX(${s.rx}deg) rotateY(${s.ry}deg)`;
+    if (shadow) {
+      shadow.style.transitionDuration = s.dur + 'ms';
+      shadow.style.left = (s.left + 7) + 'px';
+      const shrink = s.y < 0 ? Math.max(0.5, 1 + s.y / 40) : 1;
+      shadow.style.transform = `scale(${shrink})`;
+      shadow.style.opacity = s.y < 0 ? String(0.15 + shrink * 0.2) : '0.4';
+    }
+    setTimeout(next, s.dur);
+  }
+  next();
+}
+
 // ---- RZUT KOSTKĄ - LOSOWANIE PIERWSZEGO GRACZA (ZSYNCHRONIZOWANY) ----
 let OL_diceState = {
   roomId: null,
@@ -5651,8 +5775,14 @@ function olOpenDiceRollModal(roomId, players) {
   // Zresetuj wyniki
   document.getElementById('dice-p1-result').textContent = '-';
   document.getElementById('dice-p2-result').textContent = '-';
-  document.getElementById('dice-p1-visual').textContent = '🎲';
-  document.getElementById('dice-p2-visual').textContent = '🎲';
+  document.getElementById('dice-p1-result').classList.add('pending');
+  document.getElementById('dice-p2-result').classList.add('pending');
+
+  // Zresetuj kostki na wspólnym polu - wracają na swoje "domowe" krawędzie stołu
+  requestAnimationFrame(() => {
+    olResetDiceOnTable(0);
+    olResetDiceOnTable(1);
+  });
 
   // Włącz swój przycisk, wyłącz cudzy
   document.getElementById('dice-p1-btn').disabled = OL_diceState.myIndex !== 0;
@@ -5706,22 +5836,17 @@ function olUpdateDiceDisplay(rolls) {
     if (currTimestamp > OL_diceState.lastRolled[0]) {
       OL_diceState.lastRolled[0] = currTimestamp;
       
-      const dice1Visual = document.getElementById('dice-p1-visual');
       const dice1Result = document.getElementById('dice-p1-result');
       const dice1Btn = document.getElementById('dice-p1-btn');
-      
-      // Startuj animację
-      dice1Visual.classList.remove('rolling');
-      void dice1Visual.offsetWidth; // Force reflow
-      dice1Visual.classList.add('rolling');
-      
-      setTimeout(() => {
-        dice1Visual.classList.remove('rolling');
-        dice1Visual.textContent = '🎲';
+
+      // Kostka fizycznie leci i turla się po wspólnym polu - wynik pokazujemy
+      // DOPIERO gdy kostka faktycznie się zatrzyma (onDone)
+      olThrowDiceOnTable(0, rolls[0].value, () => {
         dice1Result.textContent = rolls[0].value;
+        dice1Result.classList.remove('pending');
         dice1Btn.disabled = true;
         dice1Btn.textContent = '✓ ' + rolls[0].value;
-      }, 600);
+      });
     }
   }
   
@@ -5732,22 +5857,17 @@ function olUpdateDiceDisplay(rolls) {
     if (currTimestamp > OL_diceState.lastRolled[1]) {
       OL_diceState.lastRolled[1] = currTimestamp;
       
-      const dice2Visual = document.getElementById('dice-p2-visual');
       const dice2Result = document.getElementById('dice-p2-result');
       const dice2Btn = document.getElementById('dice-p2-btn');
-      
-      // Startuj animację
-      dice2Visual.classList.remove('rolling');
-      void dice2Visual.offsetWidth; // Force reflow
-      dice2Visual.classList.add('rolling');
-      
-      setTimeout(() => {
-        dice2Visual.classList.remove('rolling');
-        dice2Visual.textContent = '🎲';
+
+      // Kostka fizycznie leci i turla się po wspólnym polu - wynik pokazujemy
+      // DOPIERO gdy kostka faktycznie się zatrzyma (onDone)
+      olThrowDiceOnTable(1, rolls[1].value, () => {
         dice2Result.textContent = rolls[1].value;
+        dice2Result.classList.remove('pending');
         dice2Btn.disabled = true;
         dice2Btn.textContent = '✓ ' + rolls[1].value;
-      }, 600);
+      });
     }
   }
 }
@@ -5803,8 +5923,10 @@ async function olFinalizeDiceRoll(rolls) {
     document.getElementById('dice-status').textContent = '🔄 REMIS! Rzucajcie znowu...';
     document.getElementById('dice-p1-result').textContent = '-';
     document.getElementById('dice-p2-result').textContent = '-';
-    document.getElementById('dice-p1-visual').textContent = '🎲';
-    document.getElementById('dice-p2-visual').textContent = '🎲';
+    document.getElementById('dice-p1-result').classList.add('pending');
+    document.getElementById('dice-p2-result').classList.add('pending');
+    olResetDiceOnTable(0);
+    olResetDiceOnTable(1);
     document.getElementById('dice-p1-btn').disabled = OL_diceState.myIndex !== 0;
     document.getElementById('dice-p2-btn').disabled = OL_diceState.myIndex !== 1;
     document.getElementById('dice-p1-btn').textContent = OL_diceState.myIndex === 0 ? 'RZUĆ' : '⏳';
@@ -5820,7 +5942,7 @@ async function olFinalizeDiceRoll(rolls) {
   
   // Pokaż komunikat
   const finalMsg = document.getElementById('dice-final-message');
-  finalMsg.textContent = `🎲 ZACZYNA ${winner.toUpperCase()} - LOS TAK CHCIAŁ...`;
+  finalMsg.textContent = `🎲 ZACZYNA ${winner.toUpperCase()} LOS TAK CHCIAŁ...`;
   finalMsg.classList.add('show');
   document.getElementById('dice-status').textContent = '✓ Rzuty ukończone!';
   
@@ -7081,25 +7203,31 @@ function showMessage(element, text, type) {
   <div class="dice-roll-box">
     <div class="dice-roll-title">🎲 RZUT KOSTKĄ</div>
     <div class="dice-roll-subtitle">Wylosuj kto zaczyna grę</div>
-    
+
+    <!-- WSPÓLNE POLE - kostki obu graczy fizycznie turlają się po tym samym stole -->
+    <div class="dice-table-wrap">
+      <div class="dice-table-label">WSPÓLNE POLE</div>
+      <div class="dice-table" id="dice-table">
+        <div class="dice-shadow" id="dice-shadow-0"></div>
+        <div class="dice-shadow" id="dice-shadow-1"></div>
+        <div class="dice3d-cube p0" id="dice-p1-visual"></div>
+        <div class="dice3d-cube p1" id="dice-p2-visual"></div>
+      </div>
+    </div>
+
     <div class="dice-players-container">
       <div class="dice-player-section">
         <div class="dice-player-name" id="dice-p1-name">Gracz 1</div>
-        <div class="dice-container">
-          <div class="dice-cube" id="dice-p1-visual">🎲</div>
-        </div>
-        <div class="dice-result" id="dice-p1-result">-</div>
+        <div class="dice-result pending" id="dice-p1-result">-</div>
         <button class="dice-button" id="dice-p1-btn" onclick="olRollDice(0)">RZUĆ</button>
       </div>
       
       <div class="dice-player-section">
         <div class="dice-player-name" id="dice-p2-name">Gracz 2</div>
-        <div class="dice-container">
-          <div class="dice-cube" id="dice-p2-visual">🎲</div>
-        </div>
-        <div class="dice-result" id="dice-p2-result">-</div>
+        <div class="dice-result pending" id="dice-p2-result">-</div>
         <button class="dice-button" id="dice-p2-btn" onclick="olRollDice(1)">RZUĆ</button>
       </div>
+
     </div>
     
     <div class="dice-status" id="dice-status"></div>
