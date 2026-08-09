@@ -2189,18 +2189,20 @@ function loadStats(){
           if (g.winner === nick) ps.wins++;
           if (g.rounds_data) {
             g.rounds_data.forEach(r => {
-              ps.rounds.push(r);
+              // Stary format nie miał osobnego pola .rounds — liczymy tylko surowe sumy/rekordy
+              ps.totalPoints = (ps.totalPoints||0) + r;
+              ps.totalDarts  = (ps.totalDarts||0)  + 3; // brak danych o lotkach w starym formacie — zakładamy 3/rundę
               if (r > ps.best) ps.best = r;
               if (r >= 100) ps.highest100++;
               if (r >= 140) ps.highest140++;
-              if (r >= 180) ps.highest180++;
+              if (r >= 180) { ps.highest180++; ps.e180 = (ps.e180||0)+1; }
             });
           }
         });
       });
-      // Preserve global 180 count if available
+      // Preserve global 180 count as fallback tylko gdy nie udało się nic policzyć per-rundę
       const globalNick = migrated.games[0] && migrated.games[0].players && migrated.games[0].players[0];
-      if (globalNick && raw.t.e180 && migrated.players[globalNick]) {
+      if (globalNick && raw.t.e180 && migrated.players[globalNick] && !migrated.players[globalNick].e180) {
         migrated.players[globalNick].e180 = raw.t.e180;
       }
       return migrated;
@@ -2563,7 +2565,7 @@ function startGame(){
   if(G.mode==='cricket') G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:0,cMult:1,cp:G.firstPlayerLeg||0,round:1});
   G.active=true;
   // Reset per-game counters
-  G._gameCoAttempts=0; G._gameCoSuccess=0; G._gameHighestCheckout=0;
+  G._gameCoAttempts=[]; G._gameCoSuccess=[]; G._gameHighestCheckout=[];
   G._allHistory=[]; G._gameDoubleAttempts=[]; G._gameDoubleHits=[];
   document.getElementById('game-mode-lbl').textContent=G.mode.toUpperCase();
   const isX01=G.mode==='501'||G.mode==='301';
@@ -2800,7 +2802,7 @@ function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
     if(bust){
       announceScore(sc, true);
     } else if(sc===180){
-      const _curNick=G.players[G.cp];if(_curNick){const _ps=getPlayerStats(_curNick);_ps.e180=(_ps.e180||0)+1;saveStats();}toast('🏆 180!!!');
+      toast('🏆 180!!!');
       announceScore(180);
     } else {
       announceScore(sc);
@@ -2811,7 +2813,7 @@ function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
       SFX.bust();
       announceScore(sc, true);
     } else if(sc===180){
-      const _curNick=G.players[G.cp];if(_curNick){const _ps=getPlayerStats(_curNick);_ps.e180=(_ps.e180||0)+1;saveStats();}toast('🏆 180!!!');
+      toast('🏆 180!!!');
       announceScore(180);
     } else {
       SFX.confirm();
@@ -2848,10 +2850,10 @@ function processSum(sc){
         if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],nd,0,true,true);return;}
         if(rem===0){
           // Jeśli to koniec gry - akceptujemy
-          G._gameCoAttempts=(G._gameCoAttempts||0)+1;
+          G._gameCoAttempts[pi]=(G._gameCoAttempts[pi]||0)+1;
           if(!G.dOut){
             // Double-Out wyłączony, możemy skończyć
-            G._gameCoSuccess=(G._gameCoSuccess||0)+1;
+            G._gameCoSuccess[pi]=(G._gameCoSuccess[pi]||0)+1;
             const ns=[...G.scores];ns[pi]=0;G.scores=ns;G.diDone=nd;pushH(pi,sc,false,true);trigWin(pi,sc);return;
           } else {
             // Double-Out włączony - ostrzeżenie, ale czeka na kolejną rundę
@@ -2863,11 +2865,11 @@ function processSum(sc){
       }
       
       // Double-In już otwarty - normalnie liczymy
-      if(G.scores[pi]<=170)G._gameCoAttempts=(G._gameCoAttempts||0)+1;
+      if(G.scores[pi]<=170)G._gameCoAttempts[pi]=(G._gameCoAttempts[pi]||0)+1;
       if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
       if(rem===0){
         // Koniec gry - w trybie summary akceptujemy każdy wynik (bez walidacji double-out)
-        G._gameCoSuccess=(G._gameCoSuccess||0)+1;
+        G._gameCoSuccess[pi]=(G._gameCoSuccess[pi]||0)+1;
         const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sc,false);trigWin(pi,sc);return;
       }
       const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sc,false);
@@ -2889,11 +2891,11 @@ function processSum(sc){
       const ns=[...G.scores];ns[pi]=rem;toast('🎯 Double-In otwarty! -'+sc);advancePlayer(ns,nd,sc,false,true);return;
     }
     const rem=G.scores[pi]-sc;
-    if(G.scores[pi]<=170)G._gameCoAttempts=(G._gameCoAttempts||0)+1;
+    if(G.scores[pi]<=170)G._gameCoAttempts[pi]=(G._gameCoAttempts[pi]||0)+1;
     if(rem<0||(G.dOut&&rem===1)){toast('PRZEBICIE!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
     if(rem===0){
       if(G.dOut&&!isD){toast('Musisz double na koniec!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
-      G._gameCoSuccess=(G._gameCoSuccess||0)+1;
+      G._gameCoSuccess[pi]=(G._gameCoSuccess[pi]||0)+1;
       const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sc,false);trigWin(pi,sc);return;
     }
     const ns=[...G.scores];ns[pi]=rem;advancePlayer(ns,[...G.diDone],sc,false);
@@ -2930,7 +2932,7 @@ function confirmThrow(){
   const sum=filled.reduce((a,b)=>a+b,0);
   const rem=G.scores[pi]-sum;
   // Track checkout attempt (score ≤170 = reachable finish)
-  if(G.scores[pi]<=170){G._gameCoAttempts=(G._gameCoAttempts||0)+1;}
+  if(G.scores[pi]<=170){G._gameCoAttempts[pi]=(G._gameCoAttempts[pi]||0)+1;}
   // Track double attempts: last dart aimed at a double segment
   {
     const lastIdx=G.throws.map((v,i)=>v!==null?i:-1).filter(i=>i!==-1).pop();
@@ -2948,7 +2950,7 @@ function confirmThrow(){
     const lastIdx=G.throws.map((v,i)=>v!==null?i:-1).filter(i=>i!==-1).pop();
     const lastMult=G.throwMults[lastIdx]; const lastVal=G.throws[lastIdx];
     if(G.dOut&&!(lastMult===2||lastVal===50)){toast('Musisz zakończyć na double!');advancePlayer([...G.scores],[...G.diDone],0,true);return;}
-    G._gameCoSuccess=(G._gameCoSuccess||0)+1;
+    G._gameCoSuccess[pi]=(G._gameCoSuccess[pi]||0)+1;
     if(!G._gameDoubleHits) G._gameDoubleHits=[];
     if(lastMult===2||lastVal===50) G._gameDoubleHits[pi]=(G._gameDoubleHits[pi]||0)+1;
     const ns=[...G.scores];ns[pi]=0;G.scores=ns;pushH(pi,sum,false);trigWin(pi,sum);return;
@@ -2977,6 +2979,10 @@ function undoTurn(){
 }
 
 function trigWin(pi,lastSc){
+  // Zapamiętaj najwyższy checkout tego gracza w tym meczu (dotąd nigdy nie było to zapisywane)
+  if(!G._gameHighestCheckout) G._gameHighestCheckout=[];
+  if(lastSc > (G._gameHighestCheckout[pi]||0)) G._gameHighestCheckout[pi] = lastSc;
+
   const pR=G.history.filter(h=>h.p===pi&&!h.bust);
   const avg=pR.length?(pR.reduce((s,r)=>s+r.sc,0)/pR.length).toFixed(1):'0.0';
 
@@ -3433,27 +3439,22 @@ function recGame(winner){
       if(r > ps.best) ps.best = r;
       if(r >= 100) ps.highest100 = (ps.highest100||0)+1;
       if(r >= 140) ps.highest140 = (ps.highest140||0)+1;
-      if(r >= 180) ps.highest180 = (ps.highest180||0)+1;
-      // e180 zliczane live w advancePlayer — nie dublujemy
+      if(r >= 180) { ps.highest180 = (ps.highest180||0)+1; ps.e180 = (ps.e180||0)+1; }
     });
 
     // Double attempts/hits
     ps.doubleAttempts = (ps.doubleAttempts||0) + (G._gameDoubleAttempts[idx]||0);
     ps.doubleHits     = (ps.doubleHits||0)     + (G._gameDoubleHits[idx]||0);
+
+    // Checkout stats — per gracz (nie tylko zwycięzca; każdy dostaje SWOJE próby/trafienia)
+    ps.coAttempts = (ps.coAttempts||0) + (G._gameCoAttempts[idx]||0);
+    ps.coSuccess  = (ps.coSuccess||0)  + (G._gameCoSuccess[idx]||0);
+    if((G._gameHighestCheckout[idx]||0) > (ps.highestCheckout||0)){
+      ps.highestCheckout = G._gameHighestCheckout[idx];
+    }
   });
 
-  // Checkout stats → tylko zwycięzca
-  const winnerIdx = G.players.indexOf(winner);
-  if(winnerIdx >= 0){
-    const ps = getPlayerStats(winner);
-    ps.coAttempts = (ps.coAttempts||0) + (G._gameCoAttempts||0);
-    ps.coSuccess  = (ps.coSuccess||0)  + (G._gameCoSuccess||0);
-    if(G._gameHighestCheckout && G._gameHighestCheckout > (ps.highestCheckout||0)){
-      ps.highestCheckout = G._gameHighestCheckout;
-    }
-  }
-
-  G._gameCoAttempts = 0; G._gameCoSuccess = 0; G._gameHighestCheckout = 0;
+  G._gameCoAttempts = []; G._gameCoSuccess = []; G._gameHighestCheckout = [];
   G._gameDoubleAttempts = []; G._gameDoubleHits = [];
 
   saveStats();
@@ -6277,12 +6278,11 @@ async function olRecordWin(winnerIdx) {
       best:           Math.max(d.best||0, gameBest),
       doubleAttempts: (d.doubleAttempts||0) + (ps.doubleAttempts || G._gameDoubleAttempts[myIdx] || 0),
       doubleHits:     (d.doubleHits||0)     + (ps.doubleHits     || G._gameDoubleHits[myIdx]     || 0),
+      // Checkout — każdy gracz (nie tylko zwycięzca) zapisuje SWOJE próby/trafienia
+      coAttempts:      (d.coAttempts||0)      + (G._gameCoAttempts[myIdx]||0),
+      coSuccess:       (d.coSuccess||0)       + (G._gameCoSuccess[myIdx]||0),
+      highestCheckout: Math.max(d.highestCheckout||0, G._gameHighestCheckout[myIdx]||0),
     };
-    if (isWinner) {
-      update.coAttempts      = (d.coAttempts||0)      + (G._gameCoAttempts||0);
-      update.coSuccess       = (d.coSuccess||0)       + (G._gameCoSuccess||0);
-      update.highestCheckout = Math.max(d.highestCheckout||0, G._gameHighestCheckout||0);
-    }
 
     try {
       if (!uSnap.exists()) {
