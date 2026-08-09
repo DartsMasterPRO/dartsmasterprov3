@@ -534,17 +534,19 @@ input{outline:none}
 .dice3d-face.f4{transform:rotateX(-90deg) translateZ(36px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
 .dice3d-face.f1 .dice3d-pip.on,.dice3d-face.f6 .dice3d-pip.on{background:radial-gradient(circle at 30% 30%,#ff5252,#c62828)}
 
-/* WSPÓLNY STÓŁ - jedno duże pole, obie kostki fizycznie się po nim toczą */
+/* WSPÓLNY STÓŁ - jedno duże pole, obie kostki fizycznie się po nim toczą.
+   WAŻNE: element z perspective NIE MOŻE mieć overflow:hidden/border-radius+clip -
+   w wielu przeglądarkach to wymusza spłaszczenie 3D dzieci (ten sam problem co filter).
+   Dlatego przycinanie/zaokrąglenie robi osobny, zewnętrzny wrapper .dice-table-frame. */
 .dice-table-label{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;margin-bottom:8px;letter-spacing:1px}
 .dice-table-wrap{margin-bottom:20px}
-.dice-table{position:relative;height:210px;border-radius:14px;overflow:hidden;
+.dice-table-frame{border-radius:14px;overflow:hidden;border:1px solid rgba(0,229,255,.2);box-shadow:inset 0 0 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05)}
+.dice-table{position:relative;height:210px;
   background:
     radial-gradient(ellipse 70% 55% at 50% 20%, rgba(255,255,255,.06), transparent 70%),
     radial-gradient(ellipse 90% 70% at 50% 110%, rgba(0,229,255,.09), transparent 60%),
     linear-gradient(180deg,#1b1b28,#0a0a10);
-  border:1px solid rgba(0,229,255,.2);
-  perspective:480px;
-  box-shadow:inset 0 0 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05)}
+  perspective:480px}
 .dice-table::before{content:'';position:absolute;inset:0;background-image:
     repeating-linear-gradient(0deg, rgba(255,255,255,.015) 0 1px, transparent 1px 26px),
     repeating-linear-gradient(90deg, rgba(255,255,255,.015) 0 1px, transparent 1px 26px);
@@ -7291,11 +7293,13 @@ function showMessage(element, text, type) {
     <!-- WSPÓLNE POLE - kostki obu graczy fizycznie turlają się po tym samym stole -->
     <div class="dice-table-wrap">
       <div class="dice-table-label">WSPÓLNE POLE</div>
-      <div class="dice-table" id="dice-table">
-        <div class="dice-shadow" id="dice-shadow-0"></div>
-        <div class="dice-shadow" id="dice-shadow-1"></div>
-        <div class="dice3d-cube p0" id="dice-p1-visual"></div>
-        <div class="dice3d-cube p1" id="dice-p2-visual"></div>
+      <div class="dice-table-frame">
+        <div class="dice-table" id="dice-table">
+          <div class="dice-shadow" id="dice-shadow-0"></div>
+          <div class="dice-shadow" id="dice-shadow-1"></div>
+          <div class="dice3d-cube p0" id="dice-p1-visual"></div>
+          <div class="dice3d-cube p1" id="dice-p2-visual"></div>
+        </div>
       </div>
     </div>
 
