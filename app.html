@@ -521,22 +521,23 @@ input{outline:none}
 .dice-final-message.show{display:block;animation:slideDown .4s ease-out}
 @keyframes slideDown{0%{opacity:0;transform:translateY(-10px)}100%{opacity:1;transform:translateY(0)}}
 
-/* PRAWDZIWA KOSTKA 3D */
-.dice3d-face{position:absolute;width:64px;height:64px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:11px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;box-shadow:inset 0 0 10px rgba(0,0,0,.18)}
+/* PRAWDZIWA KOSTKA 3D - każda ścianka ma inne cieniowanie (jak realne oświetlenie z góry),
+   dzięki czemu bryła wygląda jak sześcian, a nie płaski kwadrat */
+.dice3d-face{position:absolute;width:64px;height:64px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:11px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:9px;box-shadow:inset 0 0 10px rgba(0,0,0,.18);backface-visibility:hidden}
 .dice3d-pip{width:9px;height:9px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
 .dice3d-pip.on{opacity:1}
 .dice3d-face.f1{transform:rotateY(0deg) translateZ(32px)}
-.dice3d-face.f6{transform:rotateY(180deg) translateZ(32px)}
-.dice3d-face.f2{transform:rotateY(90deg) translateZ(32px)}
-.dice3d-face.f5{transform:rotateY(-90deg) translateZ(32px)}
-.dice3d-face.f3{transform:rotateX(90deg) translateZ(32px)}
-.dice3d-face.f4{transform:rotateX(-90deg) translateZ(32px)}
+.dice3d-face.f6{transform:rotateY(180deg) translateZ(32px);background:linear-gradient(150deg,#e6e9ed,#c0c4cb)}
+.dice3d-face.f2{transform:rotateY(90deg) translateZ(32px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f5{transform:rotateY(-90deg) translateZ(32px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f3{transform:rotateX(90deg) translateZ(32px);background:linear-gradient(150deg,#ffffff,#eef0f3)}
+.dice3d-face.f4{transform:rotateX(-90deg) translateZ(32px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
 .dice3d-face.f1 .dice3d-pip.on,.dice3d-face.f6 .dice3d-pip.on{background:radial-gradient(circle at 30% 30%,#ff5252,#c62828)}
 
 /* WSPÓLNE POLE RZUTÓW - kostki fizycznie turlają się po stole i dopiero po zatrzymaniu pokazują wynik */
 .dice-table-label{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;margin-bottom:8px;letter-spacing:1px}
 .dice-table-wrap{margin-bottom:20px}
-.dice-table{position:relative;height:130px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 115%,rgba(0,229,255,.10),transparent 65%),linear-gradient(180deg,#181826,#0c0c13);border:1px solid rgba(0,229,255,.18);perspective:600px;box-shadow:inset 0 0 30px rgba(0,0,0,.5)}
+.dice-table{position:relative;height:130px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 115%,rgba(0,229,255,.10),transparent 65%),linear-gradient(180deg,#181826,#0c0c13);border:1px solid rgba(0,229,255,.18);perspective:340px;box-shadow:inset 0 0 30px rgba(0,0,0,.5)}
 .dice-table::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.35),transparent)}
 .dice3d-cube{position:absolute;width:64px;height:64px;top:33px;transform-style:preserve-3d;transition-property:left,transform;transition-timing-function:cubic-bezier(.36,.07,.19,.97);filter:drop-shadow(0 8px 6px rgba(0,0,0,.55))}
 .dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.35)}
@@ -5607,7 +5608,7 @@ const DICE_ROT = {
   1:{x:0,y:0}, 2:{x:0,y:-90}, 3:{x:-90,y:0},
   4:{x:90,y:0}, 5:{x:0,y:90}, 6:{x:0,y:180}
 };
-const DICE_IDLE_ROT = { 0:{x:-15,y:-25}, 1:{x:-15,y:25} };
+const DICE_IDLE_ROT = { 0:{x:-22,y:-32}, 1:{x:-22,y:32} };
 
 // Buduje 6 ścianek prawdziwej kostki 3D (raz na dany element) z realistycznym układem oczek
 function ensureDiceCubeBuilt(cubeEl) {
