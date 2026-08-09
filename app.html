@@ -5644,6 +5644,9 @@ function olEnterOnlineGame(roomData, players) {
 
   showOnlineGameBar();
 
+  // Reset znacznika tury — nowa gra nie ma jeszcze grać dźwiękiem na pierwszy ruch
+  _olLastTurnCp = null;
+
   // Zablokuj/odblokuj input w zależności od tury
   olUpdateTurnUI(gs.cp);
 
@@ -5833,6 +5836,8 @@ function showOnlineGameBar() {
 function hideOnlineGameBar() {
   const bar = document.getElementById('ol-game-bar');
   if (bar) bar.style.display = 'none';
+  // Reset znacznika tury
+  _olLastTurnCp = null;
   // WRC: ukryj okienko kamery
   wrcHideAll();
   // Ukryj czat pokoju, przywróć globalny (jeśli zalogowany)
@@ -5913,7 +5918,32 @@ function olTimerStop() {
   if (timerEl) timerEl.classList.remove('active');
 }
 
+// ===== DELIKATNY DŹWIĘK ZMIANY GRACZA (bez głosu, WebAudio) =====
+var _olLastTurnCp = null;
+
+function playTurnChangeSound() {
+  try {
+    var ctx = window._chatAudioCtx || (window._chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)());
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(760, now + 0.12);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  } catch(e) { console.log('turn sound err', e); }
+}
+
 function olUpdateTurnUI(cp) {
+  if (_olLastTurnCp !== null && _olLastTurnCp !== cp) playTurnChangeSound();
+  _olLastTurnCp = cp;
   const isMyTurn = OL.myIndex === cp;
   const bar = document.getElementById('ol-game-bar');
   const pill = document.getElementById('ol-turn-pill');
