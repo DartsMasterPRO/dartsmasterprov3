@@ -5432,6 +5432,17 @@ function olOpenRoomModal(roomId) {
       waitMsg.style.display = 'block';
     }
 
+    // 🎲 SYNCHRONIZACJA MODALU RZUTU KOSTKĄ — dzięki fladze diceRollActive
+    // zapisanej przez hosta w Firebase, DRUGI gracz też otwiera modal rzutu
+    // kostką (wcześniej widział go tylko host, bo modal otwierał się tylko
+    // lokalnie po kliknięciu przycisku, bez zapisu do Firebase).
+    if (r.diceRollActive && r.diceRollTs && r.diceRollTs !== OL_diceState.lastDiceRollTs) {
+      OL_diceState.lastDiceRollTs = r.diceRollTs;
+      if (!document.getElementById('dice-roll-modal').classList.contains('active')) {
+        olOpenDiceRollModal(roomId, players);
+      }
+    }
+
     // Jeśli gra się zaczęła
     // 🐛 BUG FIX: onSnapshot odpala się przy KAŻDEJ zmianie dokumentu pokoju
     // (każdy rzut, zmiana tury itd.), więc bez poniższego zabezpieczenia
@@ -5574,82 +5585,117 @@ let OL_diceState = {
   players: [],
   diceUnsub: null,
   myIndex: -1,
-  lastRolled: { 0: 0, 1: 0 }
+  lastRolled: { 0: 0, 1: 0 },
+  lastDiceRollTs: null // pilnuje, żeby nie otwierać modalu wielokrotnie dla tej samej rundy rzutu
 };
 
+// Wywoływane WYŁĄCZNIE przez hosta (przycisk "ROZPOCZNIJ GRĘ").
+// Zapisuje flagę do Firebase, żeby modal rzutu kostką pokazał się OBU graczom.
 async function olShowDiceRoll() {
   const fb = getFb(); const user = getFbUser();
   if (!fb || !user || !OL.currentRoomId) return;
-  
+  if (!OL.isHost) return; // bezpiecznik - tylko host startuje losowanie
+
   try {
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
     const snap = await fb.getDoc(roomRef);
     if (!snap.exists()) return;
     const r = snap.data();
     const players = r.players || [];
-    
+
     // Jeśli mniej niż 2 graczy, uruchom grę normalnie
     if (players.length < 2) {
       olStartOnlineGame();
       return;
     }
-    
-    // Znajdź mój indeks
-    OL_diceState.myIndex = (players||[]).findIndex(p => p.uid === user.uid);
-    
-    // Przygotuj state
-    OL_diceState.roomId = OL.currentRoomId;
-    OL_diceState.players = players;
-    OL_diceState.rollingNow = { 0: false, 1: false };
-    
-    // Pokaż modalę
-    document.getElementById('dice-roll-modal').classList.add('active');
-    document.getElementById('dice-status').textContent = '⏳ Czekaj na rzuty...';
-    document.getElementById('dice-final-message').classList.remove('show');
-    
-    // Ustaw nazwy graczy
-    document.getElementById('dice-p1-name').textContent = players[0]?.nick || 'Gracz 1';
-    document.getElementById('dice-p2-name').textContent = players[1]?.nick || 'Gracz 2';
-    
-    // Zresetuj wyniki
-    document.getElementById('dice-p1-result').textContent = '-';
-    document.getElementById('dice-p2-result').textContent = '-';
-    document.getElementById('dice-p1-visual').textContent = '🎲';
-    document.getElementById('dice-p2-visual').textContent = '🎲';
-    
-    // Włącz swój przycisk, wyłącz cudzy
-    document.getElementById('dice-p1-btn').disabled = OL_diceState.myIndex !== 0;
-    document.getElementById('dice-p2-btn').disabled = OL_diceState.myIndex !== 1;
-    
-    // Ustaw statusy
-    document.getElementById('dice-p1-btn').textContent = OL_diceState.myIndex === 0 ? 'RZUĆ' : '⏳';
-    document.getElementById('dice-p2-btn').textContent = OL_diceState.myIndex === 1 ? 'RZUĆ' : '⏳';
-    
-    // Wyczyść stare dane w Firebase
-    OL_diceState.lastRolled = { 0: 0, 1: 0 };
-    await fb.updateDoc(roomRef, { diceRolls: {} });
-    
+
+    // Wyślij flagę do Firebase — to na jej podstawie DRUGI gracz też otworzy modal
+    const ts = Date.now();
+    OL_diceState.lastDiceRollTs = ts; // ustaw guard PRZED zapisem, żeby własny onSnapshot hosta nie otworzył modalu drugi raz
+    await fb.updateDoc(roomRef, { diceRollActive: true, diceRollTs: ts, diceRolls: {} });
+
     // Poczekaj na synchronizację
     await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Nasłuchuj zmian w diceRolls
-    if (OL_diceState.diceUnsub) OL_diceState.diceUnsub();
-    OL_diceState.diceUnsub = fb.onSnapshot(roomRef, snap => {
-      if (!snap.exists()) return;
-      const r = snap.data();
-      const rolls = r.diceRolls || {};
-      
-      olUpdateDiceDisplay(rolls);
-      
-      // Jeśli obaj rzucili - finalizuj
-      const hasRoll0 = rolls[0] && typeof rolls[0] === 'object' && rolls[0].value;
-      const hasRoll1 = rolls[1] && typeof rolls[1] === 'object' && rolls[1].value;
-      if (hasRoll0 && hasRoll1) {
-        setTimeout(() => olFinalizeDiceRoll(rolls), 800);
-      }
-    });
-    
+
+    // Otwórz modal lokalnie u hosta
+    olOpenDiceRollModal(OL.currentRoomId, players);
+
   } catch(e) { toast('❌ '+e.message); }
+}
+
+// Otwiera modal rzutu kostką lokalnie i podpina nasłuch na zmiany w diceRolls.
+// Wywoływane zarówno przez hosta (po starcie), jak i przez drugiego gracza
+// (po wykryciu flagi diceRollActive w nasłuchu pokoju) — dzięki temu OBAJ
+// gracze widzą tę samą modalę i mogą rzucić kostką.
+function olOpenDiceRollModal(roomId, players) {
+  const fb = getFb(); const user = getFbUser();
+  if (!fb || !user || !roomId) return;
+
+  // Znajdź mój indeks
+  OL_diceState.myIndex = (players||[]).findIndex(p => p.uid === user.uid);
+
+  // Przygotuj state
+  OL_diceState.roomId = roomId;
+  OL_diceState.players = players;
+  OL_diceState.rollingNow = { 0: false, 1: false };
+
+  // Pokaż modalę
+  document.getElementById('dice-roll-modal').classList.add('active');
+  document.getElementById('dice-status').textContent = '⏳ Czekaj na rzuty...';
+  document.getElementById('dice-final-message').classList.remove('show');
+
+  // Ustaw nazwy graczy
+  document.getElementById('dice-p1-name').textContent = players[0]?.nick || 'Gracz 1';
+  document.getElementById('dice-p2-name').textContent = players[1]?.nick || 'Gracz 2';
+
+  // Zresetuj wyniki
+  document.getElementById('dice-p1-result').textContent = '-';
+  document.getElementById('dice-p2-result').textContent = '-';
+  document.getElementById('dice-p1-visual').textContent = '🎲';
+  document.getElementById('dice-p2-visual').textContent = '🎲';
+
+  // Włącz swój przycisk, wyłącz cudzy
+  document.getElementById('dice-p1-btn').disabled = OL_diceState.myIndex !== 0;
+  document.getElementById('dice-p2-btn').disabled = OL_diceState.myIndex !== 1;
+
+  // Ustaw statusy
+  document.getElementById('dice-p1-btn').textContent = OL_diceState.myIndex === 0 ? 'RZUĆ' : '⏳';
+  document.getElementById('dice-p2-btn').textContent = OL_diceState.myIndex === 1 ? 'RZUĆ' : '⏳';
+
+  OL_diceState.lastRolled = { 0: 0, 1: 0 };
+
+  // Nasłuchuj zmian w diceRolls
+  const roomRef = fb.doc(fb.db,'rooms',roomId);
+  if (OL_diceState.diceUnsub) OL_diceState.diceUnsub();
+  OL_diceState.diceUnsub = fb.onSnapshot(roomRef, snap => {
+    if (!snap.exists()) return;
+    const r = snap.data();
+    const rolls = r.diceRolls || {};
+
+    olUpdateDiceDisplay(rolls);
+
+    // Jeśli obaj rzucili - finalizuj
+    const hasRoll0 = rolls[0] && typeof rolls[0] === 'object' && rolls[0].value;
+    const hasRoll1 = rolls[1] && typeof rolls[1] === 'object' && rolls[1].value;
+    if (hasRoll0 && hasRoll1) {
+      setTimeout(() => olFinalizeDiceRoll(rolls), 800);
+    }
+  });
+}
+
+// Ponowne losowanie po remisie — wywoływane niezależnie przez OBU graczy
+// (każdy klient wykrywa remis samodzielnie w olFinalizeDiceRoll).
+async function olRetryDiceRoll() {
+  const fb = getFb();
+  if (!fb || !OL.currentRoomId) return;
+  try {
+    const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
+    await fb.updateDoc(roomRef, { diceRolls: {} });
+  } catch(e) {}
+
+  // Poczekaj aż Firebase się zsynchronizuje
+  await new Promise(resolve => setTimeout(resolve, 500));
+  olOpenDiceRollModal(OL_diceState.roomId, OL_diceState.players);
 }
 
 function olUpdateDiceDisplay(rolls) {
@@ -5767,16 +5813,8 @@ async function olFinalizeDiceRoll(rolls) {
     // Reset timestamps
     OL_diceState.lastRolled = { 0: 0, 1: 0 };
     
-    // Wyczyść Firebase i uruchom nowy listener
-    const fb = getFb();
-    try {
-      const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
-      await fb.updateDoc(roomRef, { diceRolls: {} });
-      
-      // Poczekaj aż Firebase się zsynchronizuje
-      await new Promise(resolve => setTimeout(resolve, 500));
-      olShowDiceRoll();
-    } catch(e) {}
+    // Wyczyść Firebase i uruchom nowy listener (u OBU graczy niezależnie)
+    olRetryDiceRoll();
     return;
   }
   
@@ -5836,7 +5874,7 @@ async function olStartOnlineGame() {
       startedAt: Date.now()
     };
 
-    await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {} });
+    await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {}, diceRollActive: false });
   } catch(e) { toast('❌ '+e.message); }
 }
 
@@ -5880,7 +5918,7 @@ async function olStartOnlineGameWithWinner(firstPlayerIndex) {
       startedAt: Date.now()
     };
 
-    await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {} });
+    await fb.updateDoc(roomRef, { status: 'playing', gameState, rematch: {}, diceRollActive: false });
   } catch(e) { toast('❌ '+e.message); }
 }
 
