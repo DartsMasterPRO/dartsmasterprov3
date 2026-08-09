@@ -5644,6 +5644,9 @@ function olEnterOnlineGame(roomData, players) {
 
   showOnlineGameBar();
 
+  // Reset zapowiedzi tury — świeży start, pierwsza tura ma zostać ogłoszona
+  _olLastTurnCp = null;
+
   // Zablokuj/odblokuj input w zależności od tury
   olUpdateTurnUI(gs.cp);
 
@@ -5833,6 +5836,9 @@ function showOnlineGameBar() {
 function hideOnlineGameBar() {
   const bar = document.getElementById('ol-game-bar');
   if (bar) bar.style.display = 'none';
+  // Zresetuj zapowiedź tury — kolejna gra zacznie od ogłoszenia pierwszego gracza
+  _olLastTurnCp = null;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
   // WRC: ukryj okienko kamery
   wrcHideAll();
   // Ukryj czat pokoju, przywróć globalny (jeśli zalogowany)
@@ -5913,7 +5919,62 @@ function olTimerStop() {
   if (timerEl) timerEl.classList.remove('active');
 }
 
+// ===== ZAPOWIEDŹ ZMIANY TURY (styl spikera meczowego, dźwięk generowany, bez plików) =====
+var _olLastTurnCp = null;
+
+function playTurnFanfare() {
+  try {
+    var ctx = window._chatAudioCtx || (window._chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)());
+    if (ctx.state === 'suspended') ctx.resume();
+    var now = ctx.currentTime;
+    var notes = [523.25, 659.25, 783.99]; // C5-E5-G5, wznoszący akord fanfarowy
+    notes.forEach(function(freq, i) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      var start = now + i * 0.11;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.16, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+  } catch(e) { console.log('fanfare err', e); }
+}
+
+function speakTurnAnnounce(text) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    var u = new SpeechSynthesisUtterance(text);
+    u.lang = 'pl-PL';
+    u.rate = 1.05;
+    u.pitch = 0.85;
+    u.volume = 1;
+    var voices = speechSynthesis.getVoices();
+    var plVoice = voices.find(function(v){ return v.lang && v.lang.toLowerCase().indexOf('pl') === 0; });
+    if (plVoice) u.voice = plVoice;
+    speechSynthesis.cancel(); // przerwij ewentualną poprzednią zapowiedź
+    speechSynthesis.speak(u);
+  } catch(e) { console.log('speech err', e); }
+}
+
+// Ogłoś zmianę tury — jak spiker meczowy zapowiadający kto rzuca ("Player to throw!")
+function announceTurn(cp) {
+  if (cp === _olLastTurnCp) return; // tura się nie zmieniła — nic nie rob
+  _olLastTurnCp = cp;
+  if (typeof OL === 'undefined' || OL.myIndex === undefined || OL.myIndex === -1) return;
+  var isMyTurn = OL.myIndex === cp;
+  playTurnFanfare();
+  var name = (G.players && G.players[cp]) || 'Gracz';
+  var text = isMyTurn ? 'Twoja tura! Rzucaj!' : name.toUpperCase() + ', na rzucie!';
+  setTimeout(function(){ speakTurnAnnounce(text); }, 380);
+}
+
 function olUpdateTurnUI(cp) {
+  announceTurn(cp);
   const isMyTurn = OL.myIndex === cp;
   const bar = document.getElementById('ol-game-bar');
   const pill = document.getElementById('ol-turn-pill');
