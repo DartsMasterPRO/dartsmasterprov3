@@ -5573,7 +5573,8 @@ let OL_diceState = {
   roomId: null,
   players: [],
   diceUnsub: null,
-  myIndex: -1
+  myIndex: -1,
+  lastRolled: { 0: 0, 1: 0 }
 };
 
 async function olShowDiceRoll() {
@@ -5599,6 +5600,7 @@ async function olShowDiceRoll() {
     // Przygotuj state
     OL_diceState.roomId = OL.currentRoomId;
     OL_diceState.players = players;
+    OL_diceState.rollingNow = { 0: false, 1: false };
     
     // Pokaż modalę
     document.getElementById('dice-roll-modal').classList.add('active');
@@ -5624,7 +5626,11 @@ async function olShowDiceRoll() {
     document.getElementById('dice-p2-btn').textContent = OL_diceState.myIndex === 1 ? 'RZUĆ' : '⏳';
     
     // Wyczyść stare dane w Firebase
+    OL_diceState.lastRolled = { 0: 0, 1: 0 };
     await fb.updateDoc(roomRef, { diceRolls: {} });
+    
+    // Poczekaj na synchronizację
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // Nasłuchuj zmian w diceRolls
     if (OL_diceState.diceUnsub) OL_diceState.diceUnsub();
@@ -5636,7 +5642,9 @@ async function olShowDiceRoll() {
       olUpdateDiceDisplay(rolls);
       
       // Jeśli obaj rzucili - finalizuj
-      if (rolls[0] && rolls[1]) {
+      const hasRoll0 = rolls[0] && typeof rolls[0] === 'object' && rolls[0].value;
+      const hasRoll1 = rolls[1] && typeof rolls[1] === 'object' && rolls[1].value;
+      if (hasRoll0 && hasRoll1) {
         setTimeout(() => olFinalizeDiceRoll(rolls), 800);
       }
     });
@@ -5646,47 +5654,55 @@ async function olShowDiceRoll() {
 
 function olUpdateDiceDisplay(rolls) {
   // Gracz 1
-  if (rolls[0]) {
-    const dice1Visual = document.getElementById('dice-p1-visual');
-    const dice1Result = document.getElementById('dice-p1-result');
-    const dice1Btn = document.getElementById('dice-p1-btn');
-    
-    if (dice1Result.textContent === '-') {
-      // Pokaż animację
+  if (rolls[0] && typeof rolls[0] === 'object' && rolls[0].value) {
+    const currTimestamp = rolls[0].ts || rolls[0].timestamp || 0;
+    // Sprawdź czy to nowy roll (timestamp się zmienił)
+    if (currTimestamp > OL_diceState.lastRolled[0]) {
+      OL_diceState.lastRolled[0] = currTimestamp;
+      
+      const dice1Visual = document.getElementById('dice-p1-visual');
+      const dice1Result = document.getElementById('dice-p1-result');
+      const dice1Btn = document.getElementById('dice-p1-btn');
+      
+      // Startuj animację
+      dice1Visual.classList.remove('rolling');
+      void dice1Visual.offsetWidth; // Force reflow
       dice1Visual.classList.add('rolling');
+      
       setTimeout(() => {
         dice1Visual.classList.remove('rolling');
         dice1Visual.textContent = '🎲';
-        dice1Result.textContent = rolls[0];
-        dice1Result.style.animation = 'none';
-        setTimeout(() => { dice1Result.style.animation = 'slideDown 0.3s ease-out'; }, 10);
+        dice1Result.textContent = rolls[0].value;
+        dice1Btn.disabled = true;
+        dice1Btn.textContent = '✓ ' + rolls[0].value;
       }, 600);
     }
-    
-    dice1Btn.disabled = true;
-    dice1Btn.textContent = '✓ ' + rolls[0];
   }
   
   // Gracz 2
-  if (rolls[1]) {
-    const dice2Visual = document.getElementById('dice-p2-visual');
-    const dice2Result = document.getElementById('dice-p2-result');
-    const dice2Btn = document.getElementById('dice-p2-btn');
-    
-    if (dice2Result.textContent === '-') {
-      // Pokaż animację
+  if (rolls[1] && typeof rolls[1] === 'object' && rolls[1].value) {
+    const currTimestamp = rolls[1].ts || rolls[1].timestamp || 0;
+    // Sprawdź czy to nowy roll (timestamp się zmienił)
+    if (currTimestamp > OL_diceState.lastRolled[1]) {
+      OL_diceState.lastRolled[1] = currTimestamp;
+      
+      const dice2Visual = document.getElementById('dice-p2-visual');
+      const dice2Result = document.getElementById('dice-p2-result');
+      const dice2Btn = document.getElementById('dice-p2-btn');
+      
+      // Startuj animację
+      dice2Visual.classList.remove('rolling');
+      void dice2Visual.offsetWidth; // Force reflow
       dice2Visual.classList.add('rolling');
+      
       setTimeout(() => {
         dice2Visual.classList.remove('rolling');
         dice2Visual.textContent = '🎲';
-        dice2Result.textContent = rolls[1];
-        dice2Result.style.animation = 'none';
-        setTimeout(() => { dice2Result.style.animation = 'slideDown 0.3s ease-out'; }, 10);
+        dice2Result.textContent = rolls[1].value;
+        dice2Btn.disabled = true;
+        dice2Btn.textContent = '✓ ' + rolls[1].value;
       }, 600);
     }
-    
-    dice2Btn.disabled = true;
-    dice2Btn.textContent = '✓ ' + rolls[1];
   }
 }
 
@@ -5696,16 +5712,20 @@ async function olRollDice(playerIndex) {
   
   // Wylosuj liczbę 1-6
   const diceValue = Math.floor(Math.random() * 6) + 1;
+  const timestamp = Date.now();
   
   try {
-    // Wyślij na Firebase
+    // Wyślij na Firebase - z timestampem
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
     const snap = await fb.getDoc(roomRef);
     if (!snap.exists()) return;
     const r = snap.data();
     const rolls = r.diceRolls || {};
-    rolls[playerIndex] = diceValue;
+    
+    // Ustaw nową wartość z timestampem (Firebase zadziała onSnapshot dla obu graczy)
+    rolls[playerIndex] = { value: diceValue, ts: timestamp };
     await fb.updateDoc(roomRef, { diceRolls: rolls });
+    
   } catch(e) { 
     console.error('Dice roll error:', e);
     toast('❌ '+e.message); 
@@ -5718,8 +5738,8 @@ async function olFinalizeDiceRoll(rolls) {
     OL_diceState.diceUnsub = null;
   }
   
-  const p1Roll = rolls[0];
-  const p2Roll = rolls[1];
+  const p1Roll = rolls[0]?.value || rolls[0];
+  const p2Roll = rolls[1]?.value || rolls[1];
   const p1Name = OL_diceState.players[0]?.nick || 'Gracz 1';
   const p2Name = OL_diceState.players[1]?.nick || 'Gracz 2';
   
@@ -5744,11 +5764,17 @@ async function olFinalizeDiceRoll(rolls) {
     document.getElementById('dice-p1-btn').textContent = OL_diceState.myIndex === 0 ? 'RZUĆ' : '⏳';
     document.getElementById('dice-p2-btn').textContent = OL_diceState.myIndex === 1 ? 'RZUĆ' : '⏳';
     
+    // Reset timestamps
+    OL_diceState.lastRolled = { 0: 0, 1: 0 };
+    
     // Wyczyść Firebase i uruchom nowy listener
     const fb = getFb();
     try {
       const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
       await fb.updateDoc(roomRef, { diceRolls: {} });
+      
+      // Poczekaj aż Firebase się zsynchronizuje
+      await new Promise(resolve => setTimeout(resolve, 500));
       olShowDiceRoll();
     } catch(e) {}
     return;
