@@ -5621,7 +5621,10 @@ const DICE_ROT = {
   1:{x:0,y:0}, 2:{x:0,y:-90}, 3:{x:-90,y:0},
   4:{x:90,y:0}, 5:{x:0,y:90}, 6:{x:0,y:180}
 };
-const DICE_IDLE_ROT = { 0:{x:-24,y:-34}, 1:{x:-24,y:34} };
+// Widok jest z góry (bird's-eye) - w spoczynku kostka ma być PŁASKA (dokładnie jedna
+// ścianka skierowana "do kamery", bez przechylenia), a dopiero podczas rzutu/turlania
+// się przechyla i pokazuje jako bryła 3D. Dlatego kąt spoczynkowy = 0 (brak tilta).
+const DICE_IDLE_ROT = { 0:{x:0,y:0}, 1:{x:0,y:0} };
 const DICE_SIZE = 72;
 
 // Buduje 6 ścianek prawdziwej kostki 3D (raz na dany element) z realistycznym układem oczek
