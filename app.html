@@ -2669,7 +2669,7 @@ function updateOpponentScoreBar(){
   const opponentBar=document.getElementById('ol-opponent-score-bar');
   const lastThrowEl=document.getElementById('ol-opponent-last-throw');
   
-  if(!opponentBar || OL.myIndex === undefined) return; // brak gry online lub brak informacji o graczu
+  if(!opponentBar || OL.myIndex === undefined || !G._lastThrows) return;
   
   // Znajdź indeks przeciwnika (pierwszy gracz różny od myIndex)
   const opponentIdx = G.players.findIndex((_, i) => i !== OL.myIndex);
@@ -2681,10 +2681,8 @@ function updateOpponentScoreBar(){
   // Pokaż pasek
   opponentBar.style.display='';
   
-  // Pobierz ostatni rzut przeciwnika
-  const opponentMoves = G.history.filter(h => h.p === opponentIdx);
-  const lastMove = opponentMoves[opponentMoves.length - 1];
-  const lastThrow = lastMove ? lastMove.sc : 0;
+  // Pobierz ostatni rzut przeciwnika z Firebase
+  const lastThrow = G._lastThrows[opponentIdx] || 0;
   
   if(lastThrowEl) lastThrowEl.textContent = lastThrow > 0 ? lastThrow : '-';
 }
@@ -6219,6 +6217,7 @@ function olEnterOnlineGame(roomData, players) {
   G.countingMode = 'summary';
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
+  G._lastThrows = gs.lastThrows || {}; // Inicjalizuj ostatnie rzuty
   OL.winRecorded = false; // Reset flagi przy każdej nowej grze
 
   // Idź na ekran gry
@@ -6241,6 +6240,7 @@ function olEnterOnlineGame(roomData, players) {
   G.firstPlayerLeg = gs.firstPlayerLeg || 0;
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
+  G._lastThrows = gs.lastThrows || {}; // Przywróć ostatnie rzuty
   // Odbuduj historię cricket z aktualnego stanu Firebase — cofnięcie działa od momentu wejścia
   if(G.mode==="cricket") { G.cricketHistory=[]; G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:G.cDarts,cMult:G.cMult,cp:G.cp,round:G.round}); }
   renderScoreboard();
@@ -6372,6 +6372,9 @@ function olStartListening() {
     G.firstPlayerLeg = ngs.firstPlayerLeg || 0;
     G.legs = ngs.legs || G.legs;
     G.diDone = [...(ngs.diDone||[])];
+    
+    // Zaktualizuj lastThrows z Firebase
+    G._lastThrows = ngs.lastThrows || {};
 
     // Przerysuj UI
     if (typeof renderScoreboard === 'function') renderScoreboard();
@@ -6383,6 +6386,9 @@ function olStartListening() {
     if (typeof updateCO === 'function') updateCO();
 
     olUpdateTurnUI(ngs.cp);
+    
+    // Aktualizuj wynik przeciwnika
+    if (typeof updateOpponentScoreBar === 'function') updateOpponentScoreBar();
 
     // Zwycięzca?
     if (ngs.winner !== null && ngs.winner !== undefined) {
@@ -6743,24 +6749,28 @@ async function olSyncGameState() {
   const fb = getFb();
   if (!fb || !OL.currentRoomId) return;
   try {
-    // Aktualizuj wynik przeciwnika przed wysłaniem
-    updateOpponentScoreBar();
-    
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
 
     // Oblicz bieżące statystyki gracza z lokalnej historii i wyślij do Firebase
     const myIdx = OL.myIndex;
     const myTurns    = G.history.filter(h => h.p === myIdx);
     const validTurns = myTurns.filter(h => !h.bust);
+    
+    // Pobierz ostatni rzut
+    const lastValidTurn = validTurns[validTurns.length - 1];
+    const lastThrow = lastValidTurn ? lastValidTurn.sc : 0;
+    
     const runningStats = {
       totalDarts:     myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0),
       totalPoints:    validTurns.reduce((s, h) => s + h.sc, 0),
       scores:         validTurns.map(h => h.sc),
       doubleAttempts: G._gameDoubleAttempts[myIdx] || 0,
       doubleHits:     G._gameDoubleHits[myIdx] || 0,
+      lastThrow:      lastThrow,
     };
 
     const statsKey = 'gameState.playerStats.' + myIdx;
+    const lastThrowsKey = 'gameState.lastThrows.' + myIdx;
     await fb.updateDoc(roomRef, {
       'gameState.scores': G.scores,
       'gameState.cp': G.cp,
@@ -6775,8 +6785,12 @@ async function olSyncGameState() {
       'gameState.atcT': G.atcT||[],
       'gameState.atcDarts': G.atcDarts||0,
       'gameState.lastMove': { by: OL.myIndex, at: Date.now() },
+      [lastThrowsKey]: lastThrow,
       [statsKey]: runningStats,
     });
+    
+    // Aktualizuj wynik przeciwnika po wysłaniu
+    updateOpponentScoreBar();
   } catch(e) { console.log('Sync error:', e.code); }
 }
 
