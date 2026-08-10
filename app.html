@@ -2665,7 +2665,7 @@ function startGame(){
   goto('game');
 }
 
-// ===== HISTORIA GRY ONLINE (KAŻDY RZUT) =====
+// ===== HISTORIA GRY ONLINE (SEKCJE GRACZY) =====
 function updateOnlineHistory(){
   const histEl = document.getElementById('ol-history');
   const sumHistEl = document.getElementById('sum-history');
@@ -2683,21 +2683,41 @@ function updateOnlineHistory(){
       return;
     }
     
-    // Wyświetl każdy rzut z numerem porządkowym
-    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+    // Grupuj rzuty po graczach
+    const playerMoves = {};
+    G.players.forEach((playerName, idx) => {
+      playerMoves[idx] = [];
+    });
     
-    moves.forEach((move, idx) => {
-      const isMyMove = move.p === OL.myIndex;
-      const color = isMyMove ? '#00e5ff' : '#ff8c00';
-      const bgColor = isMyMove ? 'rgba(0,229,255,.08)' : 'rgba(255,140,0,.08)';
-      const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
+    moves.forEach(move => {
+      playerMoves[move.p].push(move);
+    });
+    
+    // Wyświetl sekcje dla każdego gracza
+    let html = '<div style="display:flex;flex-direction:column;gap:8px">';
+    
+    G.players.forEach((playerName, playerIdx) => {
+      const playerRolls = playerMoves[playerIdx];
+      const isMyPlayer = playerIdx === OL.myIndex;
+      const color = isMyPlayer ? '#00e5ff' : '#ff8c00';
+      const bgColor = isMyPlayer ? 'rgba(0,229,255,.08)' : 'rgba(255,140,0,.08)';
+      const borderColor = isMyPlayer ? 'rgba(0,229,255,.2)' : 'rgba(255,140,0,.2)';
+      const labelBgColor = isMyPlayer ? 'rgba(0,229,255,.15)' : 'rgba(255,140,0,.15)';
       
-      const score = move.bust ? 0 : move.sc;
+      html += `<div style="background:${bgColor};border:1px solid ${borderColor};border-radius:8px;padding:8px;overflow-hidden">
+        <div style="background:${labelBgColor};padding:4px 8px;border-radius:6px;margin-bottom:6px;font-size:11px;font-family:'Bebas Neue',cursive;color:${color};letter-spacing:0.5px;display:inline-block">
+          ${isMyPlayer ? '👤' : '🎯'} ${playerName.toUpperCase()}
+        </div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">`;
       
-      html += `<div style="padding:6px 8px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;text-align:center;font-size:11px;font-family:'Bebas Neue',cursive;letter-spacing:0.5px;color:${color};display:flex;flex-direction:column;align-items:center;min-width:40px">
-        <div style="font-size:14px;font-weight:bold">${move.bust ? '✕' : score}</div>
-        <div style="font-size:8px;color:#8888aa;margin-top:1px">${isMyMove ? '👤' : '🎯'} ${idx + 1}</div>
-      </div>`;
+      playerRolls.forEach((move, idx) => {
+        const score = move.bust ? 0 : move.sc;
+        html += `<div style="padding:4px 6px;background:rgba(0,0,0,.3);border:1px solid ${borderColor};border-radius:5px;font-size:11px;font-family:'Bebas Neue',cursive;color:${color};text-align:center;min-width:32px">
+          ${move.bust ? '✕' : score}
+        </div>`;
+      });
+      
+      html += `</div></div>`;
     });
     
     html += '</div>';
