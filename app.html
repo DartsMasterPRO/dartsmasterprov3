@@ -1048,27 +1048,27 @@ input{outline:none}
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px">
-    <div class="leg-select-btn" onclick="selectLegsAndStart(1)">
+    <div class="leg-select-btn" onclick="selectLegsAndStart(1, event)">
       <div class="leg-select-number">1</div>
       <div class="leg-select-label">Jeden leg</div>
     </div>
-    <div class="leg-select-btn" onclick="selectLegsAndStart(3)">
+    <div class="leg-select-btn" onclick="selectLegsAndStart(3, event)">
       <div class="leg-select-number">3</div>
       <div class="leg-select-label">Trzy legi</div>
     </div>
-    <div class="leg-select-btn" onclick="selectLegsAndStart(5)">
+    <div class="leg-select-btn" onclick="selectLegsAndStart(5, event)">
       <div class="leg-select-number">5</div>
       <div class="leg-select-label">Pięć legów</div>
     </div>
-    <div class="leg-select-btn" onclick="selectLegsAndStart(7)">
+    <div class="leg-select-btn" onclick="selectLegsAndStart(7, event)">
       <div class="leg-select-number">7</div>
       <div class="leg-select-label">Siedem legów</div>
     </div>
-    <div class="leg-select-btn selected" onclick="selectLegsAndStart(9)">
+    <div class="leg-select-btn selected" onclick="selectLegsAndStart(9, event)">
       <div class="leg-select-number">9</div>
       <div class="leg-select-label">Dziewięć legów</div>
     </div>
-    <div class="leg-select-btn" onclick="selectLegsAndStart(11)">
+    <div class="leg-select-btn" onclick="selectLegsAndStart(11, event)">
       <div class="leg-select-number">11</div>
       <div class="leg-select-label">Jedenaście</div>
     </div>
@@ -1408,7 +1408,7 @@ function closeMenu(){
 
 function toggleGameMenu(){
   const submenu = document.getElementById('game-submenu');
-  submenu.classList.toggle('open');
+  if(submenu) submenu.classList.toggle('open');
 }
 
 function startGameMode(mode){
@@ -1441,7 +1441,7 @@ function startGameMode(mode){
   goto('legs-select-screen');
 }
 
-function selectLegsAndStart(legs){
+function selectLegsAndStart(legs, evt){
   // Ustaw wybraną liczbę legów
   G.legs = legs;
   
@@ -1452,7 +1452,9 @@ function selectLegsAndStart(legs){
   document.querySelectorAll('.leg-select-btn').forEach(btn => {
     btn.classList.remove('selected');
   });
-  event.target.closest('.leg-select-btn').classList.add('selected');
+  const clickedEvt = evt || window.event;
+  const clickedBtn = clickedEvt && clickedEvt.target ? clickedEvt.target.closest('.leg-select-btn') : null;
+  if(clickedBtn) clickedBtn.classList.add('selected');
   
   // Nie otwieraj modal tutaj - czekaj na ROZPOCZNIJ GRĘ
 }
@@ -1571,7 +1573,7 @@ function updateAllSoundStatus(){
 
 function toggleLanguageMenu(){
   const submenu = document.getElementById('lang-submenu');
-  submenu.classList.toggle('open');
+  if(submenu) submenu.classList.toggle('open');
 }
 
 function setLanguage(lang){
@@ -1657,14 +1659,16 @@ function setLegs(n){
       G.active = false;
       G.legs = n;
       const needed = Math.ceil(n/2);
-      document.getElementById('legs-desc').textContent = (n + ' legów (wygrywa ' + needed + ')');
+      const legsDescEl1 = document.getElementById('legs-desc');
+      if(legsDescEl1) legsDescEl1.textContent = (n + ' legów (wygrywa ' + needed + ')');
       toast('Liczba legów zmieniona na ' + n);
       goto('home');
     }
   } else {
     G.legs = n;
     const needed = Math.ceil(n/2);
-    document.getElementById('legs-desc').textContent = (n + ' legów (wygrywa ' + needed + ')');
+    const legsDescEl2 = document.getElementById('legs-desc');
+    if(legsDescEl2) legsDescEl2.textContent = (n + ' legów (wygrywa ' + needed + ')');
     toast('Liczba legów zmieniona na ' + n);
     // Update UI
     ['1','3','5','7','9'].forEach(id=>{
