@@ -2665,7 +2665,7 @@ function startGame(){
   goto('game');
 }
 
-// ===== HISTORIA GRY ONLINE (DRABINKA SERII) =====
+// ===== HISTORIA GRY ONLINE (KAŻDY RZUT) =====
 function updateOnlineHistory(){
   const histEl = document.getElementById('ol-history');
   const sumHistEl = document.getElementById('sum-history');
@@ -2683,62 +2683,22 @@ function updateOnlineHistory(){
       return;
     }
     
-    // Podziel na serie po 3 rzuty dla każdego gracza
-    const series = {};
-    G.players.forEach((_, idx) => {
-      series[idx] = [];
-    });
+    // Wyświetl każdy rzut z numerem porządkowym
+    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap">';
     
-    // Grupuj rzuty po graczach i po 3 rzuty
-    let currentSeries = {};
-    G.players.forEach((_, idx) => {
-      currentSeries[idx] = [];
-    });
-    
-    moves.forEach(move => {
-      const p = move.p;
-      currentSeries[p].push(move);
+    moves.forEach((move, idx) => {
+      const isMyMove = move.p === OL.myIndex;
+      const color = isMyMove ? '#00e5ff' : '#ff8c00';
+      const bgColor = isMyMove ? 'rgba(0,229,255,.08)' : 'rgba(255,140,0,.08)';
+      const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
       
-      // Jak nabierzemy 3 rzuty dla tego gracza, dodaj serię
-      if(currentSeries[p].length === 3) {
-        series[p].push([...currentSeries[p]]);
-        currentSeries[p] = [];
-      }
+      const score = move.bust ? 0 : move.sc;
+      
+      html += `<div style="padding:6px 8px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;text-align:center;font-size:11px;font-family:'Bebas Neue',cursive;letter-spacing:0.5px;color:${color};display:flex;flex-direction:column;align-items:center;min-width:40px">
+        <div style="font-size:14px;font-weight:bold">${move.bust ? '✕' : score}</div>
+        <div style="font-size:8px;color:#8888aa;margin-top:1px">${isMyMove ? '👤' : '🎯'} ${idx + 1}</div>
+      </div>`;
     });
-    
-    // Dodaj niekompletną serię jeśli istnieje
-    G.players.forEach((_, idx) => {
-      if(currentSeries[idx].length > 0) {
-        series[idx].push([...currentSeries[idx]]);
-      }
-    });
-    
-    // Wyświetl drabinkę - na zmianę gracze
-    let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">';
-    const maxSeries = Math.max(...G.players.map((_, idx) => series[idx].length));
-    
-    for(let serieIdx = 0; serieIdx < maxSeries; serieIdx++) {
-      G.players.forEach((_, playerIdx) => {
-        const playerSeries = series[playerIdx][serieIdx];
-        
-        if(playerSeries) {
-          const isMyMove = playerIdx === OL.myIndex;
-          const color = isMyMove ? '#00e5ff' : '#ff8c00';
-          const bgColor = isMyMove ? 'rgba(0,229,255,.08)' : 'rgba(255,140,0,.08)';
-          const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
-          
-          // Suma 3 rzutów
-          const sum = playerSeries.reduce((acc, m) => acc + (m.bust ? 0 : m.sc), 0);
-          const hasBust = playerSeries.some(m => m.bust);
-          
-          html += `<div style="padding:8px 10px;background:${bgColor};border:1px solid ${borderColor};border-radius:8px;text-align:center;font-size:12px;font-family:'Bebas Neue',cursive;letter-spacing:1px;color:${color};min-width:50px">
-            <div style="font-size:10px;color:#8888aa;margin-bottom:2px">${isMyMove ? '👤' : '🎯'}</div>
-            <div style="font-size:16px;font-weight:bold">${hasBust ? '✕' : sum}</div>
-            <div style="font-size:9px;color:#8888aa;margin-top:2px;font-family:monospace">${playerSeries.length}x</div>
-          </div>`;
-        }
-      });
-    }
     
     html += '</div>';
     histEl.innerHTML = html;
@@ -2747,29 +2707,6 @@ function updateOnlineHistory(){
     if(sumHistEl) sumHistEl.style.display = '';
     if(histEl) histEl.style.display = 'none';
   }
-}
-
-// ===== WYNIK PRZECIWNIKA (ONLINE) =====
-function updateOpponentScoreBar(){
-  const opponentBar=document.getElementById('ol-opponent-score-bar');
-  const lastThrowEl=document.getElementById('ol-opponent-last-throw');
-  
-  if(!opponentBar || OL.myIndex === undefined || !G._lastThrows) return;
-  
-  // Znajdź indeks przeciwnika (pierwszy gracz różny od myIndex)
-  const opponentIdx = G.players.findIndex((_, i) => i !== OL.myIndex);
-  if(opponentIdx === -1) {
-    opponentBar.style.display='none';
-    return;
-  }
-  
-  // Pokaż pasek
-  opponentBar.style.display='';
-  
-  // Pobierz ostatni rzut przeciwnika z Firebase
-  const lastThrow = G._lastThrows[opponentIdx] || 0;
-  
-  if(lastThrowEl) lastThrowEl.textContent = lastThrow > 0 ? lastThrow : '-';
 }
 
 // ===== SCOREBOARD =====
@@ -2810,7 +2747,6 @@ function renderScoreboard(){
   
   // Aktualizuj wynik przeciwnika w grze online
   if(G._onlineRoomId || OL.currentRoomId) {
-    updateOpponentScoreBar();
     updateOnlineHistory();
   }
 }
@@ -6305,7 +6241,6 @@ function olEnterOnlineGame(roomData, players) {
   G.countingMode = 'summary';
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
-  G._lastThrows = gs.lastThrows || {}; // Inicjalizuj ostatnie rzuty
   G._fbHistory = gs.history || { moves: [] }; // Inicjalizuj historię
   OL.winRecorded = false; // Reset flagi przy każdej nowej grze
 
@@ -6329,12 +6264,11 @@ function olEnterOnlineGame(roomData, players) {
   G.firstPlayerLeg = gs.firstPlayerLeg || 0;
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
-  G._lastThrows = gs.lastThrows || {}; // Przywróć ostatnie rzuty
   G._fbHistory = gs.history || { moves: [] }; // Przywróć historię
   // Odbuduj historię cricket z aktualnego stanu Firebase — cofnięcie działa od momentu wejścia
   if(G.mode==="cricket") { G.cricketHistory=[]; G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:G.cDarts,cMult:G.cMult,cp:G.cp,round:G.round}); }
   renderScoreboard();
-  updateOpponentScoreBar();
+  updateOnlineHistory();
 
   showOnlineGameBar();
 
@@ -6463,8 +6397,7 @@ function olStartListening() {
     G.legs = ngs.legs || G.legs;
     G.diDone = [...(ngs.diDone||[])];
     
-    // Zaktualizuj lastThrows i historię z Firebase
-    G._lastThrows = ngs.lastThrows || {};
+    // Zaktualizuj historię z Firebase
     G._fbHistory = ngs.history || { moves: [] };
 
     // Przerysuj UI
@@ -6478,8 +6411,7 @@ function olStartListening() {
 
     olUpdateTurnUI(ngs.cp);
     
-    // Aktualizuj wynik przeciwnika i historię
-    if (typeof updateOpponentScoreBar === 'function') updateOpponentScoreBar();
+    // Aktualizuj historię
     if (typeof updateOnlineHistory === 'function') updateOnlineHistory();
 
     // Zwycięzca?
@@ -6852,7 +6784,7 @@ async function olSyncGameState() {
     const lastValidTurn = validTurns[validTurns.length - 1];
     const lastThrow = lastValidTurn ? lastValidTurn.sc : 0;
     
-    // Konwertuj historię do formatu serii (3 rzuty na serię)
+    // Konwertuj historię (każdy rzut)
     const historyData = {
       moves: G.history.map(h => ({
         p: h.p,
@@ -6871,7 +6803,6 @@ async function olSyncGameState() {
     };
 
     const statsKey = 'gameState.playerStats.' + myIdx;
-    const lastThrowsKey = 'gameState.lastThrows.' + myIdx;
     await fb.updateDoc(roomRef, {
       'gameState.scores': G.scores,
       'gameState.cp': G.cp,
@@ -6887,12 +6818,8 @@ async function olSyncGameState() {
       'gameState.atcDarts': G.atcDarts||0,
       'gameState.lastMove': { by: OL.myIndex, at: Date.now() },
       'gameState.history': historyData,
-      [lastThrowsKey]: lastThrow,
       [statsKey]: runningStats,
     });
-    
-    // Aktualizuj wynik przeciwnika po wysłaniu
-    updateOpponentScoreBar();
   } catch(e) { console.log('Sync error:', e.code); }
 }
 
