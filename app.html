@@ -5642,15 +5642,18 @@ function ensureDiceCubeBuilt(cubeEl) {
   }
 }
 
-// Najkrótsza droga kątowa (max ±180°) od aktualnego kąta do najbliższego
-// wystąpienia kąta docelowego (mod 360) - bez tego finałowy obrót potrafił
-// wymagać nawet 359°, co wyglądało jak nagły "doskok" tuż przed zatrzymaniem.
-function olForwardAngleDelta(current, targetMod) {
+// Najkrótsza nieujemna "odległość" kątowa od cur do target, licząc WYŁĄCZNIE w kierunku dir
+// (używane do wyliczenia, ile stopni w danym kierunku brakuje do trafienia w wynik).
+function olForwardMag(current, targetMod, dir) {
   const cur360 = ((current % 360) + 360) % 360;
   const tgt360 = ((targetMod % 360) + 360) % 360;
-  let d = tgt360 - cur360;
-  if (d > 180) d -= 360;
-  if (d < -180) d += 360;
+  if (dir >= 0) {
+    let d = tgt360 - cur360;
+    if (d < 0) d += 360;
+    return d;
+  }
+  let d = cur360 - tgt360;
+  if (d < 0) d += 360;
   return d;
 }
 
@@ -5678,9 +5681,11 @@ function olResetDiceOnTable(playerIdx) {
 
 // Rzuca kostką gracza playerIdx po wspólnym stole: prawdziwa symulacja fizyki
 // (grawitacja, odbicia z tarciem, opadający moment obrotowy) klatka po klatce.
-// WAŻNE: pozycja X wynika WYŁĄCZNIE z fizyki (dobieramy prędkość początkową tak,
-// by kostka sama, naturalnie wytraciła impet we właściwej strefie) - po zatrzymaniu
-// kostka JUŻ SIĘ NIE PRZESUWA, faza osadzania koryguje wyłącznie obrót do wyniku.
+// WAŻNE: zarówno pozycja X, jak i KĄT OBROTU wynikają WYŁĄCZNIE z fizyki - prędkość
+// początkowa (liniowa i kątowa) jest dobrana analitycznie tak, by kostka SAMA,
+// naturalnie, dokręciła się do wylosowanej wartości w momencie wytracenia impetu.
+// Dzięki temu na końcu NIE MA żadnej sztucznej "doróbki" obrotu - to, co widać
+// w locie, jest już tym samym ruchem, który kończy się na właściwej ściance.
 function olThrowDiceOnTable(playerIdx, value, onDone) {
   const table = document.getElementById('dice-table');
   const cube = document.getElementById('dice-p' + (playerIdx + 1) + '-visual');
@@ -5713,29 +5718,41 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
   const restitution = 0.42;                     // ile energii zostaje po odbiciu
   const vxFriction = 0.965;
   const vxStopThreshold = 0.5;
+  const angFriction = 0.965;
+  const angStopThreshold = 4;                    // deg/klatkę - poniżej tego uznajemy oś za zatrzymaną
   const maxHopHeight = 46;                       // twardy limit - kostka NIE MOŻE wylecieć poza stół
 
-  // Prędkość początkowa dobrana analitycznie z rozpadu geometrycznego tarcia,
-  // tak by suma nieskończonego szeregu przemieszczeń wylądowała w restX
-  // (+ kompensacja "ogona" tracenia prędkości poniżej progu zatrzymania).
-  const tailCompensation = dir * (vxStopThreshold / (1 - vxFriction));
-  const desiredDisplacement = (restX - startX) + tailCompensation;
-  const vx0 = desiredDisplacement * (1 - vxFriction) * (0.94 + Math.random() * 0.12);
-  let vx = vx0;
+  // --- Pozioma prędkość startowa: dobrana analitycznie z rozpadu geometrycznego
+  // tarcia, tak by suma nieskończonego szeregu przemieszczeń wylądowała w restX
+  // (+ kompensacja "ogona" tracenia prędkości poniżej progu zatrzymania). ---
+  const tailCompX = dir * (vxStopThreshold / (1 - vxFriction));
+  const desiredDisplacement = (restX - startX) + tailCompX;
+  let vx = desiredDisplacement * (1 - vxFriction) * (0.94 + Math.random() * 0.12);
 
   let h = 0;                                    // wysokość nad stołem
   let vh = 5.5 + Math.random() * 2;             // pierwszy "odskok" tuż po rzucie z ręki (mały, mieści się w stole)
 
-  let rotX = cube._olRotX || 0, rotY = cube._olRotY || 0;
-  let angVelX = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
-  let angVelY = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
-  const angFriction = 0.965;
-
+  // --- Kątowa prędkość startowa (dla X i Y osobno): tym samym trikiem co powyżej -
+  // wybieramy losowy kierunek i kilka pełnych obrotów "dla efektu", po czym liczymy
+  // dokładnie taką prędkość początkową, żeby suma obrotu (z kompensacją "ogona")
+  // wylądowała DOKŁADNIE na docelowej ściance. Zero korekty po fakcie. ---
+  const rotX0 = cube._olRotX || 0, rotY0 = cube._olRotY || 0;
   const target = DICE_ROT[value] || DICE_ROT[1];
+
+  const dirRX = Math.random() < 0.5 ? 1 : -1;
+  const kX = 2 + Math.floor(Math.random() * 2); // 2-3 dodatkowe pełne obroty "dla efektu"
+  const tailCompRX = dirRX * (angStopThreshold / (1 - angFriction));
+  const totalRotX = dirRX * (kX * 360 + olForwardMag(rotX0, target.x, dirRX)) + tailCompRX;
+  let angVelX = totalRotX * (1 - angFriction) * (0.94 + Math.random() * 0.12);
+
+  const dirRY = Math.random() < 0.5 ? 1 : -1;
+  const kY = 2 + Math.floor(Math.random() * 2);
+  const tailCompRY = dirRY * (angStopThreshold / (1 - angFriction));
+  const totalRotY = dirRY * (kY * 360 + olForwardMag(rotY0, target.y, dirRY)) + tailCompRY;
+  let angVelY = totalRotY * (1 - angFriction) * (0.94 + Math.random() * 0.12);
+
+  let rotX = rotX0, rotY = rotY0;
   let bounces = 0;
-  let settling = false, settleStart = 0, settledX = 0, settleFromRotX = 0, settleFromRotY = 0;
-  let dRotX = 0, dRotY = 0;
-  const settleDur = 260;
   let lastT = null;
 
   function frame(now) {
@@ -5743,76 +5760,54 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
     const dt = Math.min(2.2, (now - lastT) / 16.67); // znormalizowane do "klatek 60fps"
     lastT = now;
 
-    if (!settling) {
-      x += vx * dt;
-      vx *= Math.pow(vxFriction, dt);
-      if (Math.abs(vx) < vxStopThreshold) vx = 0;
+    x += vx * dt;
+    vx *= Math.pow(vxFriction, dt);
+    if (Math.abs(vx) < vxStopThreshold) vx = 0;
 
-      vh -= gravity * dt;
-      h += vh * dt;
-      if (h > maxHopHeight) { h = maxHopHeight; if (vh > 0) vh = 0; } // kostka nie wylatuje poza stół
-      if (h <= 0) {
-        h = 0;
-        if (Math.abs(vh) > 0.9 && bounces < 4) {
-          vh = -vh * restitution;
-          bounces++;
-        } else {
-          vh = 0;
-        }
+    vh -= gravity * dt;
+    h += vh * dt;
+    if (h > maxHopHeight) { h = maxHopHeight; if (vh > 0) vh = 0; } // kostka nie wylatuje poza stół
+    if (h <= 0) {
+      h = 0;
+      if (Math.abs(vh) > 0.9 && bounces < 4) {
+        vh = -vh * restitution;
+        bounces++;
+      } else {
+        vh = 0;
       }
+    }
 
-      rotX += angVelX * dt;
-      rotY += angVelY * dt;
-      angVelX *= Math.pow(angFriction, dt);
-      angVelY *= Math.pow(angFriction, dt);
+    rotX += angVelX * dt;
+    rotY += angVelY * dt;
+    angVelX *= Math.pow(angFriction, dt);
+    angVelY *= Math.pow(angFriction, dt);
+    if (Math.abs(angVelX) < angStopThreshold) angVelX = 0;
+    if (Math.abs(angVelY) < angStopThreshold) angVelY = 0;
 
-      if (shadow) {
-        shadow.style.left = (x + DICE_SIZE / 2 - 23) + 'px';
-        const s = Math.max(0.4, 1 - h / 46);
-        shadow.style.transform = `scale(${s})`;
-        shadow.style.opacity = String(0.14 + s * 0.26);
-      }
-      cube.style.left = x + 'px';
-      cube.style.transform = `translateY(${-h}px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+    if (shadow) {
+      shadow.style.left = (x + DICE_SIZE / 2 - 23) + 'px';
+      const s = Math.max(0.4, 1 - h / 46);
+      shadow.style.transform = `scale(${s})`;
+      shadow.style.opacity = String(0.14 + s * 0.26);
+    }
+    cube.style.left = x + 'px';
+    cube.style.transform = `translateY(${-h}px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
 
-      const grounded = h === 0 && bounces >= 2;
-      const slow = grounded && vx === 0 && Math.abs(angVelX) < 4 && Math.abs(angVelY) < 4;
-      if (slow) {
-        settling = true;
-        settleStart = now;
-        settledX = x; // kostka ZOSTAJE dokładnie tu, gdzie fizyka ją zatrzymała
-        settleFromRotX = rotX;
-        settleFromRotY = rotY;
-        dRotX = olForwardAngleDelta(rotX, target.x);
-        dRotY = olForwardAngleDelta(rotY, target.y);
-      }
+    const grounded = h === 0 && bounces >= 2;
+    const stopped = grounded && vx === 0 && angVelX === 0 && angVelY === 0;
+    if (!stopped) {
       cube._olAnimId = requestAnimationFrame(frame);
       return;
     }
 
-    // Faza osadzania - dotyka WYŁĄCZNIE obrotu (płynne domknięcie na wylosowanej
-    // wartości); pozycja X pozostaje niezmieniona - kostka fizycznie się nie rusza.
-    const t = Math.min(1, (now - settleStart) / settleDur);
-    const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    const curRotX = settleFromRotX + dRotX * e;
-    const curRotY = settleFromRotY + dRotY * e;
-
-    cube.style.left = settledX + 'px';
-    cube.style.transform = `translateY(0px) rotateX(${curRotX}deg) rotateY(${curRotY}deg)`;
-    if (shadow) {
-      shadow.style.left = (settledX + DICE_SIZE / 2 - 23) + 'px';
-      shadow.style.transform = 'scale(1)';
-      shadow.style.opacity = '0.4';
-    }
-
-    if (t < 1) {
-      cube._olAnimId = requestAnimationFrame(frame);
-    } else {
-      cube._olRotX = target.x;
-      cube._olRotY = target.y;
-      cube._olAnimId = null;
-      if (onDone) onDone();
-    }
+    // Kostka fizycznie się zatrzymała - dzięki analitycznie dobranej prędkości
+    // kątowej jest już (prawie) dokładnie na wyniku, więc zostaje BEZ ŻADNEGO
+    // dodatkowego obrotu - tylko ją "domykamy" (snap) na wypadek ułamków stopnia.
+    cube.style.transform = `translateY(0px) rotateX(${target.x}deg) rotateY(${target.y}deg)`;
+    cube._olRotX = target.x;
+    cube._olRotY = target.y;
+    cube._olAnimId = null;
+    if (onDone) onDone();
   }
   cube._olAnimId = requestAnimationFrame(frame);
 }
