@@ -2668,7 +2668,6 @@ function startGame(){
 function updateOpponentScoreBar(){
   const opponentBar=document.getElementById('ol-opponent-score-bar');
   const lastThrowEl=document.getElementById('ol-opponent-last-throw');
-  const scoreEl=document.getElementById('ol-opponent-score');
   
   if(!opponentBar || OL.myIndex === undefined) return; // brak gry online lub brak informacji o graczu
   
@@ -2687,19 +2686,7 @@ function updateOpponentScoreBar(){
   const lastMove = opponentMoves[opponentMoves.length - 1];
   const lastThrow = lastMove ? lastMove.sc : 0;
   
-  // Wyświetl wynik
-  const isX01 = G.mode === '501' || G.mode === '301';
-  let score = '-';
-  if(isX01) {
-    score = G.scores && G.scores[opponentIdx] !== undefined ? G.scores[opponentIdx] : '-';
-  } else if(G.mode === 'cricket') {
-    score = G.cScores && G.cScores[opponentIdx] !== undefined ? G.cScores[opponentIdx] : '-';
-  } else if(G.mode === 'atc') {
-    score = G.atcT && G.atcT[opponentIdx] !== undefined ? ((G.atcT[opponentIdx] - 1) + '/20') : '-';
-  }
-  
   if(lastThrowEl) lastThrowEl.textContent = lastThrow > 0 ? lastThrow : '-';
-  if(scoreEl) scoreEl.textContent = score;
 }
 
 // ===== SCOREBOARD =====
@@ -7331,14 +7318,10 @@ function showMessage(element, text, type) {
   <div id="ol-opponent-score-bar" style="background:rgba(255,60,60,.08);border:1px solid rgba(255,60,60,.2);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
       <div style="font-size:12px;color:#ff3c3c;font-family:'Bebas Neue',cursive;letter-spacing:1px">🎯 RYWAL</div>
-      <div style="display:flex;align-items:center;gap:10px;flex:1">
-        <div style="flex:1">
-          <div style="font-size:11px;color:#8888aa;margin-bottom:2px;font-family:monospace">OSTATNI RZUT:</div>
-          <div style="font-size:16px;color:#ff8c00;font-family:'Bebas Neue',cursive;letter-spacing:1px" id="ol-opponent-last-throw">-</div>
-        </div>
-        <div style="flex:1">
-          <div style="font-size:11px;color:#8888aa;margin-bottom:2px;font-family:monospace">WYNIK:</div>
-          <div style="font-size:16px;color:#ff3c3c;font-family:'Bebas Neue',cursive;letter-spacing:1px" id="ol-opponent-score">0</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="text-align:center">
+          <div style="font-size:11px;color:#8888aa;margin-bottom:2px;font-family:monospace">OSTATNI WYNIK:</div>
+          <div style="font-size:20px;color:#ff8c00;font-family:'Bebas Neue',cursive;letter-spacing:1px" id="ol-opponent-last-throw">-</div>
         </div>
       </div>
     </div>
