@@ -2664,6 +2664,44 @@ function startGame(){
   goto('game');
 }
 
+// ===== WYNIK PRZECIWNIKA (ONLINE) =====
+function updateOpponentScoreBar(){
+  const opponentBar=document.getElementById('ol-opponent-score-bar');
+  const lastThrowEl=document.getElementById('ol-opponent-last-throw');
+  const scoreEl=document.getElementById('ol-opponent-score');
+  
+  if(!opponentBar || OL.myIndex === undefined) return; // brak gry online lub brak informacji o graczu
+  
+  // Znajdź indeks przeciwnika (pierwszy gracz różny od myIndex)
+  const opponentIdx = G.players.findIndex((_, i) => i !== OL.myIndex);
+  if(opponentIdx === -1) {
+    opponentBar.style.display='none';
+    return;
+  }
+  
+  // Pokaż pasek
+  opponentBar.style.display='';
+  
+  // Pobierz ostatni rzut przeciwnika
+  const opponentMoves = G.history.filter(h => h.p === opponentIdx);
+  const lastMove = opponentMoves[opponentMoves.length - 1];
+  const lastThrow = lastMove ? lastMove.sc : 0;
+  
+  // Wyświetl wynik
+  const isX01 = G.mode === '501' || G.mode === '301';
+  let score = '-';
+  if(isX01) {
+    score = G.scores && G.scores[opponentIdx] !== undefined ? G.scores[opponentIdx] : '-';
+  } else if(G.mode === 'cricket') {
+    score = G.cScores && G.cScores[opponentIdx] !== undefined ? G.cScores[opponentIdx] : '-';
+  } else if(G.mode === 'atc') {
+    score = G.atcT && G.atcT[opponentIdx] !== undefined ? ((G.atcT[opponentIdx] - 1) + '/20') : '-';
+  }
+  
+  if(lastThrowEl) lastThrowEl.textContent = lastThrow > 0 ? lastThrow : '-';
+  if(scoreEl) scoreEl.textContent = score;
+}
+
 // ===== SCOREBOARD =====
 function renderScoreboard(){
   const sb=document.getElementById('scoreboard');
@@ -2699,6 +2737,9 @@ function renderScoreboard(){
   if(turnLbl) turnLbl.textContent=(G.cp+1)+'/'+G.players.length;
   const legEl=document.getElementById('leg-info-lbl');
   if(legEl) legEl.textContent=G.legs>1?('LEG '+G.currentLeg+'/'+G.legs):'';
+  
+  // Aktualizuj wynik przeciwnika w grze online
+  if(G._onlineRoomId || OL.currentRoomId) updateOpponentScoreBar();
 }
 
 let _lastCOScore=0;
@@ -6216,6 +6257,7 @@ function olEnterOnlineGame(roomData, players) {
   // Odbuduj historię cricket z aktualnego stanu Firebase — cofnięcie działa od momentu wejścia
   if(G.mode==="cricket") { G.cricketHistory=[]; G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:G.cDarts,cMult:G.cMult,cp:G.cp,round:G.round}); }
   renderScoreboard();
+  updateOpponentScoreBar();
 
   showOnlineGameBar();
 
@@ -6714,6 +6756,9 @@ async function olSyncGameState() {
   const fb = getFb();
   if (!fb || !OL.currentRoomId) return;
   try {
+    // Aktualizuj wynik przeciwnika przed wysłaniem
+    updateOpponentScoreBar();
+    
     const roomRef = fb.doc(fb.db,'rooms',OL.currentRoomId);
 
     // Oblicz bieżące statystyki gracza z lokalnej historii i wyślij do Firebase
@@ -7282,6 +7327,23 @@ function showMessage(element, text, type) {
 
 <!-- PASEK ONLINE GRY (pojawia się podczas online gry na ekranie game) -->
 <div id="ol-game-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:500;background:rgba(0,0,0,.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(0,229,255,.25);padding:6px 12px;flex-direction:column;gap:4px">
+  <!-- WYNIK PRZECIWNIKA U GÓRY -->
+  <div id="ol-opponent-score-bar" style="background:rgba(255,60,60,.08);border:1px solid rgba(255,60,60,.2);border-radius:8px;padding:8px 12px;margin-bottom:6px;display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font-size:12px;color:#ff3c3c;font-family:'Bebas Neue',cursive;letter-spacing:1px">🎯 RYWAL</div>
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#8888aa;margin-bottom:2px;font-family:monospace">OSTATNI RZUT:</div>
+          <div style="font-size:16px;color:#ff8c00;font-family:'Bebas Neue',cursive;letter-spacing:1px" id="ol-opponent-last-throw">-</div>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:#8888aa;margin-bottom:2px;font-family:monospace">WYNIK:</div>
+          <div style="font-size:16px;color:#ff3c3c;font-family:'Bebas Neue',cursive;letter-spacing:1px" id="ol-opponent-score">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div style="display:flex;align-items:center;gap:8px">
     <span style="font-size:13px">🌐</span>
     <span style="font-family:monospace;font-size:10px;color:#00e5ff;letter-spacing:1px" id="ol-game-bar-txt">GRA ONLINE</span>
