@@ -523,15 +523,15 @@ input{outline:none}
 
 /* PRAWDZIWA KOSTKA 3D - każda ścianka ma inne cieniowanie (jak realne oświetlenie z góry),
    dzięki czemu bryła wygląda jak sześcian, a nie płaski kwadrat */
-.dice3d-face{position:absolute;width:72px;height:72px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:12px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:10px;box-shadow:inset 0 0 10px rgba(0,0,0,.18);backface-visibility:hidden}
-.dice3d-pip{width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
+.dice3d-face{position:absolute;width:60px;height:60px;left:0;top:0;background:linear-gradient(150deg,#fdfdfd,#d4d8de);border:2px solid #b8bcc4;border-radius:10px;box-sizing:border-box;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);padding:8px;box-shadow:inset 0 0 8px rgba(0,0,0,.18);backface-visibility:hidden}
+.dice3d-pip{width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#3a3a4a,#0a0a12);margin:auto;opacity:0}
 .dice3d-pip.on{opacity:1}
-.dice3d-face.f1{transform:rotateY(0deg) translateZ(36px)}
-.dice3d-face.f6{transform:rotateY(180deg) translateZ(36px);background:linear-gradient(150deg,#e6e9ed,#c0c4cb)}
-.dice3d-face.f2{transform:rotateY(90deg) translateZ(36px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
-.dice3d-face.f5{transform:rotateY(-90deg) translateZ(36px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
-.dice3d-face.f3{transform:rotateX(90deg) translateZ(36px);background:linear-gradient(150deg,#ffffff,#eef0f3)}
-.dice3d-face.f4{transform:rotateX(-90deg) translateZ(36px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
+.dice3d-face.f1{transform:rotateY(0deg) translateZ(30px)}
+.dice3d-face.f6{transform:rotateY(180deg) translateZ(30px);background:linear-gradient(150deg,#e6e9ed,#c0c4cb)}
+.dice3d-face.f2{transform:rotateY(90deg) translateZ(30px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f5{transform:rotateY(-90deg) translateZ(30px);background:linear-gradient(150deg,#e0e3e8,#b7bbc2)}
+.dice3d-face.f3{transform:rotateX(90deg) translateZ(30px);background:linear-gradient(150deg,#ffffff,#eef0f3)}
+.dice3d-face.f4{transform:rotateX(-90deg) translateZ(30px);background:linear-gradient(150deg,#c2c6cd,#9fa3ab)}
 .dice3d-face.f1 .dice3d-pip.on,.dice3d-face.f6 .dice3d-pip.on{background:radial-gradient(circle at 30% 30%,#ff5252,#c62828)}
 
 /* WSPÓLNY STÓŁ - jedno duże pole, obie kostki fizycznie się po nim toczą.
@@ -541,7 +541,7 @@ input{outline:none}
 .dice-table-label{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;margin-bottom:8px;letter-spacing:1px}
 .dice-table-wrap{margin-bottom:20px}
 .dice-table-frame{border-radius:14px;overflow:hidden;border:1px solid rgba(0,229,255,.2);box-shadow:inset 0 0 40px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.05)}
-.dice-table{position:relative;height:210px;
+.dice-table{position:relative;height:190px;
   background:
     radial-gradient(ellipse 70% 55% at 50% 20%, rgba(255,255,255,.06), transparent 70%),
     radial-gradient(ellipse 90% 70% at 50% 110%, rgba(0,229,255,.09), transparent 60%),
@@ -552,10 +552,10 @@ input{outline:none}
     repeating-linear-gradient(90deg, rgba(255,255,255,.015) 0 1px, transparent 1px 26px);
   pointer-events:none}
 .dice-table::after{content:'';position:absolute;left:6%;right:6%;bottom:14px;height:1px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.3),transparent)}
-.dice3d-cube{position:absolute;width:72px;height:72px;top:50%;margin-top:-36px;transform-style:preserve-3d;will-change:transform,left}
-.dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.4)}
-.dice3d-cube.p1 .dice3d-face{box-shadow:inset 0 0 10px rgba(0,0,0,.18),0 0 0 1px rgba(255,140,0,.4)}
-.dice-shadow{position:absolute;width:56px;height:16px;top:50%;margin-top:32px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.6),transparent 72%);pointer-events:none}
+.dice3d-cube{position:absolute;width:60px;height:60px;top:50%;margin-top:-30px;transform-style:preserve-3d;will-change:transform,left}
+.dice3d-cube.p0 .dice3d-face{box-shadow:inset 0 0 8px rgba(0,0,0,.18),0 0 0 1px rgba(0,229,255,.4)}
+.dice3d-cube.p1 .dice3d-face{box-shadow:inset 0 0 8px rgba(0,0,0,.18),0 0 0 1px rgba(255,140,0,.4)}
+.dice-shadow{position:absolute;width:46px;height:14px;top:50%;margin-top:27px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.6),transparent 72%);pointer-events:none}
 
 
 @media(max-width:480px){
@@ -5625,7 +5625,7 @@ const DICE_ROT = {
 // ścianka skierowana "do kamery", bez przechylenia), a dopiero podczas rzutu/turlania
 // się przechyla i pokazuje jako bryła 3D. Dlatego kąt spoczynkowy = 0 (brak tilta).
 const DICE_IDLE_ROT = { 0:{x:0,y:0}, 1:{x:0,y:0} };
-const DICE_SIZE = 72;
+const DICE_SIZE = 60;
 
 // Buduje 6 ścianek prawdziwej kostki 3D (raz na dany element) z realistycznym układem oczek
 function ensureDiceCubeBuilt(cubeEl) {
@@ -5673,7 +5673,7 @@ function olResetDiceOnTable(playerIdx) {
   cube.style.left = homeLeft + 'px';
   cube.style.transform = `translateY(0px) rotateX(${rot.x}deg) rotateY(${rot.y}deg)`;
   if (shadow) {
-    shadow.style.left = (homeLeft + DICE_SIZE / 2 - 28) + 'px';
+    shadow.style.left = (homeLeft + DICE_SIZE / 2 - 23) + 'px';
     shadow.style.opacity = '0.3';
     shadow.style.transform = 'scale(0.9)';
   }
@@ -5681,8 +5681,9 @@ function olResetDiceOnTable(playerIdx) {
 
 // Rzuca kostką gracza playerIdx po wspólnym stole: prawdziwa symulacja fizyki
 // (grawitacja, odbicia z tarciem, opadający moment obrotowy) klatka po klatce.
-// Kostka swobodnie "turla się" po stole i DOPIERO gdy fizyka naturalnie ją
-// zatrzyma, następuje płynne domknięcie obrotu dokładnie na wylosowanej wartości.
+// WAŻNE: pozycja X wynika WYŁĄCZNIE z fizyki (dobieramy prędkość początkową tak,
+// by kostka sama, naturalnie wytraciła impet we właściwej strefie) - po zatrzymaniu
+// kostka JUŻ SIĘ NIE PRZESUWA, faza osadzania koryguje wyłącznie obrót do wyniku.
 function olThrowDiceOnTable(playerIdx, value, onDone) {
   const table = document.getElementById('dice-table');
   const cube = document.getElementById('dice-p' + (playerIdx + 1) + '-visual');
@@ -5693,7 +5694,8 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
 
   const tableW = table.clientWidth;
   const dir = playerIdx === 0 ? 1 : -1; // gracz 1 rzuca w prawo, gracz 2 w lewo
-  let x = playerIdx === 0 ? -DICE_SIZE * 0.6 : tableW - DICE_SIZE * 0.4;
+  const startX = playerIdx === 0 ? -DICE_SIZE * 0.6 : tableW - DICE_SIZE * 0.4;
+  let x = startX;
 
   // Strefy lądowania obu kostek NIE MOGĄ na siebie nachodzić - wymuszamy sztywny
   // margines bezpieczeństwa (szerokość kostki + zapas) po obu stronach środka stołu.
@@ -5710,23 +5712,32 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
     restX = Math.round(lo + Math.random() * (hi - lo));
   }
 
-  let vx = dir * (8 + Math.random() * 3);      // prędkość pozioma (px/klatkę @60fps)
-  let h = 0;                                   // wysokość nad stołem
-  let vh = 10 + Math.random() * 4;              // pierwszy "odskok" tuż po rzucie z ręki
   const gravity = 0.62;
   const restitution = 0.42;                     // ile energii zostaje po odbiciu
+  const vxFriction = 0.965;
+  const vxStopThreshold = 0.5;
+
+  // Prędkość początkowa dobrana analitycznie z rozpadu geometrycznego tarcia,
+  // tak by suma nieskończonego szeregu przemieszczeń wylądowała w restX
+  // (+ kompensacja "ogona" tracenia prędkości poniżej progu zatrzymania).
+  const tailCompensation = dir * (vxStopThreshold / (1 - vxFriction));
+  const desiredDisplacement = (restX - startX) + tailCompensation;
+  const vx0 = desiredDisplacement * (1 - vxFriction) * (0.94 + Math.random() * 0.12);
+  let vx = vx0;
+
+  let h = 0;                                    // wysokość nad stołem
+  let vh = 10 + Math.random() * 4;              // pierwszy "odskok" tuż po rzucie z ręki
 
   let rotX = cube._olRotX || 0, rotY = cube._olRotY || 0;
   let angVelX = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
   let angVelY = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
   const angFriction = 0.965;
-  const vxFriction = 0.965;
 
   const target = DICE_ROT[value] || DICE_ROT[1];
   let bounces = 0;
-  let settling = false, settleStart = 0, settleFromX = 0, settleFromRotX = 0, settleFromRotY = 0;
+  let settling = false, settleStart = 0, settledX = 0, settleFromRotX = 0, settleFromRotY = 0;
   let dRotX = 0, dRotY = 0;
-  const settleDur = 300;
+  const settleDur = 260;
   let lastT = null;
 
   function frame(now) {
@@ -5737,6 +5748,7 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
     if (!settling) {
       x += vx * dt;
       vx *= Math.pow(vxFriction, dt);
+      if (Math.abs(vx) < vxStopThreshold) vx = 0;
 
       vh -= gravity * dt;
       h += vh * dt;
@@ -5756,7 +5768,7 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
       angVelY *= Math.pow(angFriction, dt);
 
       if (shadow) {
-        shadow.style.left = (x + DICE_SIZE / 2 - 28) + 'px';
+        shadow.style.left = (x + DICE_SIZE / 2 - 23) + 'px';
         const s = Math.max(0.4, 1 - h / 46);
         shadow.style.transform = `scale(${s})`;
         shadow.style.opacity = String(0.14 + s * 0.26);
@@ -5765,11 +5777,11 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
       cube.style.transform = `translateY(${-h}px) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
 
       const grounded = h === 0 && bounces >= 2;
-      const slow = grounded && Math.abs(vx) < 0.5 && Math.abs(angVelX) < 4 && Math.abs(angVelY) < 4;
+      const slow = grounded && vx === 0 && Math.abs(angVelX) < 4 && Math.abs(angVelY) < 4;
       if (slow) {
         settling = true;
         settleStart = now;
-        settleFromX = x;
+        settledX = x; // kostka ZOSTAJE dokładnie tu, gdzie fizyka ją zatrzymała
         settleFromRotX = rotX;
         settleFromRotY = rotY;
         dRotX = olForwardAngleDelta(rotX, target.x, angVelX >= 0 ? 1 : -1);
@@ -5779,17 +5791,17 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
       return;
     }
 
-    // Faza osadzania - płynne, malejące domknięcie obrotu DOKŁADNIE na wylosowanej wartości
+    // Faza osadzania - dotyka WYŁĄCZNIE obrotu (płynne domknięcie na wylosowanej
+    // wartości); pozycja X pozostaje niezmieniona - kostka fizycznie się nie rusza.
     const t = Math.min(1, (now - settleStart) / settleDur);
     const e = 1 - Math.pow(1 - t, 3); // easeOutCubic
-    const curX = settleFromX + (restX - settleFromX) * e;
     const curRotX = settleFromRotX + dRotX * e;
     const curRotY = settleFromRotY + dRotY * e;
 
-    cube.style.left = curX + 'px';
+    cube.style.left = settledX + 'px';
     cube.style.transform = `translateY(0px) rotateX(${curRotX}deg) rotateY(${curRotY}deg)`;
     if (shadow) {
-      shadow.style.left = (curX + DICE_SIZE / 2 - 28) + 'px';
+      shadow.style.left = (settledX + DICE_SIZE / 2 - 23) + 'px';
       shadow.style.transform = 'scale(1)';
       shadow.style.opacity = '0.4';
     }
