@@ -5642,19 +5642,16 @@ function ensureDiceCubeBuilt(cubeEl) {
   }
 }
 
-// Najkrótsza droga kątowa "do przodu" (w kierunku, w którym kostka już się kręciła)
-// od aktualnego kąta do najbliższego wystąpienia kąta docelowego (mod 360).
-function olForwardAngleDelta(current, targetMod, dir) {
+// Najkrótsza droga kątowa (max ±180°) od aktualnego kąta do najbliższego
+// wystąpienia kąta docelowego (mod 360) - bez tego finałowy obrót potrafił
+// wymagać nawet 359°, co wyglądało jak nagły "doskok" tuż przed zatrzymaniem.
+function olForwardAngleDelta(current, targetMod) {
   const cur360 = ((current % 360) + 360) % 360;
   const tgt360 = ((targetMod % 360) + 360) % 360;
-  if (dir >= 0) {
-    let d = tgt360 - cur360;
-    if (d < 0) d += 360;
-    return d;
-  }
-  let d = cur360 - tgt360;
-  if (d < 0) d += 360;
-  return -d;
+  let d = tgt360 - cur360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return d;
 }
 
 // Ustawia kostkę na jej "domowej" krawędzi stołu (gracz 1 z lewej, gracz 2 z prawej),
@@ -5716,6 +5713,7 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
   const restitution = 0.42;                     // ile energii zostaje po odbiciu
   const vxFriction = 0.965;
   const vxStopThreshold = 0.5;
+  const maxHopHeight = 46;                       // twardy limit - kostka NIE MOŻE wylecieć poza stół
 
   // Prędkość początkowa dobrana analitycznie z rozpadu geometrycznego tarcia,
   // tak by suma nieskończonego szeregu przemieszczeń wylądowała w restX
@@ -5726,7 +5724,7 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
   let vx = vx0;
 
   let h = 0;                                    // wysokość nad stołem
-  let vh = 10 + Math.random() * 4;              // pierwszy "odskok" tuż po rzucie z ręki
+  let vh = 5.5 + Math.random() * 2;             // pierwszy "odskok" tuż po rzucie z ręki (mały, mieści się w stole)
 
   let rotX = cube._olRotX || 0, rotY = cube._olRotY || 0;
   let angVelX = (Math.random() < 0.5 ? 1 : -1) * (15 + Math.random() * 7);
@@ -5752,6 +5750,7 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
 
       vh -= gravity * dt;
       h += vh * dt;
+      if (h > maxHopHeight) { h = maxHopHeight; if (vh > 0) vh = 0; } // kostka nie wylatuje poza stół
       if (h <= 0) {
         h = 0;
         if (Math.abs(vh) > 0.9 && bounces < 4) {
@@ -5784,8 +5783,8 @@ function olThrowDiceOnTable(playerIdx, value, onDone) {
         settledX = x; // kostka ZOSTAJE dokładnie tu, gdzie fizyka ją zatrzymała
         settleFromRotX = rotX;
         settleFromRotY = rotY;
-        dRotX = olForwardAngleDelta(rotX, target.x, angVelX >= 0 ? 1 : -1);
-        dRotY = olForwardAngleDelta(rotY, target.y, angVelY >= 0 ? 1 : -1);
+        dRotX = olForwardAngleDelta(rotX, target.x);
+        dRotY = olForwardAngleDelta(rotY, target.y);
       }
       cube._olAnimId = requestAnimationFrame(frame);
       return;
