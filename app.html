@@ -2665,7 +2665,7 @@ function startGame(){
   goto('game');
 }
 
-// ===== HISTORIA GRY ONLINE =====
+// ===== HISTORIA GRY ONLINE (DRABINKA SERII) =====
 function updateOnlineHistory(){
   const histEl = document.getElementById('ol-history');
   const sumHistEl = document.getElementById('sum-history');
@@ -2675,29 +2675,73 @@ function updateOnlineHistory(){
     if(sumHistEl) sumHistEl.style.display = 'none';
     if(histEl) histEl.style.display = '';
     
-    // Buduj historię z wszystkich graczy
-    const allMoves = [];
-    G.history.forEach(move => {
-      allMoves.push({
-        player: move.p,
-        name: G.players[move.p] || 'Gracz ' + (move.p + 1),
-        score: move.sc,
-        bust: move.bust,
-        index: move.p
-      });
+    // Pobierz historię z Firebase
+    const moves = G._fbHistory?.moves || [];
+    
+    if(moves.length === 0) {
+      histEl.innerHTML = '<div style="font-size:10px;color:#8888aa;font-style:italic">Czekanie na rzuty...</div>';
+      return;
+    }
+    
+    // Podziel na serie po 3 rzuty dla każdego gracza
+    const series = {};
+    G.players.forEach((_, idx) => {
+      series[idx] = [];
     });
     
-    // Wyświetl historię na zmianę
-    histEl.innerHTML = allMoves.map((move, idx) => {
-      const isMyMove = move.index === OL.myIndex;
-      const color = isMyMove ? '#00e5ff' : '#ff8c00';
-      const bgColor = isMyMove ? 'rgba(0,229,255,.1)' : 'rgba(255,140,0,.1)';
-      const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
+    // Grupuj rzuty po graczach i po 3 rzuty
+    let currentSeries = {};
+    G.players.forEach((_, idx) => {
+      currentSeries[idx] = [];
+    });
+    
+    moves.forEach(move => {
+      const p = move.p;
+      currentSeries[p].push(move);
       
-      return `<div style="display:inline-block;margin-right:6px;margin-bottom:4px;padding:4px 8px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;font-size:11px;font-family:'Bebas Neue',cursive;color:${color};letter-spacing:0.5px">
-        ${isMyMove ? '👤' : '🎯'} ${move.bust ? '✕' : move.score}
-      </div>`;
-    }).join('');
+      // Jak nabierzemy 3 rzuty dla tego gracza, dodaj serię
+      if(currentSeries[p].length === 3) {
+        series[p].push([...currentSeries[p]]);
+        currentSeries[p] = [];
+      }
+    });
+    
+    // Dodaj niekompletną serię jeśli istnieje
+    G.players.forEach((_, idx) => {
+      if(currentSeries[idx].length > 0) {
+        series[idx].push([...currentSeries[idx]]);
+      }
+    });
+    
+    // Wyświetl drabinkę - na zmianę gracze
+    let html = '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    const maxSeries = Math.max(...G.players.map((_, idx) => series[idx].length));
+    
+    for(let serieIdx = 0; serieIdx < maxSeries; serieIdx++) {
+      G.players.forEach((_, playerIdx) => {
+        const playerSeries = series[playerIdx][serieIdx];
+        
+        if(playerSeries) {
+          const isMyMove = playerIdx === OL.myIndex;
+          const color = isMyMove ? '#00e5ff' : '#ff8c00';
+          const bgColor = isMyMove ? 'rgba(0,229,255,.08)' : 'rgba(255,140,0,.08)';
+          const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
+          
+          // Suma 3 rzutów
+          const sum = playerSeries.reduce((acc, m) => acc + (m.bust ? 0 : m.sc), 0);
+          const hasBust = playerSeries.some(m => m.bust);
+          
+          html += `<div style="padding:8px 10px;background:${bgColor};border:1px solid ${borderColor};border-radius:8px;text-align:center;font-size:12px;font-family:'Bebas Neue',cursive;letter-spacing:1px;color:${color};min-width:50px">
+            <div style="font-size:10px;color:#8888aa;margin-bottom:2px">${isMyMove ? '👤' : '🎯'}</div>
+            <div style="font-size:16px;font-weight:bold">${hasBust ? '✕' : sum}</div>
+            <div style="font-size:9px;color:#8888aa;margin-top:2px;font-family:monospace">${playerSeries.length}x</div>
+          </div>`;
+        }
+      });
+    }
+    
+    html += '</div>';
+    histEl.innerHTML = html;
   } else {
     // Gra lokalna - pokaż sumaryczną historię
     if(sumHistEl) sumHistEl.style.display = '';
@@ -6262,6 +6306,7 @@ function olEnterOnlineGame(roomData, players) {
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
   G._lastThrows = gs.lastThrows || {}; // Inicjalizuj ostatnie rzuty
+  G._fbHistory = gs.history || { moves: [] }; // Inicjalizuj historię
   OL.winRecorded = false; // Reset flagi przy każdej nowej grze
 
   // Idź na ekran gry
@@ -6285,6 +6330,7 @@ function olEnterOnlineGame(roomData, players) {
   G._onlineRoomId = OL.currentRoomId;
   G._onlineTimerSecs = (gs.turnTimer && gs.turnTimerSecs > 0) ? gs.turnTimerSecs : 0;
   G._lastThrows = gs.lastThrows || {}; // Przywróć ostatnie rzuty
+  G._fbHistory = gs.history || { moves: [] }; // Przywróć historię
   // Odbuduj historię cricket z aktualnego stanu Firebase — cofnięcie działa od momentu wejścia
   if(G.mode==="cricket") { G.cricketHistory=[]; G.cricketHistory.push({cMarks:{...G.cMarks},cScores:[...G.cScores],cDarts:G.cDarts,cMult:G.cMult,cp:G.cp,round:G.round}); }
   renderScoreboard();
@@ -6417,8 +6463,9 @@ function olStartListening() {
     G.legs = ngs.legs || G.legs;
     G.diDone = [...(ngs.diDone||[])];
     
-    // Zaktualizuj lastThrows z Firebase
+    // Zaktualizuj lastThrows i historię z Firebase
     G._lastThrows = ngs.lastThrows || {};
+    G._fbHistory = ngs.history || { moves: [] };
 
     // Przerysuj UI
     if (typeof renderScoreboard === 'function') renderScoreboard();
@@ -6805,6 +6852,15 @@ async function olSyncGameState() {
     const lastValidTurn = validTurns[validTurns.length - 1];
     const lastThrow = lastValidTurn ? lastValidTurn.sc : 0;
     
+    // Konwertuj historię do formatu serii (3 rzuty na serię)
+    const historyData = {
+      moves: G.history.map(h => ({
+        p: h.p,
+        sc: h.sc,
+        bust: h.bust || false
+      }))
+    };
+    
     const runningStats = {
       totalDarts:     myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0),
       totalPoints:    validTurns.reduce((s, h) => s + h.sc, 0),
@@ -6830,6 +6886,7 @@ async function olSyncGameState() {
       'gameState.atcT': G.atcT||[],
       'gameState.atcDarts': G.atcDarts||0,
       'gameState.lastMove': { by: OL.myIndex, at: Date.now() },
+      'gameState.history': historyData,
       [lastThrowsKey]: lastThrow,
       [statsKey]: runningStats,
     });
