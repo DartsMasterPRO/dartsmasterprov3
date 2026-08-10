@@ -1165,6 +1165,7 @@ input{outline:none}
       <div style="background:#12121a;border:1px solid #2a2a40;border-radius:10px;padding:10px;margin-bottom:12px;max-height:80px;overflow-y:auto">
         <div style="font-size:9px;color:#8888aa;margin-bottom:6px;font-family:monospace;letter-spacing:1px">HISTORIA</div>
         <div id="sum-history"></div>
+        <div id="ol-history" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -2664,6 +2665,46 @@ function startGame(){
   goto('game');
 }
 
+// ===== HISTORIA GRY ONLINE =====
+function updateOnlineHistory(){
+  const histEl = document.getElementById('ol-history');
+  const sumHistEl = document.getElementById('sum-history');
+  
+  // Ukryj historię sumaryczną jeśli jest gra online
+  if(G._onlineRoomId || OL.currentRoomId) {
+    if(sumHistEl) sumHistEl.style.display = 'none';
+    if(histEl) histEl.style.display = '';
+    
+    // Buduj historię z wszystkich graczy
+    const allMoves = [];
+    G.history.forEach(move => {
+      allMoves.push({
+        player: move.p,
+        name: G.players[move.p] || 'Gracz ' + (move.p + 1),
+        score: move.sc,
+        bust: move.bust,
+        index: move.p
+      });
+    });
+    
+    // Wyświetl historię na zmianę
+    histEl.innerHTML = allMoves.map((move, idx) => {
+      const isMyMove = move.index === OL.myIndex;
+      const color = isMyMove ? '#00e5ff' : '#ff8c00';
+      const bgColor = isMyMove ? 'rgba(0,229,255,.1)' : 'rgba(255,140,0,.1)';
+      const borderColor = isMyMove ? 'rgba(0,229,255,.3)' : 'rgba(255,140,0,.3)';
+      
+      return `<div style="display:inline-block;margin-right:6px;margin-bottom:4px;padding:4px 8px;background:${bgColor};border:1px solid ${borderColor};border-radius:6px;font-size:11px;font-family:'Bebas Neue',cursive;color:${color};letter-spacing:0.5px">
+        ${isMyMove ? '👤' : '🎯'} ${move.bust ? '✕' : move.score}
+      </div>`;
+    }).join('');
+  } else {
+    // Gra lokalna - pokaż sumaryczną historię
+    if(sumHistEl) sumHistEl.style.display = '';
+    if(histEl) histEl.style.display = 'none';
+  }
+}
+
 // ===== WYNIK PRZECIWNIKA (ONLINE) =====
 function updateOpponentScoreBar(){
   const opponentBar=document.getElementById('ol-opponent-score-bar');
@@ -2724,7 +2765,10 @@ function renderScoreboard(){
   if(legEl) legEl.textContent=G.legs>1?('LEG '+G.currentLeg+'/'+G.legs):'';
   
   // Aktualizuj wynik przeciwnika w grze online
-  if(G._onlineRoomId || OL.currentRoomId) updateOpponentScoreBar();
+  if(G._onlineRoomId || OL.currentRoomId) {
+    updateOpponentScoreBar();
+    updateOnlineHistory();
+  }
 }
 
 let _lastCOScore=0;
@@ -6387,8 +6431,9 @@ function olStartListening() {
 
     olUpdateTurnUI(ngs.cp);
     
-    // Aktualizuj wynik przeciwnika
+    // Aktualizuj wynik przeciwnika i historię
     if (typeof updateOpponentScoreBar === 'function') updateOpponentScoreBar();
+    if (typeof updateOnlineHistory === 'function') updateOnlineHistory();
 
     // Zwycięzca?
     if (ngs.winner !== null && ngs.winner !== undefined) {
