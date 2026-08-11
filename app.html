@@ -3123,7 +3123,9 @@ function trigWin(pi,lastSc){
   G.scores=G.players.map(()=>s);
   G.diDone=G.players.map(()=>!G.dIn);
   G.cp=G.firstPlayerLeg; G.round=1; G.throws=[null,null,null]; G.mult=1; G.history=[];
+  G._fbHistory = {moves:[]}; // 🐛 FIX: zeruj natychmiast historię rzutów online przy starcie nowego lega (nie czekaj na roundtrip z Firebase)
   refreshThrows(); setMult(1); renderScoreboard();
+  if(G._onlineRoomId || OL.currentRoomId) updateOnlineHistory();
   // Pokaż kto zaczyna nowy leg
   toast('🎯 LEG '+G.currentLeg+': '+G.players[G.firstPlayerLeg]+' zaczyna');
 }
