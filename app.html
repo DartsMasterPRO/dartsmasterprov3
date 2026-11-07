@@ -8041,6 +8041,30 @@ function solveH(src,dst){
   const h=b.map((v,i)=>v/A[i][i]);h.push(1);return h;
 }
 function ap(h,x,y){const w=h[6]*x+h[7]*y+h[8];if(w<=1e-9)return null;return[(h[0]*x+h[1]*y+h[2])/w,(h[3]*x+h[4]*y+h[5])/w];}
+// położenie kamery względem tarczy (z homografii, zakładamy środek obrazu = oś optyczna)
+function poseFrom(H,w,h){
+  const cx=w/2,cy=h/2;
+  const g=[H[0]*w-cx*H[6],H[1]*w-cx*H[7],H[2]*w-cx*H[8],H[3]*h-cy*H[6],H[4]*h-cy*H[7],H[5]*h-cy*H[8],H[6],H[7],H[8]];
+  const fs=[];
+  const d1=g[6]*g[7];if(Math.abs(d1)>1e-14){const v=-(g[0]*g[1]+g[3]*g[4])/d1;if(v>0)fs.push(v);}
+  const d2=g[6]*g[6]-g[7]*g[7];if(Math.abs(d2)>1e-14){const v=-(g[0]*g[0]+g[3]*g[3]-g[1]*g[1]-g[4]*g[4])/d2;if(v>0)fs.push(v);}
+  const M=Math.max(w,h);let f=fs.length?Math.sqrt(fs.reduce((a,b)=>a+b,0)/fs.length):0.9*M;
+  if(!(f>0.4*M&&f<3*M))f=0.9*M;
+  const b1=[g[0]/f,g[3]/f,g[6]],b2=[g[1]/f,g[4]/f,g[7]],b3=[g[2]/f,g[5]/f,g[8]];
+  let l=1/Math.hypot(...b1);if(b3[2]*l<0)l=-l;
+  const r1=b1.map(v=>v*l),r2=b2.map(v=>v*l),t=b3.map(v=>v*l);
+  let r3=[r1[1]*r2[2]-r1[2]*r2[1],r1[2]*r2[0]-r1[0]*r2[2],r1[0]*r2[1]-r1[1]*r2[0]];
+  if(r3[0]*-t[0]+r3[1]*-t[1]+r3[2]*-t[2]<0)r3=r3.map(v=>-v); // normalna w stronę kamery
+  return{f,cx,cy,r1,r2,r3,t};
+}
+// kierunek (w px obrazu), w którym lotka wystaje z tarczy w punkcie (bx,by) mm
+function outDir(bx,by){
+  const P=GEO&&GEO.pose;if(!P)return null;
+  const pr=(X)=>X[2]>1e-6?[P.f*X[0]/X[2]+P.cx,P.f*X[1]/X[2]+P.cy]:null;
+  const A=[0,1,2].map(k=>P.r1[k]*bx+P.r2[k]*by+P.t[k]),B=A.map((v,k)=>v+P.r3[k]*120);
+  const a=pr(A),b=pr(B);if(!a||!b)return null;const dx=b[0]-a[0],dy=b[1]-a[1],n=Math.hypot(dx,dy);
+  return n>1e-6?[dx/n,dy/n,n]:null;
+}
 function scoreAt(bx,by){
   const r=Math.hypot(bx,by);
   if(r<=RB.bi)return{n:50,m:1,cb:25,cm:2,lbl:'BULL',val:50};
@@ -8077,7 +8101,7 @@ function buildGeo(){
   const c=ap(H,0,0);let rp=0;
   CAL.pts.forEach(p=>{rp+=Math.hypot((p[0]-c[0])*ww,(p[1]-c[1])*wh)/4;});
   const area=Math.PI*rp*rp;
-  GEO={H,Hi,ww,wh,rx,ry,rw,rh,mask,mn,rpx:rp,minA:Math.max(15,area*0.0012),maxA:area*0.14};
+  GEO={H,Hi,pose:poseFrom(H,ww,wh),ww,wh,rx,ry,rw,rh,mask,mn,rpx:rp,minA:Math.max(15,area*0.0012),maxA:area*0.14};
   wc.width=ww;wc.height=wh;
 }
 function resetRefs(){frames=[];cand=null;ref=null;empty=null;prevL=null;dirty=false;stable=0;turn=[];turnKey0=null;closed=false;sumDarts=[];lastMask=null;}
@@ -8141,26 +8165,46 @@ function analyzeDiff(cur,base,exclude){
   const cs=comps(m);let total=0;cs.forEach(c=>total+=c.n);
   if(!cs.length)return{total:0,m};
   const main=cs[0];let px=main.px.slice();
-  for(let k=1;k<cs.length;k++){const c=cs[k];if(c.n>=12&&Math.hypot(c.cx-main.cx,c.cy-main.cy)<GEO.rpx*0.55)px=px.concat(c.px);}
+  // oś głównej plamy
+  let ax=null;{let mx=0,my=0;const rw=GEO.rw;for(const i of main.px){mx+=i%rw;my+=(i/rw)|0;}mx/=main.n;my/=main.n;
+    let a=0,b=0,c=0;for(const i of main.px){const dx=i%rw-mx,dy=((i/rw)|0)-my;a+=dx*dx;b+=dy*dy;c+=dx*dy;}
+    const th=0.5*Math.atan2(2*c,a-b);ax=[Math.cos(th),Math.sin(th)];}
+  let od=null;{const[nx,ny]=workToNorm(main.cx,main.cy),bb=ap(GEO.Hi,nx,ny);if(bb)od=outDir(bb[0],bb[1]);}
+  for(let k=1;k<cs.length;k++){const c=cs[k];if(c.n<8)continue;
+    const dx=c.cx-main.cx,dy=c.cy-main.cy,dist=Math.hypot(dx,dy);
+    const perp=Math.abs(dx*ax[1]-dy*ax[0]); // odległość od osi głównej plamy
+    const perpG=od?Math.abs(dx*od[1]-dy*od[0]):1e9; // odległość od osi lotki z geometrii kamery
+    if(dist<GEO.rpx*0.35||(dist<GEO.rpx*1.1&&Math.min(perp,perpG)<Math.max(6,dist*0.3)))px=px.concat(c.px);}
   return{total,px,m,raw:m.raw};
 }
-function tipOf(px,raw){
+function tipOf(px,raw,useGeo){
   const rw=GEO.rw,n=px.length;let mx=0,my=0;
   for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=n;my/=n;
   let cxx=0,cyy=0,cxy=0;
   for(const i of px){const dx=i%rw-mx,dy=((i/rw)|0)-my;cxx+=dx*dx;cyy+=dy*dy;cxy+=dx*dy;}
   cxx/=n;cyy/=n;cxy/=n;
-  const th=0.5*Math.atan2(2*cxy,cxx-cyy),ex=Math.cos(th),ey=Math.sin(th);
+  let th=0.5*Math.atan2(2*cxy,cxx-cyy),ex=Math.cos(th),ey=Math.sin(th),geoAx=false;
+  // oś lotki z geometrii kamery (pewniejsza niż kształt plamy — piórka bywają szerokie)
+  if(S.tipDir==='auto'&&useGeo!==false){const[nx,ny]=workToNorm(mx,my),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
+    if(od&&od[2]>GEO.rpx*0.15){ex=od[0];ey=od[1];geoAx=true;}}
   const tr=cxx+cyy,dt=Math.sqrt(Math.max(0,(cxx-cyy)*(cxx-cyy)/4+cxy*cxy));
   const l1=tr/2+dt,l2=Math.max(0.5,tr/2-dt),elong=Math.sqrt(l1/l2);
-  if(elong<2.2)return{x:mx,y:my,elong,ax:[ex,ey]};
+  if(elong<2.2&&!geoAx)return{x:mx,y:my,elong,ax:[ex,ey]};
   let tmin=1e9,tmax=-1e9;const ts=new Float32Array(n);
   px.forEach((i,k)=>{const t=(i%rw-mx)*ex+(((i/rw)|0)-my)*ey;ts[k]=t;if(t<tmin)tmin=t;if(t>tmax)tmax=t;});
   const L=tmax-tmin,band=L*0.2;let cMin=0,cMax=0;
   for(let k=0;k<n;k++){if(ts[k]<tmin+band)cMin++;if(ts[k]>tmax-band)cMax++;}
   let useMin;
-  if(S.tipDir==='auto')useMin=cMin<cMax; // grot = węższy koniec (lotki/piórka są szerokie)
-  else{const d={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]}[S.tipDir];useMin=(tmin*ex*d[0]+tmin*ey*d[1])>(tmax*ex*d[0]+tmax*ey*d[1]);}
+  let geoOk=false;
+  if(geoAx){useMin=true;geoOk=true;}
+  else if(S.tipDir==='auto'&&useGeo!==false){
+    // grot = koniec leżący NA tarczy; reszta lotki wystaje w stronę kamery (kierunek z kalibracji)
+    const[nx,ny]=workToNorm(mx,my),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
+    if(od){const c=ex*od[0]+ey*od[1];if(Math.abs(c)>0.35){useMin=c>0;geoOk=true;}}
+  }
+  if(!geoOk&&(S.tipDir==='auto'||S.tipDir==='narrow'))useMin=cMin<cMax; // grot = węższy koniec
+  else if(S.tipDir==='__force')useMin=FORCE_MIN;
+  else if(!geoOk&&['down','up','left','right'].includes(S.tipDir)){const d={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]}[S.tipDir];useMin=(tmin*ex*d[0]+tmin*ey*d[1])>(tmax*ex*d[0]+tmax*ey*d[1]);}
   const lim=Math.max(1.5,L*0.03);let sx=0,sy=0,c=0;
   for(let k=0;k<n;k++){const ok=useMin?ts[k]<tmin+lim:ts[k]>tmax-lim;if(ok){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}
   let tx=sx/c,ty=sy/c;
@@ -8171,8 +8215,12 @@ function tipOf(px,raw){
         if(x>=0&&y>=0&&x<rw&&y<rh&&raw[y*rw+x])hit=true;}
       if(hit){last=s;gap=0;}else if(++gap>3)break;}
     tx+=dx*last;ty+=dy*last;}
-  return{x:tx,y:ty,elong,ax:[ex,ey]};
+  return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my};
 }
+function tipOfForced(px,raw,useMin){
+  const d=S.tipDir;S.tipDir='__force';FORCE_MIN=useMin;try{return tipOf(px,raw,false);}finally{S.tipDir=d;}
+}
+let FORCE_MIN=false;
 function fracChanged(cur,base,px){
   if(!px||!px.length)return 0;const T=effT(),a=hp(cur),b=hp(base);let n=0;
   for(const i of px){const j=i*3;if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T)n++;}
@@ -8299,7 +8347,14 @@ function analyze(cur){
   }
   {const st=cand.set;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});cand=null;
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
-  const tp=tipOf(r.px,r.raw);const[nx,ny]=workToNorm(tp.x,tp.y);const sc=normToScore(nx,ny);
+  let tp=tipOf(r.px,r.raw);let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
+  if(sc.lbl==='MISS'&&tp.tmax!==undefined){ // grot poza tarczą? sprawdź drugi koniec
+    const save=S.tipDir;const ax=tp.ax;const t=tp.useMin?tp.tmax:tp.tmin;
+    const[ox,oy]=workToNorm(tp.mx+ax[0]*t,tp.my+ax[1]*t),alt=normToScore(ox,oy);
+    if(alt.lbl!=='MISS'){S.tipDir=tp.useMin?'__max':'__min';}
+    if(S.tipDir!==save){const q=tipOfForced(r.px,r.raw,!tp.useMin);tp=q;[nx,ny]=workToNorm(q.x,q.y);sc=normToScore(nx,ny);lg('grot odwrócony (był poza tarczą)');}
+    S.tipDir=save;
+  }
   if(!turn.length)turnKey0=tkey();
   const d={px:r.px,before:ref,tip:[nx,ny],sc};
   lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%)');
@@ -8493,7 +8548,7 @@ function mount(){
      '<label>Kamera <select id="ac-cam" onchange="AutoCam.setCam(this.value)"></select></label>'+
      '<label>Czułość <input type="range" id="ac-thr" min="15" max="120" step="5" oninput="AutoCam.set(\'thr\',+this.value)"></label>'+
      '<label>Grot lotki na obrazie <select id="ac-tip" onchange="AutoCam.set(\'tipDir\',this.value)">'+
-       '<option value="auto">Auto (węższy koniec)</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
+       '<option value="auto">Auto (z kalibracji)</option><option value="narrow">Węższy koniec</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
      '<label>Auto-zatwierdzanie po wyjęciu <input type="checkbox" id="ac-auto" onchange="AutoCam.set(\'autoConfirm\',this.checked)"></label>'+
      '<label>Blokada ekspozycji <input type="checkbox" id="ac-exp" onchange="AutoCam.set(\'lockExp\',this.checked)"></label>'+
      '<label>Podgląd detekcji (maska) <input type="checkbox" id="ac-dbg" onchange="AutoCam.set(\'debug\',this.checked)"></label>'+
