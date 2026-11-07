@@ -8023,7 +8023,7 @@ async function olChatSend() {
 #dm .dm-dart.unsure{animation:dmuns 1.2s ease-in-out infinite}
 @keyframes dmuns{50%{background:rgba(255,215,0,.08)}}
 .dm-dart{cursor:pointer;border-radius:8px}.dm-dart:active{background:#f2ece0}
-#dm-pick{display:none;position:absolute;left:8px;right:8px;top:62px;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35);padding:10px;z-index:4}
+#dm-pick{display:none;position:absolute;left:8px;right:8px;top:62px;max-height:70vh;overflow:auto;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35);padding:10px;z-index:4}
 #dm-pick.on{display:block}
 #dm-pick .t{font-family:monospace;font-size:10px;color:#888;margin-bottom:6px}
 #dm-pick .g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
@@ -9011,11 +9011,28 @@ function pick(i){
   if(sc.n>0&&sc.n<=20){const k=SEG.indexOf(sc.n),L=SEG[(k+19)%20],Rr=SEG[(k+1)%20];
     add(L,sc.m);add(sc.n,sc.m);add(Rr,sc.m);[1,2,3].forEach(m=>add(sc.n,m));add(L,1);add(Rr,1);}
   else if(sc.n===25||sc.n===50){add(50,1);add(25,1);[20,1,18,4,13,6,10,15,2,17,3,19].slice(0,6).forEach(n=>add(n,1));}
-  else{add(0,1);}
+  else{ // MISS: podpowiedzi z miejsca, gdzie kamera widziała grot (najbliższy double i sąsiednie)
+    let k=0;try{const b=ap(GEO.Hi,turn[i].tip[0],turn[i].tip[1]);if(b){const a=((Math.atan2(b[0],b[1])*180/Math.PI)+369)%360;k=Math.floor(a/18)%20;}}catch(e){}
+    const n0=SEG[k],nL=SEG[(k+19)%20],nR=SEG[(k+1)%20];add(n0,2);add(nL,2);add(nR,2);add(n0,1);add(0,1);}
   add(0,1);
   el.dataset.i=String(i);
-  el.innerHTML='<div class="t">LOTKA '+(i+1)+': wybierz właściwe pole</div><div class="g">'+opts.slice(0,12).map(o=>'<button class="'+(o.lbl===sc.lbl?'cur':'')+'" onclick="AutoCam.setDart('+i+','+o.n+','+o.m+')">'+o.lbl+'</button>').join('')+'</div>';
+  const tab=sc.n===0?2:(sc.m||1);
+  el.innerHTML='<div class="t">LOTKA '+(i+1)+': wybierz właściwe pole</div><div class="g">'+opts.slice(0,8).map(o=>'<button class="'+(o.lbl===sc.lbl?'cur':'')+'" onclick="AutoCam.setDart('+i+','+o.n+','+o.m+')">'+o.lbl+'</button>').join('')+'</div>'+
+    '<div class="t" style="margin-top:10px">WSZYSTKIE POLA:</div><div id="dm-pick-all"></div>';
+  pickTab(i,tab);
   el.classList.add('on');
+}
+// pełna klawiatura: SINGLE / DOUBLE / TRIPLE + 1–20 + 25 / BULL / MISS
+function pickTab(i,m){
+  const box=$('dm-pick-all');if(!box)return;const cur=turn[i]?turn[i].sc.lbl:'';
+  const tabs=[[1,'SINGLE'],[2,'DOUBLE'],[3,'TRIPLE']].map(([mm,l])=>'<button class="'+(mm===m?'cur':'')+'" style="font-size:15px" onclick="AutoCam.pickTab('+i+','+mm+')">'+l+'</button>').join('');
+  let nums='';for(let n=1;n<=20;n++){const o=scFrom(n,m);nums+='<button class="'+(o.lbl===cur?'cur':'')+'" onclick="AutoCam.setDart('+i+','+n+','+m+')">'+o.lbl+'</button>';}
+  box.innerHTML='<div class="g" style="grid-template-columns:repeat(3,1fr);margin-bottom:6px">'+tabs+'</div>'+
+    '<div class="g" style="grid-template-columns:repeat(5,1fr)">'+nums+'</div>'+
+    '<div class="g" style="grid-template-columns:repeat(3,1fr);margin-top:6px">'+
+      '<button class="'+(cur==='25'?'cur':'')+'" onclick="AutoCam.setDart('+i+',25,1)">25</button>'+
+      '<button class="'+(cur==='BULL'?'cur':'')+'" onclick="AutoCam.setDart('+i+',50,1)">BULL</button>'+
+      '<button class="'+(cur==='MISS'?'cur':'')+'" onclick="AutoCam.setDart('+i+',0,1)">MISS</button></div>';
 }
 function setDart(i,n,m){
   $('dm-pick').classList.remove('on');
@@ -9382,7 +9399,7 @@ window.AutoCam={
     if(r&&r.q>=0.55){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();toast('✅ Ustawione i skalibrowane ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');}
     else await runAutoCal(true);},
   async setupSkip(){S.setupSeen=true;saveCfg();closeSetup();await runAutoCal(true);},
-  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,refocus(){refocus(true);},
+  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,pickTab,refocus(){refocus(true);},
   sheet(){$('dm-sheet').classList.toggle('on');applyVoice();},
   setVoice(v){S.voice=v;saveCfg();applyVoice();try{TTS.say('Treble twenty',0.7,0.95);}catch(e){}},
   testVoice(){applyVoice();try{TTS.say('One hundred and eighty',0.7,0.9);}catch(e){}},
