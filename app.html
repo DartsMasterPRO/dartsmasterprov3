@@ -7992,6 +7992,57 @@ async function olChatSend() {
 .ac-nudge button{padding:12px 0;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;color:#ffd700;font-size:18px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 .ac-nudge .sel{display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:18px;color:#ffd700;border:1px solid rgba(255,215,0,.4);border-radius:8px;cursor:pointer}
 .ac-cal-btns button.ok{background:linear-gradient(135deg,#00c870,#009955);border:none;color:#fff}
+
+/* ===== widok kamery w stylu Dartsmind ===== */
+#dm{display:none;position:fixed;inset:0;z-index:2500;background:#7d7d80;flex-direction:column;font-family:'Bebas Neue',cursive;-webkit-user-select:none;user-select:none}
+#dm.on{display:flex}
+.dm-top{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:#f7f5f0}
+.dm-ic{width:34px;height:34px;border-radius:9px;border:none;background:#e9dfc7;color:#333;font-size:20px;line-height:1;cursor:pointer}
+.dm-mode{font-size:30px;color:#222;letter-spacing:1px;line-height:1}
+.dm-modei{font-family:monospace;font-size:10px;color:#999;border:1px solid #bbb;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;margin-left:4px}
+.dm-next{margin-left:auto;padding:9px 14px;border:none;border-radius:9px;background:#e9dfc7;color:#333;font-family:'Bebas Neue',cursive;font-size:17px;letter-spacing:1px;cursor:pointer}
+.dm-next:disabled{opacity:.4}
+#dm-camwrap{position:relative;width:100%;aspect-ratio:1/1;max-height:50vh;background:#111;overflow:hidden;flex-shrink:0;margin:0 auto}
+#dm-cam{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:manipulation}
+.dm-pill{position:absolute;background:rgba(255,255,255,.82);color:#333;border-radius:8px;padding:4px 9px;font-size:18px;letter-spacing:.5px;line-height:1.1;pointer-events:none}
+#dm-round{left:10px;bottom:10px}
+#dm-round small{font-size:12px;color:#777}
+#dm-who{left:10px;top:10px;font-size:13px;display:flex;align-items:center;gap:6px}
+#dm-who i{width:8px;height:8px;border-radius:50%;background:#ff3c3c;display:inline-block;animation:blink 1.2s infinite}
+.dm-tools{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+.dm-tools button{min-width:38px;height:32px;border-radius:8px;border:none;background:rgba(255,255,255,.82);color:#333;font-family:'Bebas Neue',cursive;font-size:17px;cursor:pointer;padding:0 8px}
+#dm-nocam{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;color:#ccc;font-family:monospace;font-size:12px;padding:20px;line-height:1.6;pointer-events:none}
+#dm #ac-status{position:absolute;right:10px;top:44px;margin:0;background:rgba(0,0,0,.6);color:#fff;border-radius:8px;padding:4px 8px;font-size:10px;max-width:60%;min-height:0;pointer-events:none}
+.dm-bottom{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:14px 12px calc(10px + env(safe-area-inset-bottom));gap:10px;overflow:auto}
+.dm-card{width:100%;max-width:420px;background:#fff;border-radius:10px;padding:12px 14px 14px;box-shadow:0 4px 18px rgba(0,0,0,.18)}
+.dm-darts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding-bottom:10px;border-bottom:2px dashed #ccc}
+.dm-dart{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px;justify-content:center}
+.dm-dart b{font-weight:normal;font-size:22px;color:#222;line-height:1;letter-spacing:1px}
+.dm-dart.new b{color:#e5781e}
+.dm-row{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;padding-top:8px}
+.dm-prev{font-size:34px;color:#aaa;line-height:1;min-height:34px}
+.dm-prev.x{text-decoration:line-through;text-decoration-thickness:2px}
+.dm-turn{display:inline-block;margin-top:4px;border:2px solid #333;padding:2px 12px;font-size:26px;color:#222;line-height:1.1;min-width:48px;text-align:center}
+.dm-mid{text-align:center}
+.dm-rem{font-size:92px;line-height:.9;color:#222;letter-spacing:1px}
+.dm-rem.bust{color:#d22}
+.dm-name{font-size:26px;color:#333;letter-spacing:1px;line-height:1.1;text-transform:uppercase}
+.dm-co{font-family:monospace;font-size:11px;color:#b07a00;min-height:14px}
+.dm-right{text-align:right;align-self:start}
+.dm-right span{display:block;font-size:16px;color:#888}
+.dm-right b{font-weight:normal;font-size:28px;color:#222}
+.dm-others{width:100%;max-width:420px;display:flex;gap:6px;flex-wrap:wrap}
+.dm-others div{flex:1;min-width:120px;background:rgba(255,255,255,.55);border-radius:8px;padding:6px 10px;display:flex;justify-content:space-between;align-items:center;font-size:18px;color:#333}
+.dm-others div b{font-weight:normal;font-size:24px}
+.dm-act{width:100%;max-width:420px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.dm-act button{white-space:nowrap;padding:10px 4px;border:none;border-radius:9px;background:rgba(255,255,255,.75);color:#333;font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;cursor:pointer}
+#dm-sheet{display:none;position:absolute;left:0;right:0;bottom:0;max-height:75vh;overflow:auto;background:#12121a;border-top:1px solid #2a2a40;border-radius:14px 14px 0 0;padding:12px 12px calc(14px + env(safe-area-inset-bottom));z-index:5;font-family:monospace}
+#dm-sheet.on{display:block}
+#dm-sheet #ac-set{display:block;margin-top:8px}
+.dm-sheet-btns{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.dm-sheet-btns button{padding:10px;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;color:#e8e8f0;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;cursor:pointer}
+.dm-sheet-btns button.red{color:#ff3c3c;border-color:rgba(255,60,60,.4)}
+@media (min-aspect-ratio:1/1){ #dm{flex-direction:row;flex-wrap:wrap} .dm-top{width:100%} #dm-camwrap{width:auto;height:calc(100vh - 60px);max-height:none;margin:0} .dm-bottom{height:calc(100vh - 60px)} }
 </style>
 
 <div id="ac-cal">
@@ -8020,7 +8071,7 @@ const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=4, ROI_K=1.45;
 
-const S={thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
+const S={zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
 let CAL=null;
 function loadCfg(){try{const o=JSON.parse(localStorage.getItem(LS)||'{}');if(o.s){if(o.v!==2)delete o.s.thr;Object.assign(S,o.s);}if(o.cal&&o.cal.pts&&o.cal.pts.length===4)CAL=o.cal;}catch(e){}}
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify({v:2,s:S,cal:CAL}));}catch(e){}}
@@ -8186,7 +8237,7 @@ function tipOf(px,raw,useGeo){
   let th=0.5*Math.atan2(2*cxy,cxx-cyy),ex=Math.cos(th),ey=Math.sin(th),geoAx=false;
   // oś lotki z geometrii kamery (pewniejsza niż kształt plamy — piórka bywają szerokie)
   if(S.tipDir==='auto'&&useGeo!==false){const[nx,ny]=workToNorm(mx,my),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
-    if(od&&od[2]>GEO.rpx*0.15){ex=od[0];ey=od[1];geoAx=true;}}
+    if(od&&od[2]>GEO.rpx*0.04){ex=od[0];ey=od[1];geoAx=true;}}
   const tr=cxx+cyy,dt=Math.sqrt(Math.max(0,(cxx-cyy)*(cxx-cyy)/4+cxy*cxy));
   const l1=tr/2+dt,l2=Math.max(0.5,tr/2-dt),elong=Math.sqrt(l1/l2);
   if(elong<2.2&&!geoAx)return{x:mx,y:my,elong,ax:[ex,ey]};
@@ -8206,7 +8257,17 @@ function tipOf(px,raw,useGeo){
   else if(S.tipDir==='__force')useMin=FORCE_MIN;
   else if(!geoOk&&['down','up','left','right'].includes(S.tipDir)){const d={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]}[S.tipDir];useMin=(tmin*ex*d[0]+tmin*ey*d[1])>(tmax*ex*d[0]+tmax*ey*d[1]);}
   const lim=Math.max(1.5,L*0.03);let sx=0,sy=0,c=0;
-  for(let k=0;k<n;k++){const ok=useMin?ts[k]<tmin+lim:ts[k]>tmax-lim;if(ok){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}
+  if(geoAx){ // szukaj grota w wąskim korytarzu wzdłuż osi lotki (omija skrzydełka piórek)
+    const cor=Math.max(3,GEO.rpx*0.03);let tm=1e9;const inC=new Uint8Array(n),pp=new Float32Array(n);
+    let pm=0,pc=0;for(let k=0;k<n;k++){pp[k]=(px[k]%rw-mx)*(-ey)+(((px[k]/rw)|0)-my)*ex;if(ts[k]<tmin+L*0.3){pm+=pp[k];pc++;}}
+    pm=pc?pm/pc:0; // oś przechodzi przez przednią część lotki (lufka + grot)
+    for(let k=0;k<n;k++){if(Math.abs(pp[k]-pm)<cor){inC[k]=1;if(ts[k]<tm)tm=ts[k];}}
+    // skrajny punkt całej plamy — jeśli leży na osi lotki, to on jest grotem (cienki grot bywa poza korytarzem)
+    let ax0=0,ay0=0,ac0=0,ap0=0;for(let k=0;k<n;k++){if(ts[k]<tmin+lim){ax0+=px[k]%rw;ay0+=(px[k]/rw)|0;ap0+=pp[k];ac0++;}}
+    if(ac0&&Math.abs(ap0/ac0-pm)<cor*2.5){sx=ax0;sy=ay0;c=ac0;}
+    else if(tm<1e9){for(let k=0;k<n;k++){if(inC[k]&&ts[k]<tm+lim){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}}
+  }
+  if(!c)for(let k=0;k<n;k++){const ok=useMin?ts[k]<tmin+lim:ts[k]>tmax-lim;if(ok){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}
   let tx=sx/c,ty=sy/c;
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
   if(raw){const dx=useMin?-ex:ex,dy=useMin?-ey:ey,rh=GEO.rh,maxS=Math.round(L*0.6);let gap=0,last=0;
@@ -8264,7 +8325,15 @@ function confirmTurn(){
   clearTimeout(confirmT);confirmT=null;
   const mode=gm();if(!mode||turnKey0!==tkey())return; // już zatwierdzone ręcznie
   if(mode==='x01'){if(G.throws.some(v=>v!==null))confirmThrow();}
-  else if(mode==='sum'){if(sumDarts.length){setSumUI();if(sumOf()===0){sumThrows=['0'];}confirmSum();}sumDarts=[];}
+  else if(mode==='sum'){
+    if(sumDarts.length){
+      const tot=sumOf(),last=turn.length?turn[turn.length-1].sc:null;
+      const diOk=!G.dIn||(G.diDone&&G.diDone[G.cp]);
+      if(G.dOut&&diOk&&tot===G.scores[G.cp]&&last&&!(last.m===2||last.n===50)){
+        toast('Musisz zakończyć na double!');sumThrows=[];processSum(G.scores[G.cp]+1); // wymuszone przebicie
+      }else{setSumUI();if(tot===0){sumThrows=['0'];}confirmSum();}
+    }
+    sumDarts=[];}
   else if(mode==='cricket'){nextCricketTurn();}
 }
 function afterDart(){
@@ -8397,7 +8466,7 @@ function diag(){const e=$('ac-diag');if(!e||!GEO)return;
 function renderDarts(){
   const box=$('ac-darts');if(!box)return;
   box.innerHTML=[0,1,2].map(i=>{const d=turn[i];return'<div class="'+(d?'f':'')+'">'+(d?d.sc.lbl:'—')+'</div>';}).join('');
-  renderHud();
+  renderHud();dmRender();
 }
 function renderHud(){
   const h=$('ac-hud');if(!h||typeof G==='undefined'||!G||!G.players)return;
@@ -8455,8 +8524,9 @@ async function lockExposure(){
 }
 async function start(){
   if(running)return;
+  dmOpen();
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('❌ Brak dostępu do kamery (wymagane HTTPS)');return;}
-  if(typeof wrcStopSharing==='function'&&typeof WRC!=='undefined'&&WRC&&WRC.sharing){try{wrcStopSharing();}catch(e){}}
+  if(typeof wrcStopSharing==='function'&&typeof wrcState!=='undefined'&&wrcState&&wrcState.sharing){try{wrcStopSharing();}catch(e){}}
   const base={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}};
   try{
     stream=await navigator.mediaDevices.getUserMedia({video:Object.assign({},base,S.deviceId?{deviceId:{exact:S.deviceId}}:{facingMode:{ideal:'environment'}}),audio:false});
@@ -8468,8 +8538,8 @@ async function start(){
   await new Promise(r=>{if(video.videoWidth)r();else video.onloadedmetadata=()=>r();});
   vw=video.videoWidth;vh=video.videoHeight;track=stream.getVideoTracks()[0];
   running=true;buildGeo();resetRefs();
-  $('ac-panel').classList.add('on');$('ac-bar').style.display='none';
-  timer=setInterval(tick,TICK);raf=requestAnimationFrame(draw);
+  $('ac-bar').style.display='none';
+  timer=setInterval(tick,TICK);
   try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
   listCams();setTimeout(lockExposure,2500);renderDarts();
   if(!CAL)openCal();
@@ -8479,11 +8549,159 @@ function stop(){
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;track=null;
   try{if(wakeLock)wakeLock.release();}catch(e){}wakeLock=null;
   if(fsMode)toggleFs();
-  const p=$('ac-panel');if(p)p.classList.remove('on');resetRefs();
+  resetRefs();dmRender();
 }
 function toggleFs(){
   fsMode=!fsMode;$('ac-panel').classList.toggle('fs',fsMode);
   const b=$('ac-fs-btn');if(b)b.textContent=fsMode?'⤡ ZWIŃ':'⤢ EKRAN';renderHud();
+}
+
+/* ================= WIDOK KAMERY (styl Dartsmind) + ONLINE ================= */
+let dmOn=false,dmRaf=0,dmTimer=null,dmUnsub=null,dmSeq=0,dmSending=false,dmLastRect=null,dmLastSendDarts='';
+const RIV={uid:null,img:null,seq:-1,dm:null,ts:0};
+const sendCv=document.createElement('canvas');
+function isOnline(){return typeof G!=='undefined'&&G&&G._onlineRoomId&&window._fb&&window._fbUser;}
+function dartSvg(c){return '<svg viewBox="0 0 120 22" width="70" height="13"><line x1="2" y1="11" x2="24" y2="11" stroke="'+c+'" stroke-width="2.4" stroke-linecap="round"/><rect x="22" y="6.5" width="34" height="9" rx="4" fill="'+c+'"/><rect x="55" y="9.3" width="27" height="3.4" fill="'+c+'" opacity=".75"/><path d="M80 11 L95 1.5 L118 1.5 L109 11 L118 20.5 L95 20.5 Z" fill="'+c+'"/></svg>';}
+function curDarts(){
+  if(typeof G==='undefined'||!G)return[];
+  if(turn.length&&turnKey0===tkey())return turn.map(d=>({lbl:d.sc.lbl,val:d.sc.val,tip:d.tip}));
+  if(gm()==='x01')return(G.throws||[]).filter(v=>v!==null).map(v=>({lbl:String(v),val:v}));
+  return[];
+}
+function pprOf(p){
+  const mv=(G._onlineRoomId&&G._fbHistory&&G._fbHistory.moves)?G._fbHistory.moves:(G.history||[]);
+  const m=mv.filter(h=>h.p===p);if(!m.length)return'0.0';
+  return(m.reduce((s,h)=>s+(h.bust?0:(h.sc||0)),0)/m.length).toFixed(1);
+}
+function viewRect(A){
+  const base=Math.min(vw,vh)/(S.zoom||1);let sh=base,sw=base*A;
+  if(sw>vw){sw=vw;sh=vw/A;}if(sh>vh){sh=vh;sw=vh*A;}
+  let c=[vw/2,vh/2];if(GEO){const p=ap(GEO.H,0,0);if(p)c=[p[0]*vw,p[1]*vh];}
+  return{sx:Math.min(vw-sw,Math.max(0,c[0]-sw/2)),sy:Math.min(vh-sh,Math.max(0,c[1]-sh/2)),sw,sh};
+}
+function dmMarker(ctx,x,y,lbl,k,i){
+  const r=Math.max(6,k*0.018);
+  ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);ctx.fillStyle='rgba(229,120,30,.9)';ctx.fill();ctx.lineWidth=Math.max(2,r*0.35);ctx.strokeStyle='#fff';ctx.stroke();
+  const fs=Math.max(14,k*0.05|0);ctx.font=fs+"px 'Bebas Neue',sans-serif";const t=lbl,tw=ctx.measureText(t).width;
+  const bx=x+r+4,by=y-r-fs-2;ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(bx-4,by,tw+8,fs+4);
+  ctx.fillStyle='#222';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(t,bx,by+2);
+}
+function dmDraw(){
+  if(!dmOn)return;dmRaf=requestAnimationFrame(dmDraw);
+  const cv=$('dm-cam'),wrap=$('dm-camwrap');if(!cv||!wrap)return;
+  const rc=wrap.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+  const cw=Math.round(rc.width*dpr),ch=Math.round(rc.height*dpr);if(!cw||!ch)return;
+  if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch;}
+  const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#151515';ctx.fillRect(0,0,cw,ch);
+  const nc=$('dm-nocam'),k=Math.min(cw,ch);let msg='';
+  const rival=isOnline()&&!myTurn();
+  if(rival){
+    const ok=RIV.img&&RIV.img.naturalWidth&&RIV.dm&&RIV.dm.cp===G.cp&&Date.now()-RIV.ts<10000;
+    if(ok){
+      const iw=RIV.img.naturalWidth,ih=RIV.img.naturalHeight,sc=Math.max(cw/iw,ch/ih),dw=iw*sc,dh=ih*sc,dx=(cw-dw)/2,dy=(ch-dh)/2;
+      ctx.drawImage(RIV.img,dx,dy,dw,dh);
+      (RIV.dm.darts||[]).forEach((d,i)=>{if(d.x!=null)dmMarker(ctx,dx+d.x*dw,dy+d.y*dh,d.l,k,i);});
+    }else msg='📡 '+(G.players[G.cp]||'Rywal')+' rzuca<br>— rywal nie ma włączonej kamery —';
+  }else if(running&&video&&video.readyState>=2&&vw){
+    const R=viewRect(cw/ch);dmLastRect=R;
+    ctx.drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,cw,ch);
+    const kx=cw/R.sw,ky=ch/R.sh;
+    if(S.debug&&GEO){
+      if(lastMask){const{rw,rh}=GEO;mc.width=rw;mc.height=rh;const mx=mc.getContext('2d'),id=mx.createImageData(rw,rh);
+        for(let i=0;i<lastMask.length;i++)if(lastMask[i]){id.data[i*4]=255;id.data[i*4+3]=170;}
+        mx.putImageData(id,0,0);const f=vw/GEO.ww;ctx.drawImage(mc,(GEO.rx*f-R.sx)*kx,(GEO.ry*f-R.sy)*ky,rw*f*kx,rh*f*ky);}
+      ctx.save();ctx.setTransform(kx,0,0,ky,-R.sx*kx,-R.sy*ky);drawBoard(ctx,GEO.H,vw,vh,'#00e5ff',.5,1/kx);ctx.restore();
+    }
+    turn.forEach((d,i)=>dmMarker(ctx,(d.tip[0]*vw-R.sx)*kx,(d.tip[1]*vh-R.sy)*ky,d.sc.lbl,k,i));
+  }else msg=running?'Uruchamiam kamerę…':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
+  if(nc){nc.style.display=msg?'flex':'none';if(msg&&nc.innerHTML!==msg)nc.innerHTML=msg;}
+}
+function dmRender(){
+  if(!dmOn||typeof G==='undefined'||!G||!G.players)return;
+  const cp=G.cp,mine=!isOnline()||myTurn(),cr=G.mode==='cricket';
+  const darts=mine?curDarts():((RIV.dm&&RIV.dm.cp===cp)?(RIV.dm.darts||[]).map(d=>({lbl:d.l,val:d.v})):[]);
+  const tsum=darts.reduce((a,d)=>a+(d.val||0),0);
+  $('dm-darts').innerHTML=[0,1,2].map(i=>{const d=darts[i];
+    return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+'">'+dartSvg(d?'#e5781e':'#d9d9d9')+'<b>'+(d?d.lbl:'&nbsp;')+'</b></div>';}).join('');
+  const prev=cr?(G.cScores||[])[cp]:G.scores[cp];let rem=cr?prev:prev-tsum;
+  const bust=!cr&&(rem<0||(G.dOut&&rem===1));
+  const pe=$('dm-prev');pe.textContent=(!cr&&tsum)?prev:'';pe.classList.toggle('x',!!tsum);
+  $('dm-turn').textContent=tsum;
+  const re=$('dm-rem');re.textContent=bust?'BUST':rem;re.classList.toggle('bust',bust);
+  $('dm-name').textContent=G.players[cp]||'';
+  $('dm-ppr').textContent=cr?'—':pprOf(cp);
+  let co='';try{if(!cr&&!bust&&rem>1&&rem<=170&&typeof getCheckoutForScore==='function'){const c=getCheckoutForScore(rem);if(c)co='🎯 '+c;}}catch(e){}
+  $('dm-co').textContent=co;
+  $('dm-mode').innerHTML=(G.mode||'').toUpperCase()+'<span class="dm-modei">'+(isOnline()?'⚡':'i')+'</span>';
+  $('dm-round').innerHTML='R'+(G.round||1)+' <small>· LEG '+(G.currentLeg||1)+(G.legs>1?'/'+G.legs:'')+'</small>';
+  const me=isOnline()?OL.myIndex:-1;
+  $('dm-others').innerHTML=G.players.map((n,i)=>i===cp?'':'<div><span>'+n+(i===me?' (TY)':'')+'</span><b>'+(cr?(G.cScores||[])[i]:G.scores[i])+'</b></div>').join('');
+  $('dm-who').innerHTML='<i></i>'+(mine?(isOnline()?'TWOJA KAMERA · NA ŻYWO':'KAMERA'):'KAMERA: '+(G.players[cp]||'RYWAL'));
+  const nb=$('dm-next');if(nb)nb.disabled=isOnline()&&!myTurn();
+  $('dm-zoom').textContent=(S.zoom||1)+'x';
+}
+function dmSendTick(){
+  if(!dmOn||!running||!isOnline()||dmSending||!video||video.readyState<2||!vw)return;
+  if(!myTurn())return;
+  dmSending=true;
+  try{
+    const N=360,R=viewRect(1);sendCv.width=N;sendCv.height=N;sendCv.getContext('2d').drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,N,N);
+    const b64=sendCv.toDataURL('image/jpeg',0.6).split(',')[1];
+    const darts=curDarts().map(d=>({l:d.lbl,v:d.val,x:d.tip?+((d.tip[0]*vw-R.sx)/R.sw).toFixed(4):null,y:d.tip?+((d.tip[1]*vh-R.sy)/R.sh).toFixed(4):null}));
+    const{db,doc,setDoc}=window._fb,uid=window._fbUser.uid;
+    setDoc(doc(db,'wrc_cams',G._onlineRoomId),{[uid+'_frame']:b64,[uid+'_seq']:++dmSeq,[uid+'_dm']:{cp:G.cp,darts,t:Date.now()},ts:Date.now()},{merge:true})
+      .catch(e=>lg('wysyłka kamery: '+(e.code||e.message))).finally(()=>{dmSending=false;});
+  }catch(e){dmSending=false;}
+}
+function dmListen(){
+  if(dmUnsub||!isOnline())return;
+  const{db,doc,onSnapshot}=window._fb,my=window._fbUser.uid;
+  dmUnsub=onSnapshot(doc(db,'wrc_cams',G._onlineRoomId),snap=>{
+    if(!snap.exists())return;const d=snap.data();let best=null;
+    for(const key of Object.keys(d)){if(!key.endsWith('_frame'))continue;const u=key.slice(0,-6);if(u===my)continue;
+      const m=d[u+'_dm'],sc=(m&&m.cp===G.cp?2:0)+(m?1:0);if(!best||sc>best.s)best={u,s:sc};}
+    if(!best)return;const u=best.u,seq=d[u+'_seq']||0;RIV.uid=u;RIV.dm=d[u+'_dm']||null;
+    if(seq!==RIV.seq&&d[u+'_frame']){RIV.seq=seq;const im=new Image();im.onload=()=>{RIV.img=im;RIV.ts=Date.now();};im.src='data:image/jpeg;base64,'+d[u+'_frame'];}
+    dmRender();
+  },e=>lg('odbiór kamery: '+(e.code||e.message)));
+}
+function dmClearMine(){
+  try{if(!isOnline())return;const{db,doc,setDoc,deleteField}=window._fb,uid=window._fbUser.uid;
+    setDoc(doc(db,'wrc_cams',G._onlineRoomId),{[uid+'_frame']:deleteField(),[uid+'_seq']:deleteField(),[uid+'_dm']:deleteField()},{merge:true}).catch(()=>{});}catch(e){}
+}
+function dmOpen(){
+  if(dmOn)return;dmOn=true;$('dm').classList.add('on');$('ac-bar').style.display='none';
+  dmRaf=requestAnimationFrame(dmDraw);dmListen();
+  dmTimer=setInterval(()=>{dmSendTick();dmRender();if(!dmUnsub)dmListen();},280);dmRender();
+}
+function dmClose(){
+  if(!dmOn)return;dmOn=false;$('dm').classList.remove('on');$('dm-sheet').classList.remove('on');
+  cancelAnimationFrame(dmRaf);clearInterval(dmTimer);if(dmUnsub){dmUnsub();dmUnsub=null;}
+  dmClearMine();RIV.img=null;RIV.dm=null;RIV.seq=-1;if(running)stop();
+}
+function nextRound(){
+  if(typeof G==='undefined'||!G||!G.active)return;
+  if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
+  const mode=gm();if(!mode)return;
+  if(turn.length&&turnKey0===tkey()){confirmTurn();closed=true;status('Wyjmij lotki z tarczy ✋','#ffd700');}
+  else if(mode==='x01'){if(!G.throws.some(v=>v!==null))addDart(0);confirmThrow();}
+  else if(mode==='sum'){try{if(!sumThrows.length)sumThrows=['0'];}catch(e){}confirmSum();}
+  else if(mode==='cricket')nextCricketTurn();
+  dmRender();
+}
+function undoDart(){
+  if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
+  if(turn.length&&turnKey0===tkey()){removeLast();toast('↶ Cofnięto lotkę — możesz wbić ją ręcznie stukając w obraz');return;}
+  if(gm()==='x01'&&G.throws.some(v=>v!==null)){undoLast();dmRender();return;}
+  toast('Brak lotki do cofnięcia');
+}
+function addManual(nx,ny){ // dodanie lotki, której kamera nie wykryła
+  if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
+  if(!GEO){toast('Najpierw kalibracja');return;}
+  if(turn.length>=3||(turn.length&&turnKey0!==tkey())){correctLast(nx,ny);return;}
+  const sc=normToScore(nx,ny);if(!turn.length)turnKey0=tkey();
+  if(!applyDart(sc))return;
+  turn.push({px:[],before:ref,tip:[nx,ny],sc});afterDart();renderDarts();lg('ręcznie → '+sc.lbl);
 }
 
 /* ---------- kalibracja ---------- */
@@ -8531,7 +8749,7 @@ function calUp(){calDrag=-1;}
 function mount(){
   const gs=$('game-screen'),sb=$('scoreboard');if(!gs||!sb||$('ac-panel'))return;
   const bar=document.createElement('div');bar.id='ac-bar';
-  bar.innerHTML='<button onclick="AutoCam.start()">📷 AUTO-LICZENIE Z KAMERY</button>';
+  bar.innerHTML='<button onclick="AutoCam.start()">📷 TRYB KAMERY (AUTO-LICZENIE)</button>';
   const p=document.createElement('div');p.id='ac-panel';
   p.innerHTML=
    '<div id="ac-hud"></div>'+
@@ -8557,6 +8775,35 @@ function mount(){
    '</div>'+
    '<div id="ac-hint">Stuknij w obraz, żeby poprawić ostatnią lotkę. Najlepiej: telefon z boku tarczy pod kątem ~45°, 40–70 cm od niej, stałe światło, bez przeciwświatła.</div>';
   sb.after(bar);bar.after(p);
+  const dm=document.createElement('div');dm.id='dm';
+  dm.innerHTML=
+   '<div class="dm-top"><button class="dm-ic" onclick="AutoCam.sheet()">⋮</button>'+
+     '<div class="dm-mode" id="dm-mode">501</div>'+
+     '<button class="dm-next" id="dm-next" onclick="AutoCam.nextRound()">NASTĘPNA RUNDA</button></div>'+
+   '<div id="dm-camwrap"><canvas id="dm-cam"></canvas><div id="dm-nocam"></div>'+
+     '<div class="dm-pill" id="dm-who"></div><div class="dm-pill" id="dm-round">R1</div>'+
+     '<div class="dm-tools"><button onclick="AutoCam.undoDart()" title="Cofnij lotkę">↶</button><button id="dm-zoom" onclick="AutoCam.zoom()">1.4x</button></div></div>'+
+   '<div class="dm-bottom">'+
+     '<div class="dm-card"><div class="dm-darts" id="dm-darts"></div>'+
+       '<div class="dm-row"><div><div class="dm-prev" id="dm-prev"></div><div class="dm-turn" id="dm-turn">0</div></div>'+
+       '<div class="dm-mid"><div class="dm-rem" id="dm-rem">501</div><div class="dm-name" id="dm-name"></div><div class="dm-co" id="dm-co"></div></div>'+
+       '<div class="dm-right"><span>PPR</span><b id="dm-ppr">0.0</b></div></div></div>'+
+     '<div class="dm-others" id="dm-others"></div>'+
+     '<div class="dm-act"><button onclick="AutoCam.takeoutManual()">✋ WYJĘTE</button><button onclick="AutoCam.openCal()">🎯 KALIBRUJ</button><button onclick="AutoCam.sheet()">⚙️ OPCJE</button></div>'+
+   '</div>'+
+   '<div id="dm-sheet"><div style="display:flex;justify-content:space-between;align-items:center;color:#e8e8f0;font-family:Bebas Neue,cursive;font-size:20px;letter-spacing:2px">OPCJE KAMERY<button onclick="AutoCam.sheet()" style="background:none;border:none;color:#8888aa;font-size:22px;cursor:pointer">✕</button></div>'+
+     '<div class="dm-sheet-btns"><button onclick="AutoCam.camToggle()" id="dm-camtg">📷 WŁĄCZ KAMERĘ</button><button onclick="AutoCam.openCal()">🎯 KALIBRUJ</button>'+
+     '<button onclick="AutoCam.resetBg()">↺ RESET TŁA</button><button class="red" onclick="AutoCam.close()">✕ ZAMKNIJ WIDOK</button></div>'+
+     '<div id="dm-sheet-slot"></div>'+
+     '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin-top:8px">Stuknij w obraz: dodaje lotkę, której kamera nie wykryła (albo poprawia ostatnią). Najlepsza pozycja telefonu: z boku tarczy pod kątem 30–60°, 40–80 cm od niej. Na wprost tarczy też działa, ale mniej dokładnie.</div></div>';
+  document.body.appendChild(dm);
+  const slot=$('dm-sheet-slot');['ac-diag','ac-log','ac-set'].forEach(id=>{const e=$(id);if(e)slot.appendChild(e);});
+  $('dm-camwrap').appendChild($('ac-status'));$('dm').appendChild($('ac-video'));
+  $('dm-cam').addEventListener('click',e=>{
+    if(!dmLastRect||!vw||(isOnline()&&!myTurn()))return;const r=e.currentTarget.getBoundingClientRect();
+    const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
+    addManual(nx,ny);
+  });
   const thr=$('ac-thr');thr.value=S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
@@ -8570,8 +8817,9 @@ function mount(){
   cc.addEventListener('pointerup',calUp);cc.addEventListener('pointercancel',calUp);
   setInterval(()=>{
     const act=$('game-screen').classList.contains('active');
-    $('ac-bar').style.display=(act&&gm()&&!running)?'block':'none';
-    if(running&&!act&&!fsMode)stop();
+    $('ac-bar').style.display=(act&&gm()&&!dmOn)?'block':'none';
+    if(dmOn&&!act)dmClose();
+    const tg=$('dm-camtg');if(tg)tg.textContent=running?'■ WYŁĄCZ KAMERĘ':'📷 WŁĄCZ KAMERĘ';
     if(running)renderHud();
   },700);
 }
@@ -8579,7 +8827,10 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 document.addEventListener('visibilitychange',async()=>{if(running&&document.visibilityState==='visible'&&'wakeLock'in navigator){try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}});
 
 window.AutoCam={
-  start,stop,toggleFs,openCal,
+  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,
+  sheet(){$('dm-sheet').classList.toggle('on');},
+  zoom(){const z=[1,1.2,1.4,2],i=z.indexOf(S.zoom||1);S.zoom=z[(i+1)%z.length];saveCfg();dmRender();},
+  camToggle(){if(running)stop();else start();},
   calSave(){CAL={pts:calPts.map(p=>p.slice())};saveCfg();$('ac-cal').classList.remove('on');buildGeo();resetRefs();toast('✅ Kalibracja zapisana');},
   calCancel(){$('ac-cal').classList.remove('on');},
   calReset(){calPts=defaultPts();},
