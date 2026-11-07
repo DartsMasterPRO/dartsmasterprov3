@@ -7988,12 +7988,20 @@ async function olChatSend() {
 #ac-cal-wrap{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}
 #ac-cal-cv{max-width:100%;max-height:100%;touch-action:none}
 .ac-cal-btns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:10px;background:#12121a}
+.ac-nudge{display:grid;grid-template-columns:1.3fr repeat(4,1fr) 1fr;gap:6px;padding:8px 10px 0;background:#12121a}
+.ac-nudge button{padding:12px 0;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;color:#ffd700;font-size:18px;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.ac-nudge .sel{display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:18px;color:#ffd700;border:1px solid rgba(255,215,0,.4);border-radius:8px;cursor:pointer}
 .ac-cal-btns button.ok{background:linear-gradient(135deg,#00c870,#009955);border:none;color:#fff}
 </style>
 
 <div id="ac-cal">
-  <div id="ac-cal-info">Przeciągnij 4 punkty na <b>zewnętrzną krawędź pierścienia DOUBLE</b>, dokładnie na środku pól <b>20</b> (góra), <b>6</b> (prawo), <b>3</b> (dół), <b>11</b> (lewo). Siatka musi pokryć druty tarczy — sprawdź zwłaszcza pierścień TRIPLE i bulla.</div>
+  <div id="ac-cal-info">Przeciągnij (albo wybierz i przesuwaj strzałkami) 4 punkty na <b>zewnętrzną krawędź pierścienia DOUBLE</b>, dokładnie na środku pól <b>20</b> (góra), <b>6</b> (prawo), <b>3</b> (dół), <b>11</b> (lewo). Siatka musi pokryć druty tarczy — sprawdź zwłaszcza pierścień TRIPLE i bulla.</div>
   <div id="ac-cal-wrap"><canvas id="ac-cal-cv"></canvas></div>
+  <div class="ac-nudge">
+    <div class="sel" id="ac-cal-sel" onclick="AutoCam.calNext()">PKT 20 ⟳</div>
+    <button data-d="-1,0">◀</button><button data-d="0,-1">▲</button><button data-d="0,1">▼</button><button data-d="1,0">▶</button>
+    <button id="ac-cal-step" onclick="AutoCam.calStep()" style="font-size:12px;font-family:monospace">x1</button>
+  </div>
   <div class="ac-cal-btns">
     <button onclick="AutoCam.calReset()">↺ RESET</button>
     <button onclick="AutoCam.calCancel()">ANULUJ</button>
@@ -8052,7 +8060,7 @@ let turn=[],turnKey0=null,closed=false,sumDarts=[],confirmT=null,fsMode=false;
 const wc=document.createElement('canvas');const wctx=wc.getContext('2d',{willReadFrequently:true});
 
 function buildGeo(){
-  GEO=null;if(!CAL||!vw)return;
+  GEO=null;if(!CAL||!vw)return;if(!ptsOk(CAL.pts)){CAL=null;return;}
   const H=solveH(CAL_BOARD,CAL.pts),Hi=solveH(CAL.pts,CAL_BOARD);if(!H||!Hi)return;
   const ww=WORK_W,wh=Math.round(WORK_W*vh/vw);
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
@@ -8380,11 +8388,16 @@ function toggleFs(){
 }
 
 /* ---------- kalibracja ---------- */
-let calPts=null,calDrag=-1;
-function defaultPts(){const a=vh&&vw?vh/vw:0.5625,r=0.36;return[[.5,.5-r],[.5+r*a,.5],[.5,.5+r],[.5-r*a,.5]];}
+let calPts=null,calDrag=-1,calSel=0,calStepK=1;
+// promień liczony w pikselach -> działa w pionie i w poziomie
+function defaultPts(){const w=vw||1280,h=vh||720,r=0.3*Math.min(w,h),dx=r/w,dy=r/h;return[[.5,.5-dy],[.5+dx,.5],[.5,.5+dy],[.5-dx,.5]];}
+function ptsOk(p){return p&&p.length===4&&p.every(q=>q[0]>0.01&&q[0]<0.99&&q[1]>0.01&&q[1]<0.99);}
+function calSelUI(){const e=$('ac-cal-sel');if(e)e.textContent='PKT '+CAL_LBL[calSel]+' ⟳';}
+function nudge(dx,dy){if(!calPts||!vw)return;const st=calStepK/Math.min(vw,1280)*Math.max(1,Math.min(vw,1280)/640);
+  const p=calPts[calSel];calPts[calSel]=[Math.min(.995,Math.max(.005,p[0]+dx*st)),Math.min(.995,Math.max(.005,p[1]+dy*st*vw/vh))];}
 function openCal(){
   if(!running){toast('Najpierw włącz kamerę');return;}
-  calPts=(CAL?CAL.pts:defaultPts()).map(p=>p.slice());$('ac-cal').classList.add('on');requestAnimationFrame(drawCal);
+  calPts=(CAL&&ptsOk(CAL.pts)?CAL.pts:defaultPts()).map(p=>p.slice());calSel=0;calSelUI();$('ac-cal').classList.add('on');requestAnimationFrame(drawCal);
 }
 function drawCal(){
   const el=$('ac-cal');if(!el.classList.contains('on'))return;requestAnimationFrame(drawCal);
@@ -8394,12 +8407,12 @@ function drawCal(){
   const ctx=cv.getContext('2d');ctx.drawImage(video,0,0,cw,ch);
   const H=solveH(CAL_BOARD,calPts);if(H)drawBoard(ctx,H,cw,ch,'#00e5ff',.75,Math.max(1,cw/640));
   const hr=Math.max(12,cw/45);
-  calPts.forEach((p,i)=>{const x=p[0]*cw,y=p[1]*ch;ctx.beginPath();ctx.arc(x,y,hr,0,2*Math.PI);ctx.fillStyle=i===calDrag?'rgba(255,215,0,.35)':'rgba(255,60,60,.3)';ctx.fill();
-    ctx.lineWidth=2;ctx.strokeStyle=i===calDrag?'#ffd700':'#ff3c3c';ctx.stroke();
+  calPts.forEach((p,i)=>{const x=p[0]*cw,y=p[1]*ch;ctx.beginPath();ctx.arc(x,y,hr,0,2*Math.PI);ctx.fillStyle=i===calSel?'rgba(255,215,0,.35)':'rgba(255,60,60,.3)';ctx.fill();
+    ctx.lineWidth=2;ctx.strokeStyle=i===calSel?'#ffd700':'#ff3c3c';ctx.stroke();
     ctx.beginPath();ctx.moveTo(x-hr,y);ctx.lineTo(x+hr,y);ctx.moveTo(x,y-hr);ctx.lineTo(x,y+hr);ctx.lineWidth=1;ctx.stroke();
     ctx.font='bold '+(hr*1.1|0)+'px monospace';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(CAL_LBL[i],x,y-hr-2);});
-  if(calDrag>=0){ // lupa
-    const p=calPts[calDrag],z=4,s=Math.min(cw,ch)*0.32,src=s/z,sx=p[0]*cw-src/2,sy=p[1]*ch-src/2;
+  { // lupa wybranego punktu (zawsze widoczna)
+    const p=calPts[calSel],z=4,s=Math.min(cw,ch)*0.32,src=s/z,sx=p[0]*cw-src/2,sy=p[1]*ch-src/2;
     const lx=p[0]<.5?cw-s-10:10;
     ctx.save();ctx.drawImage(cv,sx,sy,src,src,lx,10,s,s);ctx.strokeStyle='#ffd700';ctx.lineWidth=2;ctx.strokeRect(lx,10,s,s);
     ctx.beginPath();ctx.moveTo(lx+s/2,10);ctx.lineTo(lx+s/2,10+s);ctx.moveTo(lx,10+s/2);ctx.lineTo(lx+s,10+s/2);ctx.lineWidth=1;ctx.stroke();ctx.restore();
@@ -8409,9 +8422,10 @@ function calPos(e){const cv=$('ac-cal-cv'),r=cv.getBoundingClientRect();return[(
 let calOff=[0,0];
 function calDown(e){const[x,y,r]=calPos(e);let best=-1,bd=1e9;
   calPts.forEach((p,i)=>{const d=Math.hypot((p[0]-x)*r.width,(p[1]-y)*r.height);if(d<bd){bd=d;best=i;}});
-  if(bd<60){calDrag=best;calOff=[calPts[best][0]-x,calPts[best][1]-y];e.target.setPointerCapture(e.pointerId);e.preventDefault();}}
+  calDrag=best;calSel=best;calSelUI();calOff=[calPts[best][0]-x,calPts[best][1]-y];
+  try{e.target.setPointerCapture(e.pointerId);}catch(_){}e.preventDefault();}
 function calMove(e){if(calDrag<0)return;const[x,y]=calPos(e);
-  calPts[calDrag]=[Math.min(1,Math.max(0,x+calOff[0])),Math.min(1,Math.max(0,y+calOff[1]))];e.preventDefault();}
+  calPts[calDrag]=[Math.min(.995,Math.max(.005,x+calOff[0])),Math.min(.995,Math.max(.005,y+calOff[1]))];e.preventDefault();}
 function calUp(){calDrag=-1;}
 
 /* ---------- montaż UI ---------- */
@@ -8449,6 +8463,10 @@ function mount(){
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
   });
+  document.querySelectorAll('.ac-nudge button[data-d]').forEach(b=>{let iv=null,to=null;const[dx,dy]=b.dataset.d.split(',').map(Number);
+    const go=e=>{e.preventDefault();nudge(dx,dy);to=setTimeout(()=>{iv=setInterval(()=>nudge(dx,dy),40);},350);};
+    const end=()=>{clearTimeout(to);clearInterval(iv);};
+    b.addEventListener('pointerdown',go);['pointerup','pointerleave','pointercancel'].forEach(t=>b.addEventListener(t,end));});
   const cc=$('ac-cal-cv');cc.addEventListener('pointerdown',calDown);cc.addEventListener('pointermove',calMove);
   cc.addEventListener('pointerup',calUp);cc.addEventListener('pointercancel',calUp);
   setInterval(()=>{
@@ -8466,6 +8484,8 @@ window.AutoCam={
   calSave(){CAL={pts:calPts.map(p=>p.slice())};saveCfg();$('ac-cal').classList.remove('on');buildGeo();resetRefs();toast('✅ Kalibracja zapisana');},
   calCancel(){$('ac-cal').classList.remove('on');},
   calReset(){calPts=defaultPts();},
+  calNext(){calSel=(calSel+1)%4;calSelUI();},
+  calStep(){calStepK=calStepK===1?4:calStepK===4?0.25:1;const b=$('ac-cal-step');if(b)b.textContent='x'+calStepK;},
   takeoutManual(){if(!running)return;let cur=null;try{if(GEO)cur=grab();}catch(e){}
     if(cur)takeout(cur);else{if(S.autoConfirm&&turn.length)confirmTurn();resetRefs();}},
   resetBg(){resetRefs();status('Tło zresetowane — tarcza musi być pusta','#00e5ff');renderDarts();},
