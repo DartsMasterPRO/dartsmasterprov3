@@ -8161,7 +8161,7 @@ const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=4, ROI_K=1.45;
 
-const S={pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
+const S={hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
 let CAL=null;
 function loadCfg(){try{const o=JSON.parse(localStorage.getItem(LS)||'{}');if(o.s){if(o.v!==2)delete o.s.thr;Object.assign(S,o.s);}if(o.cal&&o.cal.pts&&o.cal.pts.length===4)CAL=o.cal;}catch(e){}}
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify({v:2,s:S,cal:CAL}));}catch(e){}}
@@ -8403,7 +8403,7 @@ function tipOf(px,raw,useGeo,soft){
     // KOMPENSACJA PARALAKSY: ile cienkiego grota widać przed lufką? brakujący odcinek dolicz wzdłuż osi lotki
     if(geoAx){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
       if(od){const ppm=od[2]/120,Lexp=(S.pointLen||25)*ppm,cosA=Math.abs(dx*od[0]+dy*od[1]);
-        if(Lexp>=3&&cosA>0.7){
+        if(S.hideComp&&Lexp>=3&&cosA>0.7){
           const N=Math.round(Lexp*1.8)+6,prof=[];
           for(let k=0;k<=N;k++){const cx=tx-dx*k,cy=ty-dy*k;let w=0;
             for(let q=-9;q<=9;q++){const x=Math.round(cx-dy*q),y=Math.round(cy+dx*q);if(x>=0&&y>=0&&x<rw&&y<rh&&raw[y*rw+x])w++;}prof.push(w);}
@@ -8522,8 +8522,8 @@ function analyze(cur){
   const mode=gm();
   // 1) wyjęcie lotek?
   if(turn.length){
-    const f=fracChanged(cur,empty,unionPx());
-    if(f<0.35){lg('wyjęcie lotek');takeout(cur);return;}
+    const U=unionPx(),f=Math.min(fracChanged(cur,empty,U),turn[0].before?fracChanged(cur,turn[0].before,U):1); // porównaj z tłem i z tarczą sprzed tej tury
+    if(f<0.4){lg('wyjęcie lotek');takeout(cur);return;}
   }
   if(!mode){lg('brak gry X01/Cricket ('+(typeof G!=='undefined'&&G?G.mode+'/'+G.active:'-')+')');ref=cur;if(!turn.length)empty=cur;status('Brak aktywnej gry X01/Cricket','#8888aa');return;}
   if(!myTurn()){lg('nie Twoja tura (online)');ref=cur;if(!turn.length)empty=cur;status('Tura rywala — czekam','#8888aa');return;}
@@ -9278,6 +9278,7 @@ function mount(){
      '<label>Czułość <input type="range" id="ac-thr" min="15" max="120" step="5" oninput="AutoCam.set(\'thr\',+this.value)"></label>'+
      '<label>Grot lotki na obrazie <select id="ac-tip" onchange="AutoCam.set(\'tipDir\',this.value)">'+
        '<option value="auto">Auto (z kalibracji)</option><option value="narrow">Węższy koniec</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
+     '<label>Kompensacja ukrytego grota (eksperymentalna) <input type="checkbox" id="ac-hc" onchange="AutoCam.set(\'hideComp\',this.checked)"></label>'+
      '<label>Długość grota (mm) <input type="range" id="ac-plen" min="15" max="40" step="1" oninput="AutoCam.set(\'pointLen\',+this.value);this.nextElementSibling.textContent=this.value"><span style="width:22px;color:#00e5ff">27</span></label>'+
      '<label>Auto-zatwierdzanie po wyjęciu <input type="checkbox" id="ac-auto" onchange="AutoCam.set(\'autoConfirm\',this.checked)"></label>'+
      '<label>Autokalibracja przy starcie <input type="checkbox" id="ac-acal" onchange="AutoCam.set(\'autoCal\',this.checked)"></label>'+
@@ -9317,7 +9318,7 @@ function mount(){
     const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
     addManual(nx,ny);
   });
-  const thr=$('ac-thr');thr.value=S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
+  const thr=$('ac-thr');thr.value=S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
