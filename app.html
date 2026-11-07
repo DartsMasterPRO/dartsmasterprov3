@@ -8082,8 +8082,59 @@ async function olChatSend() {
 #dm #dm-pick .t{color:#8888aa}
 #dm #dm-pick button{background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0}
 #dm #dm-pick button.cur{border-color:#00e5ff;color:#00e5ff}
+
+#ac-setup{display:none;position:fixed;inset:0;z-index:5500;background:#0a0a0f;flex-direction:column;overflow:auto;font-family:monospace}
+#ac-setup.on{display:flex}
+.su-head{padding:calc(10px + env(safe-area-inset-top)) 12px 8px;background:#12121a;border-bottom:1px solid #2a2a40}
+.su-head b{display:block;font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;color:#00e5ff;font-weight:normal}
+.su-head span{font-size:10px;color:#8888aa}
+.su-cam{position:relative;background:#000;line-height:0;flex-shrink:0}
+#su-cv{width:100%;max-height:52vh;object-fit:contain;display:block}
+#su-msg{position:absolute;left:8px;right:8px;bottom:8px;background:rgba(10,10,15,.82);color:#ffd700;border:1px solid rgba(255,215,0,.4);border-radius:8px;padding:6px 9px;font-size:11px;line-height:1.4;display:none}
+.su-body{padding:10px 12px calc(12px + env(safe-area-inset-bottom))}
+.su-checks{display:grid;gap:6px}
+.su-row{display:flex;align-items:center;gap:8px;background:#12121a;border:1px solid #2a2a40;border-radius:8px;padding:7px 9px;font-size:11px;color:#e8e8f0}
+.su-row i{width:10px;height:10px;border-radius:50%;flex-shrink:0;font-style:normal}
+.su-row .v{margin-left:auto;color:#00e5ff;white-space:nowrap}
+.su-row small{display:block;color:#8888aa;font-size:9.5px;margin-top:2px}
+.su-how{margin-top:10px;background:#12121a;border:1px solid #2a2a40;border-radius:8px;padding:8px 10px;color:#c8c8d8;font-size:11px}
+.su-how summary{cursor:pointer;color:#00e5ff}
+.su-svg{width:100%;max-width:360px;display:block;margin:8px auto}
+.su-how ul{margin:6px 0 0 16px;padding:0;line-height:1.6}
+.su-btns{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:10px}
+.su-btns button{padding:12px;border-radius:9px;border:1px solid #2a2a40;background:#1a1a26;color:#e8e8f0;font-family:'Bebas Neue',cursive;font-size:17px;letter-spacing:1px;cursor:pointer}
+.su-btns button.ok{border:2px solid #00e5ff;color:#00e5ff;box-shadow:0 0 12px rgba(0,229,255,.35)}
 </style>
 
+<div id="ac-setup">
+  <div class="su-head"><b>📐 USTAWIENIE TELEFONU</b><span>Ustaw telefon tak, żeby wszystkie wskaźniki były zielone</span></div>
+  <div class="su-cam"><canvas id="su-cv"></canvas><div id="su-msg"></div></div>
+  <div class="su-body">
+    <div class="su-checks" id="su-checks"></div>
+    <details class="su-how"><summary>Jak ustawić telefon? (schemat)</summary>
+      <svg viewBox="0 0 320 170" class="su-svg">
+        <rect x="0" y="0" width="320" height="14" fill="#2a2a40"/><text x="160" y="10" fill="#8888aa" font-size="8" text-anchor="middle" font-family="monospace">ŚCIANA</text>
+        <rect x="140" y="14" width="40" height="6" rx="2" fill="#ff3c3c"/><text x="160" y="30" fill="#e8e8f0" font-size="8" text-anchor="middle" font-family="monospace">TARCZA</text>
+        <path d="M160 20 L52 120 A150 150 0 0 1 88 150 Z" fill="rgba(0,255,136,.18)"/>
+        <path d="M160 20 L268 120 A150 150 0 0 0 232 150 Z" fill="rgba(0,255,136,.18)"/>
+        <line x1="160" y1="20" x2="160" y2="168" stroke="#2a2a40" stroke-dasharray="3 3"/>
+        <line x1="60" y1="160" x2="260" y2="160" stroke="#ffd700" stroke-width="2"/><text x="160" y="157" fill="#ffd700" font-size="7" text-anchor="middle" font-family="monospace">LINIA RZUTU 2,37 m</text>
+        <circle cx="74" cy="108" r="7" fill="#00e5ff"/><text x="74" y="111" font-size="8" text-anchor="middle">📱</text>
+        <text x="40" y="96" fill="#00ff88" font-size="7" font-family="monospace">30–50°</text><text x="236" y="96" fill="#00ff88" font-size="7" font-family="monospace">30–50°</text>
+        <text x="160" y="70" fill="#ff3c3c" font-size="7" text-anchor="middle" font-family="monospace">✗ na wprost</text>
+      </svg>
+      <ul>
+        <li><b>Z boku</b> tarczy, pod kątem <b>30–50°</b>. Na wprost lotka zasłania własny grot.</li>
+        <li><b>50–80 cm</b> od tarczy — tarcza ma wypełniać większość kadru.</li>
+        <li>Na wysokości <b>bulla</b> albo trochę niżej (ok. 1,4–1,7 m).</li>
+        <li>Statyw <b>nie może dotykać</b> ściany ani obudowy tarczy — uderzenie lotki go potrząśnie.</li>
+        <li>Równe światło z przodu/góry (np. ring LED), bez lampy za tarczą.</li>
+        <li>Po ustawieniu <b>nie ruszaj</b> telefonu.</li>
+      </ul>
+    </details>
+    <div class="su-btns"><button onclick="AutoCam.setupSkip()">POMIŃ</button><button class="ok" id="su-ok" onclick="AutoCam.setupDone()">✓ GOTOWE</button></div>
+  </div>
+</div>
 <div id="ac-cal">
   <div id="ac-cal-info">Przeciągnij (albo wybierz i przesuwaj strzałkami) 4 punkty na <b>zewnętrzną krawędź pierścienia DOUBLE</b>, dokładnie na środku pól <b>20</b> (góra), <b>6</b> (prawo), <b>3</b> (dół), <b>11</b> (lewo). Siatka musi pokryć druty tarczy — sprawdź zwłaszcza pierścień TRIPLE i bulla.</div>
   <div id="ac-cal-wrap"><canvas id="ac-cal-cv"></canvas></div>
@@ -8466,7 +8517,21 @@ function analyze(cur){
   // 2) nowa lotka
   let excl=null;
   if(turn.length){excl=new Uint8Array(GEO.rw*GEO.rh);turn.forEach(d=>d.px.forEach(i=>{excl[i]=1;}));}
-  const r=analyzeDiff(cur,ref,excl);
+  let r=analyzeDiff(cur,ref,excl);
+  // wstrząs przy wbiciu przesunął obraz? wyrównaj tło i policz jeszcze raz
+  if(r.total>GEO.minA&&(r.total>(r.px?r.px.length:0)*2.5+GEO.minA||(r.px&&r.px.length>GEO.maxA))){
+    const sh=estShift(cur,ref);
+    if((sh.dx||sh.dy)&&sh.gain>0.12){
+      const ref2=shiftImg(ref,sh.dx,sh.dy),r2=analyzeDiff(cur,ref2,excl);
+      if(r2.total<r.total*0.6){lg('wyrównano przesunięcie obrazu ('+sh.dx.toFixed(2)+','+sh.dy.toFixed(2)+' px)');
+        ref=ref2;empty=shiftImg(empty,sh.dx,sh.dy);
+        turn.forEach(d=>{if(d.before)d.before=shiftImg(d.before,sh.dx,sh.dy);d.px=d.px.map(i=>{const x=Math.round(i%GEO.rw+sh.dx),y=Math.round(((i/GEO.rw)|0)+sh.dy);return Math.min(GEO.rh-1,Math.max(0,y))*GEO.rw+Math.min(GEO.rw-1,Math.max(0,x));});});
+        // przesuń też kalibrację (tarcza „pojechała” w obrazie)
+        if(CAL){CAL={pts:CAL.pts.map(p=>[p[0]+sh.dx/GEO.ww,p[1]+sh.dy/GEO.wh])};const H=solveH(CAL_BOARD,CAL.pts),Hi=solveH(CAL.pts,CAL_BOARD);
+          if(H&&Hi){GEO.H=H;GEO.Hi=Hi;GEO.pose=poseFrom(H,GEO.ww,GEO.wh);saveCfg();}}
+        if(cand)cand=null;r=r2;}
+    }
+  }
   lastMask=r.m;lastMaskT=performance.now();
   const blobN=r.px?r.px.length:0;DG.area=blobN;
   if(blobN>=GEO.minA*0.3)lg('zmiana '+blobN+'px (min '+Math.round(GEO.minA)+', max '+Math.round(GEO.maxA)+', wszystkie '+r.total+')');
@@ -8533,7 +8598,7 @@ function looksLikeDart(px){
   if(od&&od[2]>GEO.rpx*0.1){
     const Lexp=od[2]*140/120,Lpar=t1-t0,Lper=q1-q0;
     if(Lpar<Lexp*0.25)return{ok:false,why:'za krótka wzdłuż osi lotki ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
-    if(Lpar>Lexp*1.5+12)return{ok:false,why:'za długa ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
+    if(Lpar>Lexp*2.2+12)return{ok:false,why:'za długa ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
     if(Lper>Math.max(Lpar*1.3,GEO.rpx*0.35))return{ok:false,why:'zła orientacja (w poprzek osi lotki)'};
     if(n/Math.max(1,Lpar)>GEO.rpx*0.38+6)return{ok:false,why:'za gruba jak na lotkę (cień/ręka?)'};
   }else{
@@ -8541,6 +8606,27 @@ function looksLikeDart(px){
   }
   if(fill>0.6&&n>GEO.minA*3)return{ok:false,why:'pełna plama (cień/ręka?)'};
   return{ok:true};
+}
+// przesunięcie całego obrazu (wstrząs tarczy/statywu przy wbiciu lotki) — szukamy w zakresie ±3 px
+function estShift(cur,base){
+  const{rw,rh,mask}=GEO,a=hp(cur),b=hp(base),R=3;let best={dx:0,dy:0,v:Infinity},v0=0;
+  const sad=(dx,dy)=>{let s=0;for(let y=R;y<rh-R;y+=2)for(let x=R;x<rw-R;x+=2){const i=y*rw+x;if(!mask[i])continue;
+      const j=i*3,k=((y-dy)*rw+(x-dx))*3;s+=Math.abs(a[j]+a[j+1]+a[j+2]-b[k]-b[k+1]-b[k+2]);}return s;};
+  for(let dy=-R+1;dy<=R-1;dy++)for(let dx=-R+1;dx<=R-1;dx++){const v=sad(dx,dy);if(dx===0&&dy===0)v0=v;if(v<best.v)best={dx,dy,v};}
+  // dokładność poniżej piksela (parabola wokół minimum)
+  const fx=(()=>{const a1=sad(best.dx-1,best.dy),c1=sad(best.dx+1,best.dy),d=a1-2*best.v+c1;return d>0?(a1-c1)/(2*d):0;})();
+  const fy=(()=>{const a1=sad(best.dx,best.dy-1),c1=sad(best.dx,best.dy+1),d=a1-2*best.v+c1;return d>0?(a1-c1)/(2*d):0;})();
+  best.dx+=Math.max(-.5,Math.min(.5,fx));best.dy+=Math.max(-.5,Math.min(.5,fy));
+  best.gain=v0?1-best.v/v0:0;return best;
+}
+function shiftImg(d,dx,dy){ // przesunięcie z interpolacją dwuliniową
+  const{rw,rh}=GEO,o=new Uint8ClampedArray(d.length),ix=Math.floor(dx),iy=Math.floor(dy),fx=dx-ix,fy=dy-iy;
+  const w00=(1-fx)*(1-fy),w10=fx*(1-fy),w01=(1-fx)*fy,w11=fx*fy;
+  for(let y=0;y<rh;y++){const y0=Math.min(rh-1,Math.max(0,y-iy)),y1=Math.min(rh-1,Math.max(0,y-iy-1));
+    for(let x=0;x<rw;x++){const x0=Math.min(rw-1,Math.max(0,x-ix)),x1=Math.min(rw-1,Math.max(0,x-ix-1)),j=(y*rw+x)*4;
+      const a=(y0*rw+x0)*4,b=(y0*rw+x1)*4,c=(y1*rw+x0)*4,e=(y1*rw+x1)*4;
+      for(let ch=0;ch<3;ch++)o[j+ch]=d[a+ch]*w00+d[b+ch]*w10+d[c+ch]*w01+d[e+ch]*w11;o[j+3]=255;}}
+  return o;
 }
 function takeout(cur){
   if(S.autoConfirm&&turn.length)confirmTurn();
@@ -8686,6 +8772,7 @@ async function settleAndLock(){
   if(S.lockExp){await lockExposure();await lockFocus();}
   SHARP_REF=sharpness();blurCnt=0;
   camReady=true;resetRefs();lg('kamera gotowa (jasność '+Math.round(frameLum())+')');
+  if(!S.setupSeen){openSetup();return;}
   if(S.autoCal!==false)await runAutoCal(true);else if(!CAL)openCal();
 }
 async function lockExposure(){
@@ -8728,6 +8815,7 @@ async function start(){
   listCams();settleAndLock();renderDarts();
 }
 function stop(){
+  if(suOn)closeSetup();
   running=false;camReady=false;SHARP_REF=0;clearInterval(timer);cancelAnimationFrame(raf);clearTimeout(confirmT);
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;track=null;
   try{if(wakeLock)wakeLock.release();}catch(e){}wakeLock=null;
@@ -9042,6 +9130,74 @@ async function runAutoCal(fromStart){
   return false;
 }
 
+/* ================= ASYSTENT USTAWIENIA TELEFONU ================= */
+let suOn=false,suRaf=0,suT=null,suRes=null,suBusy=false;
+function suMeasure(r){
+  const out={ok:!!r,q:r?r.q:0};if(!r)return out;
+  const pts=r.pts,H=solveH(CAL_BOARD,pts);if(!H)return{ok:false};
+  // wypełnienie kadru i czy cała tarcza jest w kadrze
+  const c=ap(H,0,0);let rp=0;pts.forEach(p=>{rp+=Math.hypot((p[0]-c[0])*vw,(p[1]-c[1])*vh)/4;});
+  out.fill=2*rp/Math.min(vw,vh);let inF=true;
+  for(let i=0;i<24;i++){const a=i/24*2*Math.PI,p=ap(H,Math.sin(a)*185,Math.cos(a)*185);if(!p||p[0]<0.01||p[0]>0.99||p[1]<0.01||p[1]>0.99)inF=false;}
+  out.inFrame=inF;
+  // geometria kamery: kąt widzenia, położenie, odległość
+  const P=poseFrom(H,vw,vh);const t=P.t,n=P.r3,tl=Math.hypot(...t);
+  out.angle=Math.acos(Math.min(1,Math.abs((-t[0]*n[0]-t[1]*n[1]-t[2]*n[2])/tl)))*180/Math.PI;
+  // pozycja kamery w układzie tarczy: C = -Rᵀ t   (x: prawo, y: góra, z: od tarczy)
+  const Cb=[-(P.r1[0]*t[0]+P.r1[1]*t[1]+P.r1[2]*t[2]),-(P.r2[0]*t[0]+P.r2[1]*t[1]+P.r2[2]*t[2]),-(n[0]*t[0]+n[1]*t[1]+n[2]*t[2])];
+  out.side=Cb[0];out.up=Cb[1];out.dist=tl;
+  out.lum=frameLum();
+  return out;
+}
+function suRow(st,label,val,hint){const col=st===2?'#00ff88':st===1?'#ffd700':'#ff3c3c';
+  return '<div class="su-row"><i style="background:'+col+';box-shadow:0 0 8px '+col+'"></i><div>'+label+(hint?'<small>'+hint+'</small>':'')+'</div><span class="v">'+val+'</span></div>';}
+function suRender(){
+  const m=suMeasure(suRes),el=$('su-checks');let h='',msg='',allOk=true;
+  if(!m.ok){h=suRow(0,'Tarcza w kadrze','nie widzę','Skieruj telefon na tarczę — cała tarcza musi być widoczna.');allOk=false;msg='Nie widzę tarczy. Skieruj telefon tak, żeby cała tarcza była w kadrze.';}
+  else{
+    const a=m.angle,aSt=(a>=25&&a<=55)?2:((a>=15&&a<25)||(a>55&&a<=65))?1:0;
+    const aH=a<25?'Za bardzo na wprost — przesuń telefon w bok (lotka zasłania grot).':a>55?'Za bardzo z boku — przesuń telefon bliżej osi tarczy.':'Idealnie — grot będzie dobrze widoczny.';
+    h+=suRow(aSt,'Kąt patrzenia na tarczę (szacunkowo)',Math.round(a)+'°',aH);
+    const fSt=!m.inFrame?0:(m.fill>=0.6&&m.fill<=0.97)?2:(m.fill>=0.45)?1:0;
+    h+=suRow(fSt,'Wielkość tarczy w kadrze',Math.round(m.fill*100)+'%',!m.inFrame?'Część tarczy wychodzi poza kadr — odsuń telefon.':m.fill<0.6?'Za mała — przysuń telefon bliżej tarczy.':'Dobrze.');
+    const d=m.dist/10,dSt=(d>=40&&d<=95)?2:(d>=30&&d<=120)?1:0;
+    h+=suRow(dSt,'Odległość od tarczy (szacunkowo)','~'+Math.round(d)+' cm',d<40?'Bardzo blisko — uważaj na lotki.':d>95?'Daleko — mniejsza dokładność.':'Dobrze.');
+    const up=m.up/10,uSt=(up>=-30&&up<=15)?2:(up>=-50&&up<=30)?1:0;
+    h+=suRow(uSt,'Wysokość względem bulla',(up>=0?'+':'')+Math.round(up)+' cm',up>15?'Za wysoko — obniż telefon.':up<-30?'Za nisko — podnieś telefon.':'Dobrze.');
+    const lSt=(m.lum>=70&&m.lum<=200)?2:(m.lum>=45&&m.lum<=225)?1:0;
+    h+=suRow(lSt,'Oświetlenie',Math.round(m.lum),m.lum<70?'Za ciemno — dodaj światło.':m.lum>200?'Za jasno / prześwietlone.':'Dobrze.');
+    const qSt=m.q>=0.8?2:m.q>=0.55?1:0;
+    h+=suRow(qSt,'Rozpoznanie tarczy (autokalibracja)',Math.round(m.q*100)+'%',m.q<0.55?'Słabe — popraw światło lub ustawienie.':'');
+    allOk=aSt&&fSt&&qSt;
+    const bad=[aSt===0&&aH,fSt===0&&'Zmień odległość, żeby cała tarcza mieściła się w kadrze.',qSt===0&&'Tarcza słabo rozpoznana.'].filter(Boolean);
+    msg=bad.length?bad[0]:(aSt+fSt+dSt+uSt+lSt+qSt===12?'✓ Idealne ustawienie! Naciśnij GOTOWE.':'');
+  }
+  el.innerHTML=h;const mm=$('su-msg');mm.style.display=msg?'block':'none';mm.textContent=msg;
+  mm.style.color=msg.startsWith('✓')?'#00ff88':'#ffd700';
+  $('su-ok').textContent=allOk?'✓ GOTOWE':'GOTOWE MIMO TO';
+}
+function suDraw(){
+  if(!suOn)return;suRaf=requestAnimationFrame(suDraw);
+  const cv=$('su-cv');if(!video||video.readyState<2||!vw)return;
+  const cw=Math.min(960,vw),ch=Math.round(cw*vh/vw);if(cv.width!==cw){cv.width=cw;cv.height=ch;}
+  const ctx=cv.getContext('2d');ctx.drawImage(video,0,0,cw,ch);
+  // ramka docelowa: tarcza powinna mniej więcej wypełnić ten okrąg
+  ctx.save();ctx.setLineDash([10,8]);ctx.lineWidth=Math.max(2,cw/300);ctx.strokeStyle='rgba(0,229,255,.7)';
+  ctx.beginPath();ctx.arc(cw/2,ch/2,Math.min(cw,ch)*0.42,0,2*Math.PI);ctx.stroke();ctx.restore();
+  if(suRes){const H=solveH(CAL_BOARD,suRes.pts);if(H)drawBoard(ctx,H,cw,ch,suRes.q>=0.55?'#00ff88':'#ff3c3c',.7,Math.max(1,cw/500));}
+}
+async function suTick(){
+  if(!suOn||suBusy||!camReady)return;suBusy=true;
+  try{const r=autoCalibrate(null);suRes=(r&&ptsOk(r.pts))?r:null;}catch(e){suRes=null;}
+  suBusy=false;suRender();
+}
+function openSetup(){
+  if(!running){toast('Najpierw włącz kamerę');return;}
+  suOn=true;suRes=null;$('ac-setup').classList.add('on');suRender();suRaf=requestAnimationFrame(suDraw);
+  clearInterval(suT);suT=setInterval(suTick,1800);setTimeout(suTick,300);
+}
+function closeSetup(){suOn=false;clearInterval(suT);cancelAnimationFrame(suRaf);$('ac-setup').classList.remove('on');}
+
 /* ---------- kalibracja ---------- */
 let calPts=null,calDrag=-1,calSel=0,calStepK=1;
 // promień liczony w pikselach -> działa w pionie i w poziomie
@@ -9132,7 +9288,7 @@ function mount(){
    '</div>'+
    '<div id="dm-sheet"><div style="display:flex;justify-content:space-between;align-items:center;color:#e8e8f0;font-family:Bebas Neue,cursive;font-size:20px;letter-spacing:2px">OPCJE KAMERY<button onclick="AutoCam.sheet()" style="background:none;border:none;color:#8888aa;font-size:22px;cursor:pointer">✕</button></div>'+
      '<div class="dm-sheet-btns"><button onclick="AutoCam.camToggle()" id="dm-camtg">📷 WŁĄCZ KAMERĘ</button><button onclick="AutoCam.openCal()">🎯 KALIBRUJ</button>'+
-     '<button onclick="AutoCam.resetBg()">↺ RESET TŁA</button><button class="red" onclick="AutoCam.close()">✕ ZAMKNIJ WIDOK</button></div>'+
+     '<button onclick="AutoCam.openSetup()" style="grid-column:span 2;color:#00e5ff;border-color:rgba(0,229,255,.4)">📐 ASYSTENT USTAWIENIA TELEFONU</button><button onclick="AutoCam.resetBg()">↺ RESET TŁA</button><button class="red" onclick="AutoCam.close()">✕ ZAMKNIJ WIDOK</button></div>'+
      '<div id="dm-sheet-slot"></div>'+
      '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin-top:8px">Stuknij w obraz: dodaje lotkę, której kamera nie wykryła (albo poprawia ostatnią). Najlepsza pozycja telefonu: z boku tarczy pod kątem 30–60°, 40–80 cm od niej. Na wprost tarczy też działa, ale mniej dokładnie.</div></div>';
   document.body.appendChild(dm);
@@ -9166,6 +9322,11 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 document.addEventListener('visibilitychange',async()=>{if(running&&document.visibilityState==='visible'&&'wakeLock'in navigator){try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}});
 
 window.AutoCam={
+  openSetup(){$('dm-sheet').classList.remove('on');openSetup();},
+  async setupDone(){S.setupSeen=true;saveCfg();const r=suRes;closeSetup();
+    if(r&&r.q>=0.55){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();toast('✅ Ustawione i skalibrowane ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');}
+    else await runAutoCal(true);},
+  async setupSkip(){S.setupSeen=true;saveCfg();closeSetup();await runAutoCal(true);},
   start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,refocus(){refocus(true);},
   sheet(){$('dm-sheet').classList.toggle('on');},
   zoom(){const z=[1,1.2,1.4,2],i=z.indexOf(S.zoom||1);S.zoom=z[(i+1)%z.length];saveCfg();dmRender();},
