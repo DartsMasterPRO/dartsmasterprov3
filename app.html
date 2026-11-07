@@ -8019,6 +8019,14 @@ async function olChatSend() {
 .dm-dart{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:44px;justify-content:center}
 .dm-dart b{font-weight:normal;font-size:22px;color:#222;line-height:1;letter-spacing:1px}
 .dm-dart.new b{color:#e5781e}
+.dm-dart{cursor:pointer;border-radius:8px}.dm-dart:active{background:#f2ece0}
+#dm-pick{display:none;position:absolute;left:8px;right:8px;top:62px;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35);padding:10px;z-index:4}
+#dm-pick.on{display:block}
+#dm-pick .t{font-family:monospace;font-size:10px;color:#888;margin-bottom:6px}
+#dm-pick .g{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+#dm-pick button{padding:10px 0;border:1px solid #ddd;border-radius:8px;background:#f7f5f0;font-family:'Bebas Neue',cursive;font-size:20px;color:#222;cursor:pointer}
+#dm-pick button.cur{border-color:#e5781e;color:#e5781e}
+.dm-card{position:relative}
 .dm-row{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;padding-top:8px}
 .dm-prev{font-size:34px;color:#aaa;line-height:1;min-height:34px}
 .dm-prev.x{text-decoration:line-through;text-decoration-thickness:2px}
@@ -8273,9 +8281,25 @@ function tipOf(px,raw,useGeo){
     else if(tm<1e9){for(let k=0;k<n;k++){if(inC[k]&&ts[k]<tm+lim){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}}
   }
   if(!c)for(let k=0;k<n;k++){const ok=useMin?ts[k]<tmin+lim:ts[k]>tmax-lim;if(ok){sx+=px[k]%rw;sy+=(px[k]/rw)|0;c++;}}
-  let tx=sx/c,ty=sy/c;
+  let tx=sx/c,ty=sy/c,fx=ex,fy=ey;
+  // dopasowanie prostej do przedniej części lotki (lufka + grot) — usuwa boczny błąd grota
+  if(geoAx){
+    const cor=Math.max(3,GEO.rpx*0.03);let pm=0,pc=0;
+    for(let k=0;k<n;k++)if(ts[k]<tmin+L*0.3){pm+=(px[k]%rw-mx)*(-ey)+(((px[k]/rw)|0)-my)*ex;pc++;}pm=pc?pm/pc:0;
+    let fxs=0,fys=0,fn=0;const F=[];
+    for(let k=0;k<n;k++){if(ts[k]>=tmin+L*0.4)continue;const x=px[k]%rw,y=(px[k]/rw)|0,q=(x-mx)*(-ey)+(y-my)*ex;
+      if(Math.abs(q-pm)>cor*3)continue;F.push(x,y);fxs+=x;fys+=y;fn++;}
+    if(fn>=8){const cx=fxs/fn,cy=fys/fn;let a=0,b=0,cc=0;
+      for(let k=0;k<F.length;k+=2){const dx=F[k]-cx,dy=F[k+1]-cy;a+=dx*dx;b+=dy*dy;cc+=dx*dy;}
+      const th=0.5*Math.atan2(2*cc,a-b);let e2x=Math.cos(th),e2y=Math.sin(th);
+      const tr=a+b,dt=Math.sqrt(Math.max(0,(a-b)*(a-b)/4+cc*cc)),el=Math.sqrt((tr/2+dt)/Math.max(1e-6,tr/2-dt));
+      if(e2x*ex+e2y*ey<0){e2x=-e2x;e2y=-e2y;}
+      if(el>2.5&&(e2x*ex+e2y*ey)>0.8){ // to faktycznie linia zgodna z osią lotki
+        const t=(tx-cx)*e2x+(ty-cy)*e2y;tx=cx+e2x*t;ty=cy+e2y*t;fx=e2x;fy=e2y;}
+    }
+  }
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
-  if(raw){const dx=useMin?-ex:ex,dy=useMin?-ey:ey,rh=GEO.rh,maxS=Math.round(L*0.6);let gap=0,last=0;
+  if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh,maxS=Math.round(L*0.6);let gap=0,last=0;
     for(let s=1;s<=maxS;s++){let hit=false;
       for(let w=-2;w<=2&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
         if(x>=0&&y>=0&&x<rw&&y<rh&&raw[y*rw+x])hit=true;}
@@ -8685,7 +8709,7 @@ function dmRender(){
   const darts=mine?curDarts():((RIV.dm&&RIV.dm.cp===cp)?(RIV.dm.darts||[]).map(d=>({lbl:d.l,val:d.v})):[]);
   const tsum=darts.reduce((a,d)=>a+(d.val||0),0);
   $('dm-darts').innerHTML=[0,1,2].map(i=>{const d=darts[i];
-    return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+'">'+dartSvg(d?'#e5781e':'#d9d9d9')+'<b>'+(d?d.lbl:'&nbsp;')+'</b></div>';}).join('');
+    return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+'" onclick="AutoCam.pick('+i+')">'+dartSvg(d?'#e5781e':'#d9d9d9')+'<b>'+(d?d.lbl:'&nbsp;')+'</b></div>';}).join('');
   const prev=cr?(G.cScores||[])[cp]:G.scores[cp];let rem=cr?prev:prev-tsum;
   const bust=!cr&&(rem<0||(G.dOut&&rem===1));
   const pe=$('dm-prev');pe.textContent=(!cr&&tsum)?prev:'';pe.classList.toggle('x',!!tsum);
@@ -8758,6 +8782,31 @@ function undoDart(){
   if(gm()==='x01'&&G.throws.some(v=>v!==null)){undoLast();dmRender();return;}
   toast('Brak lotki do cofnięcia');
 }
+// szybka poprawka lotki: sąsiednie pola do wyboru
+function scFrom(n,m){if(n===50)return{n:50,m:1,cb:25,cm:2,lbl:'BULL',val:50};if(n===25)return{n:25,m:1,cb:25,cm:1,lbl:'25',val:25};
+  if(!n)return{n:0,m:1,cb:0,cm:1,lbl:'MISS',val:0};return{n,m,cb:n,cm:m,lbl:(m===3?'T':m===2?'D':'')+n,val:n*m};}
+function pick(i){
+  const el=$('dm-pick');if(el.classList.contains('on')&&el.dataset.i==String(i)){el.classList.remove('on');return;}
+  if(isOnline()&&!myTurn())return;
+  if(!(turn[i]&&turnKey0===tkey())){toast('Tę lotkę popraw na klawiaturze');return;}
+  const sc=turn[i].sc,opts=[];const add=(n,m)=>{const o=scFrom(n,m);if(!opts.some(q=>q.lbl===o.lbl))opts.push(o);};
+  if(sc.n>0&&sc.n<=20){const k=SEG.indexOf(sc.n),L=SEG[(k+19)%20],Rr=SEG[(k+1)%20];
+    add(L,sc.m);add(sc.n,sc.m);add(Rr,sc.m);[1,2,3].forEach(m=>add(sc.n,m));add(L,1);add(Rr,1);}
+  else if(sc.n===25||sc.n===50){add(50,1);add(25,1);[20,1,18,4,13,6,10,15,2,17,3,19].slice(0,6).forEach(n=>add(n,1));}
+  else{add(0,1);}
+  add(0,1);
+  el.dataset.i=String(i);
+  el.innerHTML='<div class="t">LOTKA '+(i+1)+': wybierz właściwe pole</div><div class="g">'+opts.slice(0,12).map(o=>'<button class="'+(o.lbl===sc.lbl?'cur':'')+'" onclick="AutoCam.setDart('+i+','+o.n+','+o.m+')">'+o.lbl+'</button>').join('')+'</div>';
+  el.classList.add('on');
+}
+function setDart(i,n,m){
+  $('dm-pick').classList.remove('on');
+  if(!(turn[i]&&turnKey0===tkey()))return;const sc=scFrom(n,m),mode=gm(),old=turn[i].sc;
+  if(mode==='x01'){G.throws[i]=sc.val;G.throwMults[i]=(n===25||n===50)?1:m;refreshThrows();}
+  else if(mode==='sum'){sumDarts[i]=sc.val;setSumUI();}
+  else if(mode==='cricket'){if(i!==turn.length-1){toast('W cricket poprawisz tylko ostatnią lotkę');return;}if(old._hit)undoCricketMove();applyDart(sc);}
+  turn[i].sc=sc;clearTimeout(confirmT);closed=turn.length>=3;afterDart();renderDarts();lg('poprawiono lotkę '+(i+1)+': '+old.lbl+' → '+sc.lbl);
+}
 function addManual(nx,ny){ // dodanie lotki, której kamera nie wykryła
   if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
   if(!GEO){toast('Najpierw kalibracja');return;}
@@ -8783,8 +8832,18 @@ const TPL=(()=>{const t=[];
       t.push([sx*166,cy*166,ex,1],[sx*103,cy*103,ex,1],[sx*135,cy*135,0,.45],[sx*58,cy*58,0,.45],[sx*190,cy*190,-2,.3]);}}
   for(let i=0;i<8;i++){const a=i*Math.PI/4;t.push([Math.sin(a)*11.5,Math.cos(a)*11.5,2,.8]);}
   t.push([0,0,1,1]);return t;})();
-function tplScore(I,H,only,tol){let s=0,W=0;
-  for(const[x,y,ex,w]of TPL){if(only&&ex<=0)continue;if(tol&&ex<=0)continue;
+// precyzyjny wzorzec: punkty tuż przy drutach (obrót) i przy krawędziach pierścieni (skala/perspektywa)
+const TPL2=(()=>{const t=TPL.slice();
+  for(let k=0;k<20;k++){const ex=k%2===0?1:2;
+    for(const o of[-7.3,7.3]){const a=(k*18+o)*Math.PI/180,sx=Math.sin(a),cy=Math.cos(a);
+      t.push([sx*166,cy*166,ex,1.2],[sx*103,cy*103,ex,1.2]);}
+    for(const o of[-3,3]){const a=(k*18+o)*Math.PI/180,sx=Math.sin(a),cy=Math.cos(a);
+      t.push([sx*163.6,cy*163.6,ex,1],[sx*168.4,cy*168.4,ex,1],[sx*100.6,cy*100.6,ex,1],[sx*105.4,cy*105.4,ex,1],
+             [sx*158.5,cy*158.5,0,.7],[sx*174,cy*174,0,.5],[sx*96,cy*96,0,.7],[sx*110.5,cy*110.5,0,.7]);}}
+  for(let i=0;i<12;i++){const a=i*Math.PI/6;t.push([Math.sin(a)*14.4,Math.cos(a)*14.4,2,.8],[Math.sin(a)*8.2,Math.cos(a)*8.2,2,.8],[Math.sin(a)*3.5,Math.cos(a)*3.5,1,.6],[Math.sin(a)*19,Math.cos(a)*19,0,.5]);}
+  return t;})();
+function tplScore(I,H,only,tol,fine){let s=0,W=0;
+  for(const[x,y,ex,w]of(fine?TPL2:TPL)){if(only&&ex<=0)continue;if(tol&&ex<=0)continue;
     let c;
     if(tol&&ex>0){c=0;const r0=Math.hypot(x,y)||1,stp=Math.min(tol/2,4/r0);for(let t=-tol;t<=tol+1e-9;t+=stp){const p=ap(H,x*(1+t),y*(1+t));if(!p)return -1e9;const q=clsAt(I,p[0]*I.w,p[1]*I.h);if(q===ex){c=ex;break;}if(q!==0&&c===0)c=q;}}
     else{const p=ap(H,x,y);if(!p)return -1e9;c=clsAt(I,p[0]*I.w,p[1]*I.h);}
@@ -8792,6 +8851,17 @@ function tplScore(I,H,only,tol){let s=0,W=0;
     if(ex===-2){if(c===2)s-=w;else s+=w*.3;continue;} // poza tarczą: nie zielony
     if(ex===0){s+=c===0?w:-w;}else{s+=c===ex?w:(c===0?-.2*w:-w);}}
   return W?s/W:-1;}
+// płynna ocena (interpolacja dwuliniowa) — precyzja poniżej piksela
+function fineScore(I,H){let s=0,W=0;const d=I.d,w=I.w,h=I.h;
+  for(const[x,y,ex,wt]of TPL2){const p=ap(H,x,y);if(!p)return -1e9;const X=p[0]*w-.5,Y=p[1]*h-.5;
+    const x0=Math.floor(X),y0=Math.floor(Y);if(x0<0||y0<0||x0>=w-1||y0>=h-1){s-=wt;W+=wt;continue;}
+    const fx=X-x0,fy=Y-y0,j=(y0*w+x0)*4,j2=j+4,j3=j+w*4,j4=j3+4;
+    const bl=(k)=>(d[j+k]*(1-fx)+d[j2+k]*fx)*(1-fy)+(d[j3+k]*(1-fx)+d[j4+k]*fx)*fy;
+    const r=bl(0),g=bl(1),b=bl(2);
+    const rd=Math.max(-1,Math.min(1,(r-Math.max(g,b))/70)),gr=Math.max(-1,Math.min(1,(g-Math.max(r,b))/45));
+    let v;if(ex===1)v=rd-Math.max(0,gr);else if(ex===2)v=gr-Math.max(0,rd);else if(ex===0)v=-(Math.max(0,rd)+Math.max(0,gr));else v=-Math.max(0,gr)*.5;
+    s+=v*wt;W+=wt;}
+  return s/W;}
 function autoCalibrate(init){
   if(!video||!vw)return null;
   const I=grabSmall(Math.min(720,vw));
@@ -8852,6 +8922,16 @@ function autoCalibrate(init){
         const q=pts.map(p=>p.slice());q[i][k]+=sg*st*(k?I.w/I.h:1);const h2=solveH(CAL_BOARD,q);if(!h2)continue;
         const s2=tplScore(I,h2,false,tol);if(s2>sc+1e-6){sc=s2;pts=q;imp=true;}}}
   }}
+  // 4) etap precyzyjny: pełna rozdzielczość kamery + punkty przy drutach i krawędziach pierścieni
+  const IF=grabSmall(vw);let H2=solveH(CAL_BOARD,pts),sf=H2?fineScore(IF,H2):-1e9;
+  for(let st=3/IF.w;st>0.06/IF.w;st*=0.5){
+    let imp=true,guard=0;
+    while(imp&&guard++<60){imp=false;
+      for(let i=0;i<4;i++)for(let k=0;k<2;k++)for(const sg of[1,-1]){
+        const q=pts.map(p=>p.slice());q[i][k]+=sg*st*(k?IF.w/IF.h:1);const h2=solveH(CAL_BOARD,q);if(!h2)continue;
+        const s2=fineScore(IF,h2);if(s2>sf+1e-7){sf=s2;pts=q;imp=true;}}}
+  }
+  {const h3=solveH(CAL_BOARD,pts);sc=h3?tplScore(I,h3):sc;}
   lg('autokalibracja: dopasowanie '+Math.round(sc*100)+'%');
   return{pts,q:sc};
 }
@@ -8947,7 +9027,7 @@ function mount(){
      '<div class="dm-pill" id="dm-who"></div><div class="dm-pill" id="dm-round">R1</div>'+
      '<div class="dm-tools"><button onclick="AutoCam.undoDart()" title="Cofnij lotkę">↶</button><button id="dm-zoom" onclick="AutoCam.zoom()">1.4x</button></div></div>'+
    '<div class="dm-bottom">'+
-     '<div class="dm-card"><div class="dm-darts" id="dm-darts"></div>'+
+     '<div class="dm-card"><div id="dm-pick"></div><div class="dm-darts" id="dm-darts"></div>'+
        '<div class="dm-row"><div><div class="dm-prev" id="dm-prev"></div><div class="dm-turn" id="dm-turn">0</div></div>'+
        '<div class="dm-mid"><div class="dm-rem" id="dm-rem">501</div><div class="dm-name" id="dm-name"></div><div class="dm-co" id="dm-co"></div></div>'+
        '<div class="dm-right"><span>PPR</span><b id="dm-ppr">0.0</b></div></div></div>'+
@@ -8990,7 +9070,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 document.addEventListener('visibilitychange',async()=>{if(running&&document.visibilityState==='visible'&&'wakeLock'in navigator){try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}});
 
 window.AutoCam={
-  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,
+  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,
   sheet(){$('dm-sheet').classList.toggle('on');},
   zoom(){const z=[1,1.2,1.4,2],i=z.indexOf(S.zoom||1);S.zoom=z[(i+1)%z.length];saveCfg();dmRender();},
   camToggle(){if(running)stop();else start();},
