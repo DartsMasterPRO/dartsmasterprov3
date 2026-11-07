@@ -8098,11 +8098,25 @@ function meanL(d){const{mask}=GEO;let s=0,n=0;for(let i=0;i<mask.length;i+=3){if
 function offOf(cur,base){const{mask}=GEO;const o=[0,0,0];let n=0;
   for(let i=0;i<mask.length;i+=5){if(!mask[i])continue;const j=i*4;o[0]+=base[j]-cur[j];o[1]+=base[j+1]-cur[j+1];o[2]+=base[j+2]-cur[j+2];n++;}
   if(n){o[0]/=n;o[1]/=n;o[2]/=n;}return o;}
+const HPC=new WeakMap();
+// obraz minus lokalna średnia: usuwa pasy migotania LED, cienie i zmiany jasności, zostawia cienkie obiekty (lotki)
+function hp(d){
+  let h=HPC.get(d);if(h)return h;
+  const{rw,rh}=GEO,W=rw+1,r=Math.max(4,Math.round(GEO.rpx*0.07));h=new Int16Array(rw*rh*3);
+  const I=new Int32Array(W*(rh+1));
+  for(let ch=0;ch<3;ch++){
+    for(let y=0;y<rh;y++){let row=0;for(let x=0;x<rw;x++){row+=d[(y*rw+x)*4+ch];I[(y+1)*W+x+1]=I[y*W+x+1]+row;}}
+    for(let y=0;y<rh;y++){const y0=Math.max(0,y-r),y1=Math.min(rh,y+r+1);
+      for(let x=0;x<rw;x++){const x0=Math.max(0,x-r),x1=Math.min(rw,x+r+1);
+        const sm=I[y1*W+x1]-I[y0*W+x1]-I[y1*W+x0]+I[y0*W+x0];
+        h[(y*rw+x)*3+ch]=d[(y*rw+x)*4+ch]-sm/((y1-y0)*(x1-x0));}}}
+  HPC.set(d,h);return h;
+}
 function effT(){return Math.max(S.thr,noiseEst*1.8);}
 function diffMask(cur,base){
-  const{rw,rh,mask}=GEO,o=offOf(cur,base),T=effT(),m=new Uint8Array(rw*rh);
-  for(let i=0;i<m.length;i++){if(!mask[i])continue;const j=i*4;
-    if(Math.abs(cur[j]+o[0]-base[j])+Math.abs(cur[j+1]+o[1]-base[j+1])+Math.abs(cur[j+2]+o[2]-base[j+2])>T*0.8)m[i]=1;}
+  const{rw,rh,mask}=GEO,T=effT(),m=new Uint8Array(rw*rh),a=hp(cur),b=hp(base);
+  for(let i=0;i<m.length;i++){if(!mask[i])continue;const j=i*3;
+    if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T*0.8)m[i]=1;}
   // filtr większościowy 3x3: usuwa szum, zostawia cienkie (2px) lotki
   const q=new Uint8Array(m.length);
   for(let y=1;y<rh-1;y++)for(let x=1;x<rw-1;x++){const i=y*rw+x;
@@ -8160,8 +8174,8 @@ function tipOf(px,raw){
   return{x:tx,y:ty,elong,ax:[ex,ey]};
 }
 function fracChanged(cur,base,px){
-  if(!px||!px.length)return 0;const o=offOf(cur,base),T=effT();let n=0;
-  for(const i of px){const j=i*4;if(Math.abs(cur[j]+o[0]-base[j])+Math.abs(cur[j+1]+o[1]-base[j+1])+Math.abs(cur[j+2]+o[2]-base[j+2])>T)n++;}
+  if(!px||!px.length)return 0;const T=effT(),a=hp(cur),b=hp(base);let n=0;
+  for(const i of px){const j=i*3;if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T)n++;}
   return n/px.length;
 }
 function workToNorm(x,y){return[(GEO.rx+x+.5)/GEO.ww,(GEO.ry+y+.5)/GEO.wh];}
@@ -8254,18 +8268,19 @@ function analyze(cur){
   // 1) wyjęcie lotek?
   if(turn.length){
     const f=fracChanged(cur,empty,unionPx());
-    if(f<0.35){takeout(cur);return;}
+    if(f<0.35){lg('wyjęcie lotek');takeout(cur);return;}
   }
-  if(!mode){ref=cur;if(!turn.length)empty=cur;status('Brak aktywnej gry X01/Cricket','#8888aa');return;}
-  if(!myTurn()){ref=cur;if(!turn.length)empty=cur;status('Tura rywala — czekam','#8888aa');return;}
+  if(!mode){lg('brak gry X01/Cricket ('+(typeof G!=='undefined'&&G?G.mode+'/'+G.active:'-')+')');ref=cur;if(!turn.length)empty=cur;status('Brak aktywnej gry X01/Cricket','#8888aa');return;}
+  if(!myTurn()){lg('nie Twoja tura (online)');ref=cur;if(!turn.length)empty=cur;status('Tura rywala — czekam','#8888aa');return;}
   // 2) nowa lotka
   let excl=null;
   if(turn.length){excl=new Uint8Array(GEO.rw*GEO.rh);turn.forEach(d=>d.px.forEach(i=>{excl[i]=1;}));}
   const r=analyzeDiff(cur,ref,excl);
   lastMask=r.m;lastMaskT=performance.now();
   const blobN=r.px?r.px.length:0;DG.area=blobN;
+  if(blobN>=GEO.minA*0.3)lg('zmiana '+blobN+'px (min '+Math.round(GEO.minA)+', max '+Math.round(GEO.maxA)+', wszystkie '+r.total+')');
   if(blobN<GEO.minA){cand=null;if(blobN<GEO.minA*0.3){ref=cur;if(!turn.length)empty=cur;}status(turn.length?'Czekam na kolejną lotkę':'Gotowe — rzucaj 🎯','#00ff88');return;}
-  if(r.total>GEO.maxA){ref=refAge>25?cur:ref;refAge++;status('Coś zasłania tarczę…','#ff8c00');return;}
+  if(blobN>GEO.maxA){lg('za duża zmiana → zasłonięte');ref=refAge>25?cur:ref;refAge++;status('Coś zasłania tarczę…','#ff8c00');return;}
   // lotka się ruszyła / wypadła?
   if(turn.length){
     const last=turn[turn.length-1];const set=new Set(last.px);let ov=0;r.px.forEach(i=>{if(set.has(i))ov++;});
@@ -8274,20 +8289,21 @@ function analyze(cur){
       ref=cur;return;
     }
   }
-  if(closed||turn.length>=3){ref=cur;status('Wyjmij lotki z tarczy ✋','#ffd700');return;}
+  if(closed||turn.length>=3){lg('tura pełna — czekam na wyjęcie');ref=cur;status('Wyjmij lotki z tarczy ✋','#ffd700');return;}
   if(turn.length&&turnKey0!==tkey()){closed=true;ref=cur;status('Tura zatwierdzona — wyjmij lotki ✋','#ffd700');return;}
   // potwierdzenie: ta sama plama musi wyjść w 2 niezależnych odczytach (szum się nie powtarza)
   if(!cand||tickN-cand.t<3){
     if(cand){const st=cand.set;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});if(ov<r.px.length*0.4)cand=null;}
     if(!cand)cand={set:new Set(r.px),t:tickN};
-    forceAt=cand.t+3;status('Sprawdzam lotkę…','#00e5ff');return;
+    forceAt=cand.t+3;lg('kandydat lotki '+r.px.length+'px');status('Sprawdzam lotkę…','#00e5ff');return;
   }
   {const st=cand.set;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});cand=null;
-   if(ov<r.px.length*0.4){status('Gotowe — rzucaj 🎯','#00ff88');return;}}
+   if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
   const tp=tipOf(r.px,r.raw);const[nx,ny]=workToNorm(tp.x,tp.y);const sc=normToScore(nx,ny);
   if(!turn.length)turnKey0=tkey();
   const d={px:r.px,before:ref,tip:[nx,ny],sc};
-  if(!applyDart(sc)){ref=cur;return;}
+  lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%)');
+  if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
   turn.push(d);ref=cur;refAge=0;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');
   afterDart();renderDarts();
@@ -8318,6 +8334,9 @@ function correctLast(nx,ny){
 /* ---------- UI ---------- */
 const $=id=>document.getElementById(id);
 function status(t,c){const e=$('ac-status-t');if(e&&e.textContent!==t){e.textContent=t;}const d=$('ac-dot');if(d)d.style.background=c||'#8888aa';}
+const LOG=[];let lastLog='';
+function lg(t){if(t===lastLog)return;lastLog=t;const d=new Date();LOG.unshift(d.toTimeString().slice(0,8)+' '+t);if(LOG.length>6)LOG.pop();
+  const e=$('ac-log');if(e)e.textContent=LOG.join('\n');}
 function diag(){const e=$('ac-diag');if(!e||!GEO)return;
   e.textContent='ruch '+DG.mv+'/'+DG.mvThr+' · zmiana '+DG.area+' px (lotka: '+Math.round(GEO.minA)+'–'+Math.round(GEO.maxA)+') · tarcza r='+Math.round(GEO.rpx)+'px · próg '+Math.round(effT())+' (szum '+Math.round(noiseEst)+')';}
 function renderDarts(){
@@ -8463,7 +8482,7 @@ function mount(){
    '<div id="ac-hud"></div>'+
    '<div id="ac-viewwrap"><canvas id="ac-view"></canvas><video id="ac-video" playsinline muted autoplay style="position:absolute;width:2px;height:2px;opacity:0;pointer-events:none;left:0;top:0"></video></div>'+
    '<div id="ac-status"><span class="dot" id="ac-dot"></span><span id="ac-status-t">Uruchamiam kamerę…</span></div>'+
-   '<div id="ac-diag" style="font-family:monospace;font-size:9px;color:#666680;margin:-4px 0 6px"></div>'+'<div id="ac-darts"></div>'+
+   '<div id="ac-diag" style="font-family:monospace;font-size:9px;color:#666680;margin:-4px 0 6px"></div>'+'<div id="ac-darts"></div>'+'<pre id="ac-log" style="font-family:monospace;font-size:9px;color:#8888aa;background:#0d0d14;border-radius:6px;padding:5px 7px;margin:0 0 8px;white-space:pre-wrap;min-height:14px"></pre>'+
    '<div class="ac-btns">'+
      '<button class="hi" onclick="AutoCam.takeoutManual()">✋ WYJĘTE</button>'+
      '<button onclick="AutoCam.openCal()">🎯 KALIBRUJ</button>'+
