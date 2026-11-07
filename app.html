@@ -8615,6 +8615,53 @@ const lumCv=document.createElement('canvas');lumCv.width=64;lumCv.height=36;
 function frameLum(){try{const c=lumCv.getContext('2d',{willReadFrequently:true});c.drawImage(video,0,0,64,36);const d=c.getImageData(0,0,64,36).data;let t=0;for(let i=0;i<d.length;i+=4)t+=d[i]*.3+d[i+1]*.59+d[i+2]*.11;return t/(d.length/4);}catch(e){return 0;}}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 // czekaj aż automatyczna ekspozycja się ustabilizuje, potem zablokuj DOKŁADNIE bieżące wartości
+// ---------- OSTROŚĆ ----------
+const shCv=document.createElement('canvas');shCv.width=200;shCv.height=112;
+function sharpness(){ // średni kwadrat laplasjanu w środkowej części kadru (tarcza)
+  try{const c=shCv.getContext('2d',{willReadFrequently:true}),w=vw,h=vh,cw=Math.min(w,h)*0.7;
+    c.drawImage(video,(w-cw)/2,(h-cw*0.56)/2,cw,cw*0.56,0,0,200,112);const d=c.getImageData(0,0,200,112).data,W=200,H=112;
+    const g=new Float32Array(W*H);for(let i=0;i<W*H;i++)g[i]=d[i*4]*.3+d[i*4+1]*.59+d[i*4+2]*.11;
+    let s=0,n=0;for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=y*W+x,l=4*g[i]-g[i-1]-g[i+1]-g[i-W]-g[i+W];s+=l*l;n++;}
+    return s/n;}catch(e){return 0;}}
+let SHARP_REF=0,focusBusy=false,blurCnt=0;
+async function focusSettle(){
+  // włącz ciągły autofocus i czekaj, aż ostrość przestanie rosnąć
+  try{const c=track.getCapabilities?track.getCapabilities():{};
+    if(c.focusMode&&c.focusMode.includes('continuous'))await track.applyConstraints({advanced:[{focusMode:'continuous'}]});}catch(e){}
+  const t0=performance.now(),h=[];let mx=0;
+  while(running&&performance.now()-t0<5000){
+    await sleep(160);const v=sharpness();h.push(v);if(h.length>5)h.shift();mx=Math.max(mx,v);
+    if(h.length>=5&&performance.now()-t0>800){const a=Math.min(...h),b=Math.max(...h);if(b-a<b*0.18&&h[h.length-1]>=mx*0.8)break;}
+  }
+  return sharpness();
+}
+async function lockFocus(){
+  if(!track||!track.getCapabilities||!track.getSettings)return;
+  try{const c=track.getCapabilities(),st=track.getSettings();
+    if(!(c.focusMode&&c.focusMode.includes('manual')&&st.focusDistance)){lg('ostrość: autofocus (blokada niedostępna)');return;}
+    const before=sharpness();
+    await track.applyConstraints({advanced:[{focusMode:'manual',focusDistance:st.focusDistance}]});
+    await sleep(600);const after=sharpness();
+    if(after<before*0.75){await track.applyConstraints({advanced:[{focusMode:'continuous'}]});lg('blokada ostrości rozmywała obraz → autofocus');}
+    else lg('ostrość zablokowana');
+  }catch(e){console.log('[AutoCam] lockFocus',e);}
+}
+async function refocus(manual){
+  if(focusBusy||!running)return;focusBusy=true;
+  if(manual)toast('🔍 Ustawiam ostrość…');
+  const was=camReady;camReady=false;
+  await focusSettle();if(S.lockExp)await lockFocus();
+  SHARP_REF=sharpness();blurCnt=0;camReady=was||true;
+  if(!turn.length)resetRefs();else{prevL=null;frames=[];}
+  focusBusy=false;lg('ostrość ustawiona ('+Math.round(SHARP_REF)+')');if(manual)toast('✅ Ostrość ustawiona');
+}
+// czuwanie: obraz się rozmył (np. autofocus „uciekł”) → wyostrz ponownie, ale tylko gdy w tarczy nie ma lotek
+setInterval(()=>{
+  if(!running||!camReady||focusBusy||!SHARP_REF||dirty)return;
+  const v=sharpness();
+  if(v<SHARP_REF*0.55){blurCnt++;if(blurCnt>=3&&!turn.length){lg('obraz rozmyty → ponowne ostrzenie');refocus(false);}}
+  else{blurCnt=0;if(v>SHARP_REF)SHARP_REF=SHARP_REF*0.9+v*0.1;}
+},1000);
 async function settleAndLock(){
   const t0=performance.now(),h=[];
   while(running&&performance.now()-t0<4000){
@@ -8622,7 +8669,10 @@ async function settleAndLock(){
     if(h.length>=6&&performance.now()-t0>700){const mn=Math.min(...h),mx=Math.max(...h);if(mx-mn<Math.max(2,mx*0.03))break;}
   }
   if(!running)return;
-  if(S.lockExp)await lockExposure();
+  status('🔍 Ustawiam ostrość…','#00e5ff');
+  await focusSettle();if(!running)return;
+  if(S.lockExp){await lockExposure();await lockFocus();}
+  SHARP_REF=sharpness();blurCnt=0;
   camReady=true;resetRefs();lg('kamera gotowa (jasność '+Math.round(frameLum())+')');
   if(S.autoCal!==false)await runAutoCal(true);else if(!CAL)openCal();
 }
@@ -8633,7 +8683,6 @@ async function lockExposure(){
     // ekspozycja: tylko jeśli znamy bieżący czas naświetlania — inaczej telefon wziąłby domyślny (ściemnienie)
     if(c.exposureMode&&c.exposureMode.includes('manual')&&st.exposureTime){adv.exposureMode='manual';adv.exposureTime=st.exposureTime;if(c.iso&&st.iso)adv.iso=st.iso;}
     if(c.whiteBalanceMode&&c.whiteBalanceMode.includes('manual')&&st.colorTemperature){adv.whiteBalanceMode='manual';adv.colorTemperature=st.colorTemperature;}
-    if(c.focusMode&&c.focusMode.includes('manual')&&st.focusDistance){adv.focusMode='manual';adv.focusDistance=st.focusDistance;}
     if(!Object.keys(adv).length){lg('blokada ekspozycji niedostępna w tym telefonie');return;}
     const before=frameLum();
     await track.applyConstraints({advanced:[adv]});
@@ -8667,7 +8716,7 @@ async function start(){
   listCams();settleAndLock();renderDarts();
 }
 function stop(){
-  running=false;camReady=false;clearInterval(timer);cancelAnimationFrame(raf);clearTimeout(confirmT);
+  running=false;camReady=false;SHARP_REF=0;clearInterval(timer);cancelAnimationFrame(raf);clearTimeout(confirmT);
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;track=null;
   try{if(wakeLock)wakeLock.release();}catch(e){}wakeLock=null;
   if(fsMode)toggleFs();
@@ -8735,7 +8784,7 @@ function dmDraw(){
       ctx.save();ctx.setTransform(kx,0,0,ky,-R.sx*kx,-R.sy*ky);drawBoard(ctx,GEO.H,vw,vh,'#00e5ff',.5,1/kx);ctx.restore();
     }
     turn.forEach((d,i)=>dmMarker(ctx,(d.tip[0]*vw-R.sx)*kx,(d.tip[1]*vh-R.sy)*ky,d.sc.lbl,k,i));
-  }else msg=running?'Uruchamiam kamerę…<br>ustawiam jasność':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
+  }else msg=running?'Uruchamiam kamerę…<br>ustawiam jasność i ostrość':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
   if(nc){nc.style.display=msg?'flex':'none';if(msg&&nc.innerHTML!==msg)nc.innerHTML=msg;}
 }
 function dmRender(){
@@ -9060,7 +9109,7 @@ function mount(){
      '<button class="dm-next" id="dm-next" onclick="AutoCam.nextRound()">NASTĘPNA RUNDA</button></div>'+
    '<div id="dm-camwrap"><canvas id="dm-cam"></canvas><div id="dm-nocam"></div>'+
      '<div class="dm-pill" id="dm-who"></div><div class="dm-pill" id="dm-round">R1</div>'+
-     '<div class="dm-tools"><button onclick="AutoCam.undoDart()" title="Cofnij lotkę">↶</button><button id="dm-zoom" onclick="AutoCam.zoom()">1.4x</button></div></div>'+
+     '<div class="dm-tools"><button onclick="AutoCam.refocus()" title="Wyostrz">🔍</button><button onclick="AutoCam.undoDart()" title="Cofnij lotkę">↶</button><button id="dm-zoom" onclick="AutoCam.zoom()">1.4x</button></div></div>'+
    '<div class="dm-bottom">'+
      '<div class="dm-card"><div id="dm-pick"></div><div class="dm-darts" id="dm-darts"></div>'+
        '<div class="dm-row"><div><div class="dm-prev" id="dm-prev"></div><div class="dm-turn" id="dm-turn">0</div></div>'+
@@ -9105,7 +9154,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 document.addEventListener('visibilitychange',async()=>{if(running&&document.visibilityState==='visible'&&'wakeLock'in navigator){try{wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}});
 
 window.AutoCam={
-  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,
+  start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,refocus(){refocus(true);},
   sheet(){$('dm-sheet').classList.toggle('on');},
   zoom(){const z=[1,1.2,1.4,2],i=z.indexOf(S.zoom||1);S.zoom=z[(i+1)%z.length];saveCfg();dmRender();},
   camToggle(){if(running)stop();else start();},
