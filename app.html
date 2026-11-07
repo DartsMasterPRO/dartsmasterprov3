@@ -7993,7 +7993,7 @@ async function olChatSend() {
 .ac-nudge .sel{display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:18px;color:#ffd700;border:1px solid rgba(255,215,0,.4);border-radius:8px;cursor:pointer}
 .ac-cal-btns button.ok{background:linear-gradient(135deg,#00c870,#009955);border:none;color:#fff}
 
-/* ===== widok kamery w stylu Dartsmind ===== */
+/* ===== widok kamery w stylu Dartsmind (kolory DartsMaster Pro) ===== */
 #dm{display:none;position:fixed;inset:0;z-index:2500;background:#7d7d80;flex-direction:column;font-family:'Bebas Neue',cursive;-webkit-user-select:none;user-select:none}
 #dm.on{display:flex}
 .dm-top{display:flex;align-items:center;gap:8px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px;background:#f7f5f0}
@@ -8051,6 +8051,37 @@ async function olChatSend() {
 .dm-sheet-btns button{padding:10px;background:#1a1a26;border:1px solid #2a2a40;border-radius:8px;color:#e8e8f0;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;cursor:pointer}
 .dm-sheet-btns button.red{color:#ff3c3c;border-color:rgba(255,60,60,.4)}
 @media (min-aspect-ratio:1/1){ #dm{flex-direction:row;flex-wrap:wrap} .dm-top{width:100%} #dm-camwrap{width:auto;height:calc(100vh - 60px);max-height:none;margin:0} .dm-bottom{height:calc(100vh - 60px)} }
+
+/* --- motyw DartsMaster Pro: ciemne tło, cyjan --- */
+#dm{background:#0a0a0f}
+#dm .dm-top{background:#12121a;border-bottom:1px solid #2a2a40}
+#dm .dm-ic{background:#1a1a26;color:#00e5ff;border:1px solid rgba(0,229,255,.35)}
+#dm .dm-mode{color:#ff3c3c}
+#dm .dm-modei{color:#8888aa;border-color:#2a2a40}
+#dm .dm-next{background:#1a1a26;color:#00e5ff;border:2px solid #00e5ff;box-shadow:0 0 12px rgba(0,229,255,.35),inset 0 0 8px rgba(0,229,255,.08)}
+#dm .dm-pill{background:rgba(10,10,15,.78);color:#00e5ff;border:1px solid rgba(0,229,255,.3)}
+#dm #dm-round small{color:#8888aa}
+#dm .dm-tools button{background:rgba(10,10,15,.78);color:#00e5ff;border:1px solid rgba(0,229,255,.35)}
+#dm .dm-card{background:#1a1a26;border:2px solid #00e5ff;border-radius:12px;box-shadow:0 0 16px rgba(0,229,255,.3),inset 0 0 10px rgba(0,229,255,.05)}
+#dm .dm-darts{border-bottom:2px dashed #2a2a40}
+#dm .dm-dart b{color:#00e5ff}
+#dm .dm-dart.new b{color:#00e5ff;text-shadow:0 0 10px rgba(0,229,255,.7)}
+#dm .dm-dart:active{background:#12121a}
+#dm .dm-prev{color:#555570}
+#dm .dm-turn{border:2px solid #00e5ff;color:#00e5ff;border-radius:6px;box-shadow:0 0 8px rgba(0,229,255,.25)}
+#dm .dm-rem{color:#00e5ff;text-shadow:0 0 18px rgba(0,229,255,.35)}
+#dm .dm-rem.bust{color:#ff3c3c;text-shadow:0 0 18px rgba(255,60,60,.4)}
+#dm .dm-name{color:#e8e8f0}
+#dm .dm-co{color:#ffd700}
+#dm .dm-right span{color:#8888aa}
+#dm .dm-right b{color:#00e5ff}
+#dm .dm-others div{background:#12121a;border:1px solid #2a2a40;color:#e8e8f0}
+#dm .dm-others div b{color:#00e5ff}
+#dm .dm-act button{background:#1a1a26;color:#e8e8f0;border:1px solid #2a2a40}
+#dm #dm-pick{background:#12121a;border:1px solid #00e5ff;box-shadow:0 8px 28px rgba(0,0,0,.6),0 0 14px rgba(0,229,255,.25)}
+#dm #dm-pick .t{color:#8888aa}
+#dm #dm-pick button{background:#1a1a26;border:1px solid #2a2a40;color:#e8e8f0}
+#dm #dm-pick button.cur{border-color:#00e5ff;color:#00e5ff}
 </style>
 
 <div id="ac-cal">
@@ -8205,17 +8236,6 @@ function diffMask(cur,base){
   const{rw,rh,mask}=GEO,T=effT(),m=new Uint8Array(rw*rh),soft=new Uint8Array(rw*rh),a=hp(cur),b=hp(base);
   for(let i=0;i<m.length;i++){if(!mask[i])continue;const j=i*3;
     if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T*0.8)m[i]=1;}
-  // czuła maska do szukania cienkiego grota: zwykła różnica kolorów minus LOKALNE przesunięcie jasności
-  // (liczone z otoczenia ~25 px z pominięciem samej lotki) — bez pasów migotania i bez „halo”
-  {const R=Math.max(8,Math.round(GEO.rpx*0.17)),W=rw+1,cnt=new Int32Array(W*(rh+1));const S3=[0,1,2].map(()=>new Float64Array(W*(rh+1)));
-   for(let y=0;y<rh;y++){let c=0;const rs=[0,0,0];for(let x=0;x<rw;x++){const i=y*rw+x,k=i*4,ok=!m[i]&&mask[i];
-     if(ok){c++;rs[0]+=cur[k]-base[k];rs[1]+=cur[k+1]-base[k+1];rs[2]+=cur[k+2]-base[k+2];}
-     const q=(y+1)*W+x+1,u=y*W+x+1;cnt[q]=cnt[u]+c;for(let ch=0;ch<3;ch++)S3[ch][q]=S3[ch][u]+rs[ch];}}
-   const T6=T*0.6;
-   for(let y=0;y<rh;y++){const y0=Math.max(0,y-R),y1=Math.min(rh,y+R+1);for(let x=0;x<rw;x++){const i=y*rw+x;if(!mask[i])continue;
-     const x0=Math.max(0,x-R),x1=Math.min(rw,x+R+1),A=y1*W+x1,B=y0*W+x1,C=y1*W+x0,D=y0*W+x0,n=cnt[A]-cnt[B]-cnt[C]+cnt[D];if(n<20)continue;
-     const k=i*4;let dv=0;for(let ch=0;ch<3;ch++){const off=(S3[ch][A]-S3[ch][B]-S3[ch][C]+S3[ch][D])/n;dv+=Math.abs(cur[k+ch]-base[k+ch]-off);}
-     if(dv>T6)soft[i]=1;}}}
   // filtr większościowy 3x3: usuwa szum, zostawia cienkie (2px) lotki
   const q=new Uint8Array(m.length);
   for(let y=1;y<rh-1;y++)for(let x=1;x<rw-1;x++){const i=y*rw+x;
@@ -8311,10 +8331,7 @@ function tipOf(px,raw,useGeo,soft){
   }
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
   if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh;let maxS=Math.round(L*0.6);let gap=0,last=0;
-    // grot jest cienki i słabo kontrastowy: na znanej osi lotki używamy czulszej maski, ale nie dalej niż ~40 mm
-    let M=raw,ww=2,gp=3;
-    if(geoAx&&soft){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
-      if(od){maxS=Math.max(3,Math.round(Math.min(maxS,od[2]*40/120)));M=soft;ww=1;gp=2;}}
+    const M=raw,ww=2,gp=3;
     for(let s=1;s<=maxS;s++){let hit=false;
       for(let w=-ww;w<=ww&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
         if(x>=0&&y>=0&&x<rw&&y<rh&&M[y*rw+x])hit=true;}
@@ -8462,13 +8479,16 @@ function analyze(cur){
   // potwierdzenie: ta sama plama musi wyjść w 2 niezależnych odczytach (szum się nie powtarza)
   if(!cand||tickN-cand.t<3){
     if(cand){const st=cand.set;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});if(ov<r.px.length*0.4)cand=null;}
-    if(!cand)cand={set:new Set(r.px),t:tickN,n:r.px.length};
+    if(!cand){const t0=tipOf(r.px,r.raw);cand={set:new Set(r.px),t:tickN,n:r.px.length,tip:[t0.x,t0.y]};}
     forceAt=cand.t+3;lg('kandydat lotki '+r.px.length+'px');status('Sprawdzam lotkę…','#00e5ff');return;
   }
+  let candTip=cand?cand.tip:null;
   {const st=cand.set,n0=cand.n;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});cand=null;
    if(Math.abs(r.px.length-n0)>Math.max(r.px.length,n0)*0.35){lg('plama zmienia rozmiar ('+n0+'→'+r.px.length+') — to nie lotka');status('Gotowe — rzucaj 🎯','#00ff88');return;}
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
-  let tp=tipOf(r.px,r.raw,undefined,r.soft);let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
+  let tp=tipOf(r.px,r.raw,undefined,r.soft);
+  // uśrednienie grota z dwóch niezależnych odczytów (mniej szumu → pewniejsze pole przy drucie)
+  if(candTip&&Math.hypot(tp.x-candTip[0],tp.y-candTip[1])<GEO.rpx*0.03){tp.x=(tp.x+candTip[0])/2;tp.y=(tp.y+candTip[1])/2;}let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
   if(sc.lbl==='MISS'&&tp.tmax!==undefined&&!tp.geo){ // grot poza tarczą? sprawdź drugi koniec
     const save=S.tipDir;const ax=tp.ax;const t=tp.useMin?tp.tmax:tp.tmin;
     const[ox,oy]=workToNorm(tp.mx+ax[0]*t,tp.my+ax[1]*t),alt=normToScore(ox,oy);
@@ -8683,10 +8703,10 @@ function viewRect(A){
 }
 function dmMarker(ctx,x,y,lbl,k,i){
   const r=Math.max(6,k*0.018);
-  ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);ctx.fillStyle='rgba(229,120,30,.9)';ctx.fill();ctx.lineWidth=Math.max(2,r*0.35);ctx.strokeStyle='#fff';ctx.stroke();
+  ctx.beginPath();ctx.arc(x,y,r,0,2*Math.PI);ctx.fillStyle='rgba(0,229,255,.85)';ctx.fill();ctx.lineWidth=Math.max(2,r*0.35);ctx.strokeStyle='#0a0a0f';ctx.stroke();
   const fs=Math.max(14,k*0.05|0);ctx.font=fs+"px 'Bebas Neue',sans-serif";const t=lbl,tw=ctx.measureText(t).width;
-  const bx=x+r+4,by=y-r-fs-2;ctx.fillStyle='rgba(255,255,255,.9)';ctx.fillRect(bx-4,by,tw+8,fs+4);
-  ctx.fillStyle='#222';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(t,bx,by+2);
+  const bx=x+r+4,by=y-r-fs-2;ctx.fillStyle='rgba(10,10,15,.85)';ctx.fillRect(bx-4,by,tw+8,fs+4);ctx.strokeStyle='#00e5ff';ctx.lineWidth=1;ctx.strokeRect(bx-4,by,tw+8,fs+4);
+  ctx.fillStyle='#00e5ff';ctx.textAlign='left';ctx.textBaseline='top';ctx.fillText(t,bx,by+2);
 }
 function dmDraw(){
   if(!dmOn)return;dmRaf=requestAnimationFrame(dmDraw);
@@ -8724,7 +8744,7 @@ function dmRender(){
   const darts=mine?curDarts():((RIV.dm&&RIV.dm.cp===cp)?(RIV.dm.darts||[]).map(d=>({lbl:d.l,val:d.v})):[]);
   const tsum=darts.reduce((a,d)=>a+(d.val||0),0);
   $('dm-darts').innerHTML=[0,1,2].map(i=>{const d=darts[i];
-    return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+'" onclick="AutoCam.pick('+i+')">'+dartSvg(d?'#e5781e':'#d9d9d9')+'<b>'+(d?d.lbl:'&nbsp;')+'</b></div>';}).join('');
+    return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+'" onclick="AutoCam.pick('+i+')">'+dartSvg(d?'#00e5ff':'#2a2a40')+'<b>'+(d?d.lbl:'&nbsp;')+'</b></div>';}).join('');
   const prev=cr?(G.cScores||[])[cp]:G.scores[cp];let rem=cr?prev:prev-tsum;
   const bust=!cr&&(rem<0||(G.dOut&&rem===1));
   const pe=$('dm-prev');pe.textContent=(!cr&&tsum)?prev:'';pe.classList.toggle('x',!!tsum);
