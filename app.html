@@ -8202,14 +8202,25 @@ function hp(d){
 }
 function effT(){return Math.max(S.thr,noiseEst*1.8);}
 function diffMask(cur,base){
-  const{rw,rh,mask}=GEO,T=effT(),m=new Uint8Array(rw*rh),a=hp(cur),b=hp(base);
+  const{rw,rh,mask}=GEO,T=effT(),m=new Uint8Array(rw*rh),soft=new Uint8Array(rw*rh),a=hp(cur),b=hp(base);
   for(let i=0;i<m.length;i++){if(!mask[i])continue;const j=i*3;
     if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T*0.8)m[i]=1;}
+  // czuła maska do szukania cienkiego grota: zwykła różnica kolorów minus LOKALNE przesunięcie jasności
+  // (liczone z otoczenia ~25 px z pominięciem samej lotki) — bez pasów migotania i bez „halo”
+  {const R=Math.max(8,Math.round(GEO.rpx*0.17)),W=rw+1,cnt=new Int32Array(W*(rh+1));const S3=[0,1,2].map(()=>new Float64Array(W*(rh+1)));
+   for(let y=0;y<rh;y++){let c=0;const rs=[0,0,0];for(let x=0;x<rw;x++){const i=y*rw+x,k=i*4,ok=!m[i]&&mask[i];
+     if(ok){c++;rs[0]+=cur[k]-base[k];rs[1]+=cur[k+1]-base[k+1];rs[2]+=cur[k+2]-base[k+2];}
+     const q=(y+1)*W+x+1,u=y*W+x+1;cnt[q]=cnt[u]+c;for(let ch=0;ch<3;ch++)S3[ch][q]=S3[ch][u]+rs[ch];}}
+   const T6=T*0.6;
+   for(let y=0;y<rh;y++){const y0=Math.max(0,y-R),y1=Math.min(rh,y+R+1);for(let x=0;x<rw;x++){const i=y*rw+x;if(!mask[i])continue;
+     const x0=Math.max(0,x-R),x1=Math.min(rw,x+R+1),A=y1*W+x1,B=y0*W+x1,C=y1*W+x0,D=y0*W+x0,n=cnt[A]-cnt[B]-cnt[C]+cnt[D];if(n<20)continue;
+     const k=i*4;let dv=0;for(let ch=0;ch<3;ch++){const off=(S3[ch][A]-S3[ch][B]-S3[ch][C]+S3[ch][D])/n;dv+=Math.abs(cur[k+ch]-base[k+ch]-off);}
+     if(dv>T6)soft[i]=1;}}}
   // filtr większościowy 3x3: usuwa szum, zostawia cienkie (2px) lotki
   const q=new Uint8Array(m.length);
   for(let y=1;y<rh-1;y++)for(let x=1;x<rw-1;x++){const i=y*rw+x;
     const c=m[i-rw-1]+m[i-rw]+m[i-rw+1]+m[i-1]+m[i]+m[i+1]+m[i+rw-1]+m[i+rw]+m[i+rw+1];if(c>=5)q[i]=1;}
-  q.raw=m;return q;
+  q.raw=m;q.soft=soft;return q;
 }
 function comps(m){
   const{rw,rh}=GEO,lab=new Int32Array(m.length),out=[];let id=0;const st=[];
@@ -8239,9 +8250,9 @@ function analyzeDiff(cur,base,exclude){
     const perp=Math.abs(dx*ax[1]-dy*ax[0]); // odległość od osi głównej plamy
     const perpG=od?Math.abs(dx*od[1]-dy*od[0]):1e9; // odległość od osi lotki z geometrii kamery
     if(dist<GEO.rpx*0.35||(dist<GEO.rpx*1.1&&Math.min(perp,perpG)<Math.max(6,dist*0.3)))px=px.concat(c.px);}
-  return{total,px,m,raw:m.raw};
+  return{total,px,m,raw:m.raw,soft:m.soft};
 }
-function tipOf(px,raw,useGeo){
+function tipOf(px,raw,useGeo,soft){
   const rw=GEO.rw,n=px.length;let mx=0,my=0;
   for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=n;my/=n;
   let cxx=0,cyy=0,cxy=0;
@@ -8299,13 +8310,17 @@ function tipOf(px,raw,useGeo){
     }
   }
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
-  if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh,maxS=Math.round(L*0.6);let gap=0,last=0;
+  if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh;let maxS=Math.round(L*0.6);let gap=0,last=0;
+    // grot jest cienki i słabo kontrastowy: na znanej osi lotki używamy czulszej maski, ale nie dalej niż ~40 mm
+    let M=raw,ww=2,gp=3;
+    if(geoAx&&soft){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
+      if(od){maxS=Math.max(3,Math.round(Math.min(maxS,od[2]*40/120)));M=soft;ww=1;gp=2;}}
     for(let s=1;s<=maxS;s++){let hit=false;
-      for(let w=-2;w<=2&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
-        if(x>=0&&y>=0&&x<rw&&y<rh&&raw[y*rw+x])hit=true;}
-      if(hit){last=s;gap=0;}else if(++gap>3)break;}
+      for(let w=-ww;w<=ww&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
+        if(x>=0&&y>=0&&x<rw&&y<rh&&M[y*rw+x])hit=true;}
+      if(hit){last=s;gap=0;}else if(++gap>gp)break;}
     tx+=dx*last;ty+=dy*last;}
-  return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my};
+  return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my,geo:geoAx||geoOk};
 }
 function tipOfForced(px,raw,useMin){
   const d=S.tipDir;S.tipDir='__force';FORCE_MIN=useMin;try{return tipOf(px,raw,false);}finally{S.tipDir=d;}
@@ -8453,8 +8468,8 @@ function analyze(cur){
   {const st=cand.set,n0=cand.n;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});cand=null;
    if(Math.abs(r.px.length-n0)>Math.max(r.px.length,n0)*0.35){lg('plama zmienia rozmiar ('+n0+'→'+r.px.length+') — to nie lotka');status('Gotowe — rzucaj 🎯','#00ff88');return;}
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
-  let tp=tipOf(r.px,r.raw);let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
-  if(sc.lbl==='MISS'&&tp.tmax!==undefined){ // grot poza tarczą? sprawdź drugi koniec
+  let tp=tipOf(r.px,r.raw,undefined,r.soft);let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
+  if(sc.lbl==='MISS'&&tp.tmax!==undefined&&!tp.geo){ // grot poza tarczą? sprawdź drugi koniec
     const save=S.tipDir;const ax=tp.ax;const t=tp.useMin?tp.tmax:tp.tmin;
     const[ox,oy]=workToNorm(tp.mx+ax[0]*t,tp.my+ax[1]*t),alt=normToScore(ox,oy);
     if(alt.lbl!=='MISS'){S.tipDir=tp.useMin?'__max':'__min';}
