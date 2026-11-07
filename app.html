@@ -8350,7 +8350,7 @@ function afterDart(){
 
 /* ---------- główna pętla ---------- */
 function tick(){
-  if(!running||!video||video.readyState<2)return;
+  if(!running||!camReady||!video||video.readyState<2)return;
   if(video.videoWidth!==vw||video.videoHeight!==vh){vw=video.videoWidth;vh=video.videoHeight;buildGeo();resetRefs();}
   if(!GEO){status('Brak kalibracji — kliknij KALIBRUJ','#ffd700');return;}
   tickN++;
@@ -8513,13 +8513,38 @@ async function listCams(){
     s.innerHTML='<option value="">Domyślna (tylna)</option>'+ds.map((d,i)=>'<option value="'+d.deviceId+'"'+(d.deviceId===S.deviceId?' selected':'')+'>'+(d.label||('Kamera '+(i+1)))+'</option>').join('');
   }catch(e){}
 }
+// średnia jasność obrazu (mały podgląd 64 px)
+const lumCv=document.createElement('canvas');lumCv.width=64;lumCv.height=36;
+function frameLum(){try{const c=lumCv.getContext('2d',{willReadFrequently:true});c.drawImage(video,0,0,64,36);const d=c.getImageData(0,0,64,36).data;let t=0;for(let i=0;i<d.length;i+=4)t+=d[i]*.3+d[i+1]*.59+d[i+2]*.11;return t/(d.length/4);}catch(e){return 0;}}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// czekaj aż automatyczna ekspozycja się ustabilizuje, potem zablokuj DOKŁADNIE bieżące wartości
+async function settleAndLock(){
+  const t0=performance.now(),h=[];
+  while(running&&performance.now()-t0<4000){
+    await sleep(150);const l=frameLum();h.push(l);if(h.length>6)h.shift();
+    if(h.length>=6&&performance.now()-t0>700){const mn=Math.min(...h),mx=Math.max(...h);if(mx-mn<Math.max(2,mx*0.03))break;}
+  }
+  if(!running)return;
+  if(S.lockExp)await lockExposure();
+  camReady=true;resetRefs();lg('kamera gotowa (jasność '+Math.round(frameLum())+')');
+}
 async function lockExposure(){
-  if(!track||!S.lockExp||!track.getCapabilities)return;
-  try{const c=track.getCapabilities(),adv={};
-    if(c.exposureMode&&c.exposureMode.includes('manual'))adv.exposureMode='manual';
-    if(c.whiteBalanceMode&&c.whiteBalanceMode.includes('manual'))adv.whiteBalanceMode='manual';
-    if(c.focusMode&&c.focusMode.includes('manual'))adv.focusMode='manual';
-    if(Object.keys(adv).length)await track.applyConstraints({advanced:[adv]});
+  if(!track||!track.getCapabilities||!track.getSettings)return;
+  try{
+    const c=track.getCapabilities(),st=track.getSettings(),adv={};
+    // ekspozycja: tylko jeśli znamy bieżący czas naświetlania — inaczej telefon wziąłby domyślny (ściemnienie)
+    if(c.exposureMode&&c.exposureMode.includes('manual')&&st.exposureTime){adv.exposureMode='manual';adv.exposureTime=st.exposureTime;if(c.iso&&st.iso)adv.iso=st.iso;}
+    if(c.whiteBalanceMode&&c.whiteBalanceMode.includes('manual')&&st.colorTemperature){adv.whiteBalanceMode='manual';adv.colorTemperature=st.colorTemperature;}
+    if(c.focusMode&&c.focusMode.includes('manual')&&st.focusDistance){adv.focusMode='manual';adv.focusDistance=st.focusDistance;}
+    if(!Object.keys(adv).length){lg('blokada ekspozycji niedostępna w tym telefonie');return;}
+    const before=frameLum();
+    await track.applyConstraints({advanced:[adv]});
+    await sleep(600);
+    const after=frameLum();
+    if(before>0&&Math.abs(after-before)>before*0.12){ // telefon zmienił jasność — wracamy do automatu
+      const back={};if(adv.exposureMode)back.exposureMode='continuous';if(adv.whiteBalanceMode)back.whiteBalanceMode='continuous';if(adv.focusMode)back.focusMode='continuous';
+      await track.applyConstraints({advanced:[back]});lg('blokada zmieniała jasność → auto');
+    }else lg('ekspozycja zablokowana');
   }catch(e){console.log('[AutoCam] lockExposure',e);}
 }
 async function start(){
@@ -8537,15 +8562,15 @@ async function start(){
   try{await video.play();}catch(e){}
   await new Promise(r=>{if(video.videoWidth)r();else video.onloadedmetadata=()=>r();});
   vw=video.videoWidth;vh=video.videoHeight;track=stream.getVideoTracks()[0];
-  running=true;buildGeo();resetRefs();
+  camReady=false;running=true;buildGeo();resetRefs();
   $('ac-bar').style.display='none';
   timer=setInterval(tick,TICK);
   try{if('wakeLock'in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
-  listCams();setTimeout(lockExposure,2500);renderDarts();
+  listCams();settleAndLock();renderDarts();
   if(!CAL)openCal();
 }
 function stop(){
-  running=false;clearInterval(timer);cancelAnimationFrame(raf);clearTimeout(confirmT);
+  running=false;camReady=false;clearInterval(timer);cancelAnimationFrame(raf);clearTimeout(confirmT);
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;track=null;
   try{if(wakeLock)wakeLock.release();}catch(e){}wakeLock=null;
   if(fsMode)toggleFs();
@@ -8557,7 +8582,7 @@ function toggleFs(){
 }
 
 /* ================= WIDOK KAMERY (styl Dartsmind) + ONLINE ================= */
-let dmOn=false,dmRaf=0,dmTimer=null,dmUnsub=null,dmSeq=0,dmSending=false,dmLastRect=null,dmLastSendDarts='';
+let camReady=false,dmOn=false,dmRaf=0,dmTimer=null,dmUnsub=null,dmSeq=0,dmSending=false,dmLastRect=null,dmLastSendDarts='';
 const RIV={uid:null,img:null,seq:-1,dm:null,ts:0};
 const sendCv=document.createElement('canvas');
 function isOnline(){return typeof G!=='undefined'&&G&&G._onlineRoomId&&window._fb&&window._fbUser;}
@@ -8602,7 +8627,7 @@ function dmDraw(){
       ctx.drawImage(RIV.img,dx,dy,dw,dh);
       (RIV.dm.darts||[]).forEach((d,i)=>{if(d.x!=null)dmMarker(ctx,dx+d.x*dw,dy+d.y*dh,d.l,k,i);});
     }else msg='📡 '+(G.players[G.cp]||'Rywal')+' rzuca<br>— rywal nie ma włączonej kamery —';
-  }else if(running&&video&&video.readyState>=2&&vw){
+  }else if(running&&camReady&&video&&video.readyState>=2&&vw){
     const R=viewRect(cw/ch);dmLastRect=R;
     ctx.drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,cw,ch);
     const kx=cw/R.sw,ky=ch/R.sh;
@@ -8613,7 +8638,7 @@ function dmDraw(){
       ctx.save();ctx.setTransform(kx,0,0,ky,-R.sx*kx,-R.sy*ky);drawBoard(ctx,GEO.H,vw,vh,'#00e5ff',.5,1/kx);ctx.restore();
     }
     turn.forEach((d,i)=>dmMarker(ctx,(d.tip[0]*vw-R.sx)*kx,(d.tip[1]*vh-R.sy)*ky,d.sc.lbl,k,i));
-  }else msg=running?'Uruchamiam kamerę…':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
+  }else msg=running?'Uruchamiam kamerę…<br>ustawiam jasność':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
   if(nc){nc.style.display=msg?'flex':'none';if(msg&&nc.innerHTML!==msg)nc.innerHTML=msg;}
 }
 function dmRender(){
@@ -8642,7 +8667,7 @@ function dmRender(){
 }
 function dmSendTick(){
   if(!dmOn||!running||!isOnline()||dmSending||!video||video.readyState<2||!vw)return;
-  if(!myTurn())return;
+  if(!myTurn()||!camReady)return;
   dmSending=true;
   try{
     const N=360,R=viewRect(1);sendCv.width=N;sendCv.height=N;sendCv.getContext('2d').drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,N,N);
