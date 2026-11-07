@@ -8265,11 +8265,21 @@ function analyzeDiff(cur,base,exclude){
     let a=0,b=0,c=0;for(const i of main.px){const dx=i%rw-mx,dy=((i/rw)|0)-my;a+=dx*dx;b+=dy*dy;c+=dx*dy;}
     const th=0.5*Math.atan2(2*c,a-b);ax=[Math.cos(th),Math.sin(th)];}
   let od=null;{const[nx,ny]=workToNorm(main.cx,main.cy),bb=ap(GEO.Hi,nx,ny);if(bb)od=outDir(bb[0],bb[1]);}
-  for(let k=1;k<cs.length;k++){const c=cs[k];if(c.n<8)continue;
+  // zakres plamy wzdłuż osi lotki — dołączana część nie może zrobić lotki dłuższej niż prawdziwa
+  const rwq=GEO.rw,axU=od?[od[0],od[1]]:ax,Lmax=od&&od[2]>GEO.rpx*0.1?od[2]*150/120+10:GEO.rpx*1.1;
+  let t0=1e9,t1=-1e9;for(const i of main.px){const t=(i%rwq-main.cx)*axU[0]+(((i/rwq)|0)-main.cy)*axU[1];if(t<t0)t0=t;if(t>t1)t1=t;}
+  const near=cs.slice(1).filter(c=>c.n>=8).sort((a,b)=>Math.hypot(a.cx-main.cx,a.cy-main.cy)-Math.hypot(b.cx-main.cx,b.cy-main.cy));
+  for(const c of near){
     const dx=c.cx-main.cx,dy=c.cy-main.cy,dist=Math.hypot(dx,dy);
     const perp=Math.abs(dx*ax[1]-dy*ax[0]); // odległość od osi głównej plamy
     const perpG=od?Math.abs(dx*od[1]-dy*od[0]):1e9; // odległość od osi lotki z geometrii kamery
-    if(dist<GEO.rpx*0.35||(dist<GEO.rpx*1.1&&Math.min(perp,perpG)<Math.max(6,dist*0.3)))px=px.concat(c.px);}
+    if(!(dist<GEO.rpx*0.35||(dist<GEO.rpx*1.1&&Math.min(perp,perpG)<Math.max(6,dist*0.3))))continue;
+    let a0=t0,a1=t1;for(const i of c.px){const t=(i%rwq-main.cx)*axU[0]+(((i/rwq)|0)-main.cy)*axU[1];if(t<a0)a0=t;if(t>a1)a1=t;}
+    if(a1-a0>Lmax)continue; // za długo jak na jedną lotkę → to coś innego (cień, krawędź, ręka)
+    {let c0=1e9,c1=-1e9;for(const i of c.px){const t=(i%rwq-main.cx)*axU[0]+(((i/rwq)|0)-main.cy)*axU[1];if(t<c0)c0=t;if(t>c1)c1=t;}
+     const gap=Math.max(0,c0-t1,t0-c1),gapMax=od&&od[2]>GEO.rpx*0.1?od[2]*35/120+6:GEO.rpx*0.3;
+     if(gap>gapMax)continue;} // przerwa większa niż trzonek lotki → osobny obiekt
+    t0=a0;t1=a1;px=px.concat(c.px);}
   return{total,px,m,raw:m.raw,soft:m.soft};
 }
 function tipOf(px,raw,useGeo,soft){
@@ -8332,6 +8342,8 @@ function tipOf(px,raw,useGeo,soft){
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
   if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh;let maxS=Math.round(L*0.6);let gap=0,last=0;
     const M=raw,ww=2,gp=3;
+    // grot nie wystaje dalej niż ~45 mm przed lufkę
+    if(geoAx){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;if(od)maxS=Math.max(3,Math.round(Math.min(maxS,od[2]*45/120)));}
     for(let s=1;s<=maxS;s++){let hit=false;
       for(let w=-ww;w<=ww&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
         if(x>=0&&y>=0&&x<rw&&y<rh&&M[y*rw+x])hit=true;}
@@ -8521,7 +8533,7 @@ function looksLikeDart(px){
   if(od&&od[2]>GEO.rpx*0.1){
     const Lexp=od[2]*140/120,Lpar=t1-t0,Lper=q1-q0;
     if(Lpar<Lexp*0.25)return{ok:false,why:'za krótka wzdłuż osi lotki ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
-    if(Lpar>Lexp*2.2+12)return{ok:false,why:'za długa ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
+    if(Lpar>Lexp*1.5+12)return{ok:false,why:'za długa ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
     if(Lper>Math.max(Lpar*1.3,GEO.rpx*0.35))return{ok:false,why:'zła orientacja (w poprzek osi lotki)'};
     if(n/Math.max(1,Lpar)>GEO.rpx*0.38+6)return{ok:false,why:'za gruba jak na lotkę (cień/ręka?)'};
   }else{
