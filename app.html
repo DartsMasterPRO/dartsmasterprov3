@@ -8161,7 +8161,7 @@ const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=4, ROI_K=1.45;
 
-const S={autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
+const S={pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
 let CAL=null;
 function loadCfg(){try{const o=JSON.parse(localStorage.getItem(LS)||'{}');if(o.s){if(o.v!==2)delete o.s.thr;Object.assign(S,o.s);}if(o.cal&&o.cal.pts&&o.cal.pts.length===4)CAL=o.cal;}catch(e){}}
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify({v:2,s:S,cal:CAL}));}catch(e){}}
@@ -8220,7 +8220,7 @@ function scoreAt(bx,by){
 /* ---------- stan ---------- */
 let stream=null,track=null,video=null,running=false,timer=null,raf=0,wakeLock=null;
 let vw=0,vh=0,GEO=null;
-let lastMoveTick=-999,tickN=0,forceAt=-1,cand=null,noiseEst=0,frames=[],refAge=0,mvHist=[],DG={mv:0,mvThr:0,area:0},ref=null,empty=null,prevL=null,dirty=false,stable=0,lastMask=null,lastMaskT=0;
+let cand0tries=0,lastMoveTick=-999,tickN=0,forceAt=-1,cand=null,noiseEst=0,frames=[],refAge=0,mvHist=[],DG={mv:0,mvThr:0,area:0},ref=null,empty=null,prevL=null,dirty=false,stable=0,lastMask=null,lastMaskT=0;
 let turn=[],turnKey0=null,closed=false,sumDarts=[],confirmT=null,fsMode=false;
 const wc=document.createElement('canvas');const wctx=wc.getContext('2d',{willReadFrequently:true});
 
@@ -8399,13 +8399,26 @@ function tipOf(px,raw,useGeo,soft){
       for(let w=-ww;w<=ww&&!hit;w++){const x=Math.round(tx+dx*s-dy*w),y=Math.round(ty+dy*s+dx*w);
         if(x>=0&&y>=0&&x<rw&&y<rh&&M[y*rw+x])hit=true;}
       if(hit){last=s;gap=0;}else if(++gap>gp)break;}
-    tx+=dx*last;ty+=dy*last;}
+    tx+=dx*last;ty+=dy*last;
+    // KOMPENSACJA PARALAKSY: ile cienkiego grota widać przed lufką? brakujący odcinek dolicz wzdłuż osi lotki
+    if(geoAx){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;
+      if(od){const ppm=od[2]/120,Lexp=(S.pointLen||25)*ppm,cosA=Math.abs(dx*od[0]+dy*od[1]);
+        if(Lexp>=3&&cosA>0.7){
+          const N=Math.round(Lexp*1.8)+6,prof=[];
+          for(let k=0;k<=N;k++){const cx=tx-dx*k,cy=ty-dy*k;let w=0;
+            for(let q=-9;q<=9;q++){const x=Math.round(cx-dy*q),y=Math.round(cy+dx*q);if(x>=0&&y>=0&&x<rw&&y<rh&&raw[y*rw+x])w++;}prof.push(w);}
+          const wmax=Math.max(...prof);
+          if(wmax>=4){const thrW=Math.max(3,wmax*0.55);let vis=prof.findIndex(w=>w>=thrW);if(vis<0)vis=N;
+            const tipThin=prof[0]+prof[1]+prof[2]<=thrW*1.2; // na samym końcu brak cienkiego grota?
+            if(vis<=3&&!tipThin||vis<=2){const add=(Lexp-vis)*cosA;tx+=dx*add;ty+=dy*add;LAST_FIX=Math.round(add/ppm);}else LAST_FIX=0;}
+        }}}
+  }
   return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my,geo:geoAx||geoOk};
 }
 function tipOfForced(px,raw,useMin){
   const d=S.tipDir;S.tipDir='__force';FORCE_MIN=useMin;try{return tipOf(px,raw,false);}finally{S.tipDir=d;}
 }
-let FORCE_MIN=false;
+let FORCE_MIN=false,LAST_FIX=0;
 function fracChanged(cur,base,px){
   if(!px||!px.length)return 0;const T=effT(),a=hp(cur),b=hp(base);let n=0;
   for(const i of px){const j=i*3;if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T)n++;}
@@ -8496,7 +8509,7 @@ function tick(){
   const srt=mvHist.slice().sort((a,b)=>a-b),base=srt[Math.floor(srt.length*0.3)]||0;
   const mvThr=base*2.5+Math.max(15,GEO.mn/4*0.002);
   DG.mv=mv;DG.mvThr=Math.round(mvThr);
-  if(mv>mvThr*0.6)lastMoveTick=tickN;
+  if(mv>Math.max(8,mvThr*0.4))lastMoveTick=tickN;
   if(mv>mvThr){dirty=true;stable=0;cand=null;status('Ruch…','#ff8c00');diag();return;}
   stable++;
   if(stable<STABLE_N){diag();return;}
@@ -8561,7 +8574,11 @@ function analyze(cur){
   }
   let candTip=cand?cand.tip:null;
   {const st=cand.set,n0=cand.n;let ov=0;r.px.forEach(i=>{if(st.has(i))ov++;});cand=null;
-   if(Math.abs(r.px.length-n0)>Math.max(r.px.length,n0)*0.35){lg('plama zmienia rozmiar ('+n0+'→'+r.px.length+') — to nie lotka');status('Gotowe — rzucaj 🎯','#00ff88');return;}
+   if(Math.abs(r.px.length-n0)>Math.max(r.px.length,n0)*0.35){
+     const tries=(cand0tries||0)+1;
+     if(tries<=3){cand0tries=tries;cand={set:new Set(r.px),t:tickN,n:r.px.length};forceAt=tickN+3;lg('plama jeszcze się zmienia ('+n0+'→'+r.px.length+') — sprawdzam ponownie');return;}
+     cand0tries=0;lg('plama ciągle zmienia rozmiar ('+n0+'→'+r.px.length+') — to nie lotka');status('Gotowe — rzucaj 🎯','#00ff88');return;}
+   cand0tries=0;
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
   let tp=tipOf(r.px,r.raw,undefined,r.soft);
   // uśrednienie grota z dwóch niezależnych odczytów (mniej szumu → pewniejsze pole przy drucie)
@@ -8575,7 +8592,7 @@ function analyze(cur){
   }
   if(!turn.length)turnKey0=tkey();
   const d={px:r.px,before:ref,tip:[nx,ny],sc};
-  lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%)');
+  lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%'+(LAST_FIX?', ukryty grot +'+LAST_FIX+' mm':'')+')');LAST_FIX=0;
   if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
   turn.push(d);ref=cur;refAge=0;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');
@@ -9261,6 +9278,7 @@ function mount(){
      '<label>Czułość <input type="range" id="ac-thr" min="15" max="120" step="5" oninput="AutoCam.set(\'thr\',+this.value)"></label>'+
      '<label>Grot lotki na obrazie <select id="ac-tip" onchange="AutoCam.set(\'tipDir\',this.value)">'+
        '<option value="auto">Auto (z kalibracji)</option><option value="narrow">Węższy koniec</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
+     '<label>Długość grota (mm) <input type="range" id="ac-plen" min="15" max="40" step="1" oninput="AutoCam.set(\'pointLen\',+this.value);this.nextElementSibling.textContent=this.value"><span style="width:22px;color:#00e5ff">27</span></label>'+
      '<label>Auto-zatwierdzanie po wyjęciu <input type="checkbox" id="ac-auto" onchange="AutoCam.set(\'autoConfirm\',this.checked)"></label>'+
      '<label>Autokalibracja przy starcie <input type="checkbox" id="ac-acal" onchange="AutoCam.set(\'autoCal\',this.checked)"></label>'+
      '<label>Blokada ekspozycji <input type="checkbox" id="ac-exp" onchange="AutoCam.set(\'lockExp\',this.checked)"></label>'+
@@ -9299,7 +9317,7 @@ function mount(){
     const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
     addManual(nx,ny);
   });
-  const thr=$('ac-thr');thr.value=S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-acal').checked=S.autoCal!==false;
+  const thr=$('ac-thr');thr.value=S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
