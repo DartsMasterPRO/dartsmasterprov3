@@ -8607,9 +8607,41 @@ function remaining(){
   const s=mode==='x01'?G.throws.filter(v=>v!==null).reduce((a,b)=>a+b,0):sumOf();
   return G.scores[G.cp]-s;
 }
+/* ---------- oklaski po zatwierdzeniu tury z kamery (zamiast dźwięku wbicia lotki) ---------- */
+let CONF_T=0;
+function applause(level){ // syntetyczne oklaski: krótkie, ciche, w wysokich tonach — nie zagłuszają lektora
+  try{if(typeof isMuted!=='undefined'&&isMuted)return;const c=ac();if(c.state==='suspended')c.resume();
+    const dur=level>1?1.9:1.3,now=c.currentTime+0.05,sr=c.sampleRate;
+    const out=c.createGain();out.gain.value=level>1?0.30:0.22;
+    const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=1600;
+    const pk=c.createBiquadFilter();pk.type='peaking';pk.frequency.value=2600;pk.Q.value=0.8;pk.gain.value=4;
+    hp.connect(pk);pk.connect(out);out.connect(c.destination);
+    // jedno klaśnięcie = 25 ms szumu z szybkim wygaszeniem
+    const clap=c.createBuffer(1,Math.round(sr*0.025),sr),d=clap.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.exp(-i/(sr*0.004));
+    const n=Math.round((level>1?70:42)*dur);
+    for(let k=0;k<n;k++){
+      const t=Math.random()*dur,env=Math.min(1,t/0.15)*Math.max(0,1-Math.pow(t/dur,2)); // narastanie i wygasanie
+      if(env<=0.02)continue;
+      const src=c.createBufferSource(),g=c.createGain();src.buffer=clap;src.playbackRate.value=0.8+Math.random()*0.5;
+      g.gain.value=env*(0.35+Math.random()*0.65);src.connect(g);g.connect(hp);src.start(now+t);
+    }
+  }catch(e){}
+}
+try{
+  const _pds=window.playDartSound;
+  if(typeof _pds==='function')window.playDartSound=function(){if(Date.now()-CONF_T<1500)return;return _pds.apply(this,arguments);};
+  const _an=window.announceScore;
+  if(typeof _an==='function')window.announceScore=function(score,bust){
+    const r=_an.apply(this,arguments);
+    if(Date.now()-CONF_T<1500&&!bust&&score>0&&score!==180)setTimeout(()=>applause(score>=100?2:1),120);
+    return r;};
+  if(typeof SFX!=='undefined'&&SFX.confirm){const _sc=SFX.confirm;SFX.confirm=function(){if(Date.now()-CONF_T<1500)return;return _sc.apply(this,arguments);};}
+}catch(e){}
 function confirmTurn(){
   clearTimeout(confirmT);confirmT=null;
   const mode=gm();if(!mode||turnKey0!==tkey())return; // już zatwierdzone ręcznie
+  CONF_T=Date.now();
   if(mode==='x01'){if(G.throws.some(v=>v!==null))confirmThrow();}
   else if(mode==='atc'){let g=0;while(G.atcDarts!==0&&g++<3&&G.active)atcAct(false);ATCV++;} // niewykryte lotki = pudła
   else if(mode==='xg'){XGAME.endTurn();}
@@ -9889,6 +9921,7 @@ window.AutoCam={
   bullRethrow(round){BULL.round=round;BULL.res=null;BULL.locked=false;if(turn.length){closed=true;status('Wyjmij lotkę z tarczy i rzuć jeszcze raz ✋','#ffd700');}dmRender();},
   bullEnd(keep){const was=BULL.active;BULL.active=false;BULL.cb={};turn=[];turnKey0=null;closed=false;if(!was)return;if(!keep)dmClose();else{resetRefs();dmRender();}},
   bullActive(){return BULL.active;},
+  testApplause(l){applause(l||1);},
   learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;lrnSave();toast('🧠 Zapomniano nauczone korekty');},
   async clearReports(){if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
   reportDart(i){$('dm-pick').classList.remove('on');if(turn[i])report('manual',turn[i],null,null);},
