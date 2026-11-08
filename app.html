@@ -900,7 +900,7 @@ input{outline:none}
 
 <!-- AUDIO -->
 <audio id="win-sound" preload="auto">
-  <source src="media/win.mp3" type="audio/mpeg">
+  <source src="media/wygrana.mp3" type="audio/mpeg">
 </audio>
 
 
@@ -2049,15 +2049,7 @@ const SFX = {
     if(isMuted) return;
     tone(800,950,0.08,0.18,'sine');
   },
-  win(){
-    if(isMuted) return;
-    if(CUSTOM_SOUNDS.winner) {
-      playCustomSound('winner');
-    } else {
-      const melody=[523,659,784,659,784,1047];
-      melody.forEach((f,i)=>tone(f,f,0.18,0.22,'square',i*0.16));
-    }
-  },
+  win(){ playWinFanfare(); },
   gameOn(){
     if(isMuted) return;
     if(CUSTOM_SOUNDS.gameOn) {
@@ -3357,8 +3349,25 @@ function undoAtc(){
 }
 
 // ===== WIN =====
+// 🏆 Dźwięk zwycięstwa — gra tylko na urządzeniu zwycięzcy (ekran wygranej); przegrany widzi ekran porażki bez fanfar
+let _winFanT=0;
+function playWinFanfare(){
+  if(isMuted) return;
+  if(Date.now()-_winFanT<4000) return; _winFanT=Date.now();
+  if(typeof CUSTOM_SOUNDS!=='undefined' && CUSTOM_SOUNDS.winner && typeof playCustomSound==='function'){ playCustomSound('winner'); return; }
+  const melody=()=>[523,659,784,659,784,1047].forEach((f,i)=>tone(f,f,0.18,0.22,'square',i*0.16));
+  try{
+    const a=document.getElementById('win-sound');
+    if(!a){ melody(); return; }
+    a.currentTime=0; a.volume=1;
+    const p=a.play(); if(p&&p.catch) p.catch(()=>melody());
+  }catch(e){ melody(); }
+}
+// odblokuj dźwięk wygranej przy pierwszym dotknięciu (iOS/Android blokują dźwięk odtwarzany bez dotyku, np. po wyjęciu lotek przy kamerze)
+document.addEventListener('pointerdown',function _wu(){ try{ const a=document.getElementById('win-sound'); if(a){ a.muted=true; const p=a.play(); const done=()=>{ a.pause(); a.currentTime=0; a.muted=false; }; if(p&&p.then) p.then(done).catch(()=>{a.muted=false;}); else done(); } }catch(e){} document.removeEventListener('pointerdown',_wu,true); },true);
+function stopWinFanfare(){ try{ const a=document.getElementById('win-sound'); if(a){ a.pause(); a.currentTime=0; } }catch(e){} }
 function _doShowWin(name,rounds,avg,mode){
-  if(typeof playCustomSound === 'function' && CUSTOM_SOUNDS && CUSTOM_SOUNDS.winner) playCustomSound('winner');
+  playWinFanfare();
   // Pokaż/ukryj przyciski rewanżu zależnie od trybu
   const rematchBtn = document.getElementById('rematch-btn');
   const lobbyBtn   = document.getElementById('win-lobby-btn');
@@ -3398,6 +3407,7 @@ function showWin(name,rounds,avg,mode){ _doShowWin(name,rounds,avg,mode); }
 window.showWin=function(name,rounds,avg,mode){ _doShowWin(name,rounds,avg,mode); };
 
 async function closeWin(){
+  stopWinFanfare();
   var ov=document.getElementById('win-overlay');
   ov.classList.remove('show');
   ov.style.display='none';
