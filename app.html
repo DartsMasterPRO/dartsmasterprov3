@@ -8506,6 +8506,7 @@ function normToScore(nx,ny){const b=ap(GEO.Hi,nx,ny);return b?scoreAt(b[0],b[1])
 
 /* ---------- integracja z grą ---------- */
 function gm(){
+  if(BULL.active)return'bull';
   if(typeof G==='undefined'||!G)return null;
   if(trActive())return'train';
   if(!G.active)return null;
@@ -8513,6 +8514,18 @@ function gm(){
   if(G.mode==='cricket')return'cricket';
   if(G.mode==='atc')return'atc';
   return null;
+}
+/* ---------- rzut do bulla (kto bliżej środka, ten zaczyna mecz online) ---------- */
+let CUR_TIP_FIX=false;let BULL={active:false,round:0,res:null,locked:false,info:'',board:'',cb:{}},CUR_TIP=null;
+function bullNotify(){try{BULL.cb.onRes&&BULL.cb.onRes(BULL.res);}catch(e){}dmRender();}
+function bullImg(tip){ // mały kadr tarczy z zaznaczonym grotem — rywal widzi, gdzie wbiła się lotka
+  try{if(!video||!vw||!CAL)return null;
+    const xs=CAL.pts.map(p=>p[0]*vw),ys=CAL.pts.map(p=>p[1]*vh),cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;
+    const half=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys))*0.62,S2=300,c=document.createElement('canvas');c.width=S2;c.height=S2;
+    const g=c.getContext('2d');g.drawImage(video,cx-half,cy-half,half*2,half*2,0,0,S2,S2);
+    if(tip){const x=(tip[0]*vw-(cx-half))/(half*2)*S2,y=(tip[1]*vh-(cy-half))/(half*2)*S2;
+      g.strokeStyle='#00e5ff';g.lineWidth=2.5;g.beginPath();g.arc(x,y,9,0,2*Math.PI);g.stroke();g.beginPath();g.moveTo(x-15,y);g.lineTo(x-5,y);g.moveTo(x+5,y);g.lineTo(x+15,y);g.moveTo(x,y-15);g.lineTo(x,y-5);g.moveTo(x,y+5);g.lineTo(x,y+15);g.stroke();}
+    return c.toDataURL('image/jpeg',0.72);}catch(e){return null;}
 }
 /* ---------- treningi z kamerą (ćwiczenia z ekranu TRENING + Around the Clock) ---------- */
 function trActive(){try{const el=document.getElementById('training-in'),gs=document.getElementById('game-screen');
@@ -8562,7 +8575,7 @@ function redoFrom(i,newSc){ // ATC/trening: cofnij lotki od i-tej i policz je po
   return true;
 }
 function myTurn(){return!(G._onlineRoomId&&typeof OL!=='undefined'&&OL.myIndex!==G.cp);}
-function tkey(){const _m=gm();if(_m==='train')return'tr|'+TR.id+'|'+TRV.visit;if(_m==='atc')return'atc|'+ATCV;return G.cp+'|'+G.round+'|'+(G.currentLeg||0)+'|'+((G.history||[]).length)+'|'+(G.mode);}
+function tkey(){const _m=gm();if(_m==='bull')return'bull|'+BULL.round;if(_m==='train')return'tr|'+TR.id+'|'+TRV.visit;if(_m==='atc')return'atc|'+ATCV;return G.cp+'|'+G.round+'|'+(G.currentLeg||0)+'|'+((G.history||[]).length)+'|'+(G.mode);}
 function sumOf(){return sumDarts.reduce((a,b)=>a+b,0);}
 function setSumUI(){const t=sumOf();try{sumThrows=t?String(t).split(''):[];}catch(e){}const i=document.getElementById('sum-input');if(i)i.value=t;}
 
@@ -8577,6 +8590,10 @@ function applyDart(sc){
   }else if(mode==='cricket'){
     if(CRICKET.includes(sc.cb)){setCM(sc.cm);cricketHit(sc.cb);sc._hit=true;}
     else{try{playDartSound([SRC_LOTKA1,SRC_LOTKA2,SRC_LOTKA3,SRC_LOTKA4][G.cp]||SRC_LOTKA1);}catch(e){}}
+  }else if(mode==='bull'){
+    if(BULL.locked||turn.length>=1&&!CUR_TIP_FIX)return false;
+    const t=CUR_TIP,b=t&&GEO?ap(GEO.Hi,t[0],t[1]):null,mm=b?Math.hypot(b[0],b[1]):999;
+    BULL.res={mm:(mm<=RB.dd&&sc.lbl!=='MISS')?+mm.toFixed(1):null,lbl:sc.lbl,tip:t};closed=true;setTimeout(bullNotify,0);
   }else if(mode==='atc'){sc._cp=G.cp;const hit=sc.n===G.atcT[G.cp];sc._trHit=hit;atcAct(hit);
   }else if(mode==='train'){if(!trApply(sc))return false;
   }else return false;
@@ -8752,7 +8769,7 @@ function analyze(cur){
   if(!turn.length)turnKey0=tkey();
   const d={px:r.px,before:ref,tip:[nx,ny],rawTip,rawB,sc,unsure:unsureOf(nx,ny,sc)};
   lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%'+(LAST_FIX?', ukryty grot +'+LAST_FIX+' mm':'')+')');LAST_FIX=0;
-  if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
+  CUR_TIP=[nx,ny];if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
   hmRec(d);d.after=cur;d.dbg={blob:r.px.length,total:r.total,exclFrac:r.exclFrac,geo:!!tp.geo,elong:tp.elong,ax:tp.ax,thr:effT(),noise:noiseEst,mv:DG.mv,mvThr:DG.mvThr};turn.push(d);ref=cur;refAge=0;lastDartTick=tickN;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');sayDart(sc);
   if(d.unsure){lg('niepewne: '+sc.lbl+' / '+d.unsure.lbl+' (grot przy drucie)');toast('⚠️ '+sc.lbl+' czy '+d.unsure.lbl+'? Stuknij lotkę, żeby poprawić');}
@@ -8826,7 +8843,8 @@ function markFell(i){
   const d=turn[i];if(!d||d.fell)return;
   if(turnKey0!==tkey()){toast('⚠️ Lotka wypadła po zatwierdzeniu tury — popraw ręcznie (COFNIJ)');d.fell=true;d.px=[];return;}
   const old=d.sc,mode=gm(),miss=scFrom(0,1);miss.lbl='MISS';
-  if(mode==='atc'||mode==='train'){redoFrom(i,miss);}
+  if(mode==='bull'){if(!BULL.locked){BULL.res={mm:null,lbl:'MISS',tip:null};setTimeout(bullNotify,0);}}
+  else if(mode==='atc'||mode==='train'){redoFrom(i,miss);}
   else if(mode==='x01'){G.throws[i]=0;G.throwMults[i]=1;refreshThrows();}
   else if(mode==='sum'){sumDarts[i]=0;setSumUI();}
   else if(mode==='cricket'){if(old._hit){if(i===turn.length-1)undoCricketMove();else toast('⚠️ Cricket: odejmij '+old.lbl+' ręcznie');}}
@@ -8843,7 +8861,7 @@ function markFell(i){
 const HKEY='dm_hits';let HITS=null,HMF={days:7,player:'',view:'dots'};
 function hmLoad(){if(HITS)return HITS;try{HITS=JSON.parse(localStorage.getItem(HKEY)||'[]');}catch(e){HITS=[];}return HITS;}
 function hmSave(){try{if(HITS.length>6000)HITS=HITS.slice(-6000);localStorage.setItem(HKEY,JSON.stringify(HITS));}catch(e){}}
-function hmRec(d){try{if(!GEO||!d||!d.tip)return;const b=ap(GEO.Hi,d.tip[0],d.tip[1]);if(!b)return;hmLoad();
+function hmRec(d){try{if(!GEO||!d||!d.tip||BULL.active)return;const b=ap(GEO.Hi,d.tip[0],d.tip[1]);if(!b)return;hmLoad();
   d.hid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   HITS.push({id:d.hid,x:+b[0].toFixed(1),y:+b[1].toFixed(1),l:d.sc.lbl,t:Date.now(),p:(G&&G.players&&G.players[G.cp])||'',m:gm()});hmSave();}catch(e){}}
 function hmUpd(d,tip,sc){try{if(!d||!d.hid)return;const h=hmLoad().find(q=>q.id===d.hid);if(!h)return;
@@ -8992,6 +9010,7 @@ function takeout(cur){
 }
 function removeLast(){
   const d=turn.pop();if(!d)return;const mode=gm();
+  if(mode==='bull'){if(BULL.locked){turn.push(d);return;}BULL.res=null;setTimeout(bullNotify,0);}
   if(mode==='x01')undoLast();
   else if(mode==='sum'){sumDarts.pop();setSumUI();}
   else if(mode==='cricket'&&d.sc._hit)undoCricketMove();
@@ -9002,6 +9021,7 @@ function correctLast(nx,ny){
   if(!turn.length){toast('Brak lotki do poprawienia');return;}
   if(turnKey0!==tkey()){toast('Tura już zatwierdzona — użyj COFNIJ');return;}
   const d=turn[turn.length-1],mode=gm();
+  if(mode==='bull'){if(BULL.locked){toast('Rzut już zatwierdzony');return;}CUR_TIP=[nx,ny];CUR_TIP_FIX=true;const sc=normToScore(nx,ny);applyDart(sc);CUR_TIP_FIX=false;d.sc=sc;d.tip=[nx,ny];d.unsure=null;renderDarts();return;}
   {const nsc=normToScore(nx,ny);if(nsc.lbl!==d.sc.lbl)report('correction',d,nsc,[nx,ny]);if(d.rawB){const tb=ap(GEO.Hi,nx,ny);if(tb)lrnAdd(d.rawB,tb,1);}}
   const sc=normToScore(nx,ny);
   if(mode==='atc'||mode==='train'){if(!redoFrom(turn.length-1,sc))return;}
@@ -9279,8 +9299,24 @@ function dmDraw(){
   }else msg=running?'Uruchamiam kamerę…<br>ustawiam jasność i ostrość':'Kamera wyłączona<br>stuknij 📷 w menu ⋮';
   if(nc){nc.style.display=msg?'flex':'none';if(msg&&nc.innerHTML!==msg)nc.innerHTML=msg;}
 }
+function dmRenderBull(){
+  const r=BULL.res,col=r?(r.mm===null?'#ff3c3c':'#00ff88'):'#2a2a40';
+  $('dm-darts').innerHTML='<div class="dm-dart" onclick="AutoCam.pick(0)">'+dartSvg(col)+'<b style="color:'+col+'">'+(r?r.lbl:'&nbsp;')+'</b></div>';
+  const pe=$('dm-prev');pe.textContent='';pe.classList.remove('x');
+  const big=r?(r.mm===null?'MISS':r.mm.toFixed(1)):'BULL';
+  const re=$('dm-rem');re.textContent=big;re.classList.remove('bust');re.style.fontSize=big.length>4?'64px':'';
+  $('dm-name').textContent=r?(r.mm===null?'poza tarczą':'mm od środka'):'jedna lotka — kto bliżej, zaczyna';
+  $('dm-pprl').textContent='RUNDA';$('dm-ppr').textContent=String(BULL.round+1);$('dm-turn').textContent=BULL.locked?'✓':'1';
+  $('dm-co').innerHTML=BULL.info||'';$('dm-others').innerHTML=BULL.board||'';
+  $('dm-mode').innerHTML='RZUT DO BULLA';$('dm-round').innerHTML='🎯 BULL-OFF';$('dm-who').innerHTML='<i></i>KAMERA · RZUT DO BULLA';
+  const nb=$('dm-next');if(nb){nb.dataset.bull='1';nb.textContent=BULL.locked?'✓ ZATWIERDZONO':(r?'✓ ZATWIERDŹ RZUT':'CZEKAM NA RZUT');nb.disabled=BULL.locked||!r;}
+  $('dm-zoom').textContent=(S.zoom||1)+'x';
+}
 function dmRender(){
-  if(!dmOn||typeof G==='undefined'||!G||!G.players)return;
+  if(!dmOn)return;
+  if(BULL.active){dmRenderBull();return;}
+  {const nb=$('dm-next');if(nb&&nb.dataset.bull){delete nb.dataset.bull;nb.textContent='NASTĘPNA RUNDA';}}
+  if(typeof G==='undefined'||!G||!G.players)return;
   const md=gm();
   if(md==='train'||md==='atc'){dmRenderTrain(md);return;}
   {const l=$('dm-pprl');if(l)l.textContent='PPR';}
@@ -9373,6 +9409,7 @@ function dmClose(){
   dmClearMine();RIV.img=null;RIV.dm=null;RIV.seq=-1;if(running)stop();
 }
 function nextRound(){
+  if(BULL.active){if(BULL.res&&!BULL.locked){try{BULL.cb.onConfirm&&BULL.cb.onConfirm(Object.assign({img:bullImg(BULL.res.tip)},BULL.res));}catch(e){}}return;}
   if(typeof G==='undefined'||!G)return;
   if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
   const mode=gm();if(!mode)return;
@@ -9429,6 +9466,7 @@ function pickTab(i,m){
 function setDart(i,n,m){
   $('dm-pick').classList.remove('on');
   if(!(turn[i]&&turnKey0===tkey()))return;const sc=scFrom(n,m),mode=gm(),old=turn[i].sc;
+  if(mode==='bull'){toast('📍 Przy rzucie do bulla stuknij w obraz dokładnie w miejscu grota');return;}
   if(sc.lbl!==old.lbl){report(turn[i].fell?'fall':'correction',turn[i],sc,null);if(!turn[i].fell&&turn[i].rawB)lrnAdd(turn[i].rawB,nearestInField(turn[i].rawB,sc,1.5),0.6);}
   if(mode==='atc'||mode==='train'){if(!redoFrom(i,sc))return;}
   else if(mode==='x01'){G.throws[i]=sc.val;G.throwMults[i]=(n===25||n===50)?1:m;refreshThrows();}
@@ -9440,7 +9478,7 @@ function addManual(nx,ny){ // dodanie lotki, której kamera nie wykryła
   if(isOnline()&&!myTurn()){toast('⏳ Nie Twoja tura');return;}
   if(!GEO){toast('Najpierw kalibracja');return;}
   if(turn.length>=3||(turn.length&&turnKey0!==tkey())){correctLast(nx,ny);return;}
-  const sc=normToScore(nx,ny);if(!turn.length)turnKey0=tkey();
+  const sc=normToScore(nx,ny);if(!turn.length)turnKey0=tkey();CUR_TIP=[nx,ny];
   report('missed',null,sc,[nx,ny]);
   if(!applyDart(sc))return;
   {const dm={px:[],before:ref,tip:[nx,ny],sc};turn.push(dm);hmRec(dm);}afterDart();renderDarts();lg('ręcznie → '+sc.lbl);
@@ -9800,7 +9838,7 @@ function mount(){
   setInterval(()=>{
     const act=$('game-screen').classList.contains('active');
     $('ac-bar').style.display=(act&&gm()&&!dmOn)?'block':'none';
-    if(dmOn&&!act)dmClose();
+    if(dmOn&&!act&&!BULL.active)dmClose();
     const tg=$('dm-camtg');if(tg)tg.textContent=running?'■ WYŁĄCZ KAMERĘ':'📷 WŁĄCZ KAMERĘ';
     if(running)renderHud();
   },700);
@@ -9822,6 +9860,11 @@ window.AutoCam={
   hmClear(){if(!window.confirm('Usunąć całą historię rzutów z mapy?'))return;HITS=[];hmSave();hmRender();},
   trAgain(){try{if(TR&&TR.id){startExercise(TR.id);TRV={visit:TRV.visit+1,darts:[]};turn=[];turnKey0=null;closed=false;renderDarts();}}catch(e){}},
   heatmap(){hmOpen();},
+  bullStart(cb){BULL={active:true,round:0,res:null,locked:false,info:'',board:'',cb:cb||{}};resetRefs();if(!running)start();else dmOpen();dmRender();},
+  bullSet(o){Object.assign(BULL,o||{});dmRender();},
+  bullRethrow(round){BULL.round=round;BULL.res=null;BULL.locked=false;if(turn.length){closed=true;status('Wyjmij lotkę z tarczy i rzuć jeszcze raz ✋','#ffd700');}dmRender();},
+  bullEnd(keep){const was=BULL.active;BULL.active=false;BULL.cb={};turn=[];turnKey0=null;closed=false;if(!was)return;if(!keep)dmClose();else{resetRefs();dmRender();}},
+  bullActive(){return BULL.active;},
   learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;lrnSave();toast('🧠 Zapomniano nauczone korekty');},
   async clearReports(){if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
   reportDart(i){$('dm-pick').classList.remove('on');if(turn[i])report('manual',turn[i],null,null);},
@@ -10160,6 +10203,170 @@ body.gl .gl-secured{display:none!important}
   function tagSuma(){const t=document.getElementById('throw-sum');if(t&&t.parentNode)t.parentNode.classList.add('gl-suma');}
   tagSuma();document.addEventListener('DOMContentLoaded',()=>{tagSecured();tagSuma();upd();});
   setTimeout(tagSecured,1500);tagSecured();upd();
+})();
+</script>
+
+<!-- ================= ONLINE: RZUT DO BULLA (gdy obaj gracze grają z kamerą) ================= -->
+<style>
+#ol-cam-choice{margin:-6px 0 14px;background:#12121a;border:1px solid #2a2a40;border-radius:10px;padding:10px 12px;font-family:monospace;font-size:11px;color:#8888aa}
+#ol-cam-choice .cc-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;margin-bottom:8px;background:#1a1a26;border:1px solid #2a2a40;border-radius:9px;color:#c8c8d8;font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;cursor:pointer}
+#ol-cam-choice .cc-btn.on{border-color:#00e5ff;color:#00e5ff;box-shadow:0 0 10px rgba(0,229,255,.25)}
+#ol-cam-choice .cc-btn i{font-style:normal;font-family:monospace;font-size:11px;padding:3px 8px;border-radius:10px;background:#0a0a0f}
+#ol-cam-choice .cc-btn.on i{background:rgba(0,229,255,.15)}
+#ol-cam-choice .cc-row{display:flex;justify-content:space-between;padding:2px 0}
+#ol-cam-choice .cc-row b{font-weight:normal;color:#e8e8f0}
+#ol-cam-choice .cc-sum{margin-top:6px;color:#ffd700;line-height:1.5}
+#bo-res{display:none;position:fixed;inset:0;z-index:121000;background:rgba(5,5,10,.94);align-items:center;justify-content:center;padding:18px;font-family:'Rajdhani',sans-serif;color:#e8e8f0}
+#bo-res.on{display:flex}
+#bo-res .bx{width:100%;max-width:420px;text-align:center}
+#bo-res .tt{font-family:'Bebas Neue',cursive;font-size:30px;letter-spacing:3px;color:#00e5ff;text-shadow:0 0 14px rgba(0,229,255,.45);margin-bottom:12px}
+#bo-res .gr{display:grid;gap:10px;margin-bottom:14px}
+#bo-res .pl{background:#12121a;border:1px solid #2a2a40;border-radius:12px;padding:8px;min-width:0}
+#bo-res .pl.win{border-color:#00ff88;box-shadow:0 0 16px rgba(0,255,136,.25)}
+#bo-res .pl img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;display:block;background:#0a0a0f}
+#bo-res .pl .n{font-family:'Bebas Neue',cursive;font-size:19px;letter-spacing:1px;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bo-res .pl .d{font-family:'Bebas Neue',cursive;font-size:30px;color:#00e5ff;line-height:1}
+#bo-res .pl.win .d{color:#00ff88}
+#bo-res .pl .d small{font-size:14px;color:#8888aa}
+#bo-res .msg{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;color:#ffd700}
+</style>
+<div id="bo-res"><div class="bx"><div class="tt">🎯 RZUT DO BULLA</div><div class="gr" id="bo-gr"></div><div class="msg" id="bo-msg"></div></div></div>
+<script>
+(function(){
+'use strict';
+const PREF='dm_ol_cam';
+let room=null,unsub=null,unsubRoom=null,lastBoTs=null,lastCancel=null,BO=null,decided=false;
+const myCam=()=>{try{return localStorage.getItem(PREF)==='1';}catch(e){return false;}};
+const fbOk=()=>{try{return !!(getFb()&&getFbUser());}catch(e){return false;}};
+const ref=()=>{const fb=getFb();return fb.doc(fb.db,'rooms',OL.currentRoomId);};
+const me=()=>{try{return getFbUser().uid;}catch(e){return null;}};
+const myIdx=()=>room?(room.players||[]).findIndex(p=>p.uid===me()):-1;
+const allCam=r=>{const ps=(r&&r.players)||[];return ps.length>=2&&ps.every(p=>r.camReady&&r.camReady[p.uid]===true);};
+
+/* ---------- wybór trybu w pokoju ---------- */
+function ensureBox(){
+  let box=document.getElementById('ol-cam-choice');
+  if(!box){const list=document.getElementById('ol-room-players-list');if(!list)return null;
+    box=document.createElement('div');box.id='ol-cam-choice';list.parentNode.insertBefore(box,list.nextSibling);}
+  return box;
+}
+function renderBox(){
+  const box=ensureBox();if(!box||!room)return;
+  const ps=room.players||[],cr=room.camReady||{},mine=cr[me()]===true;
+  box.innerHTML='<button class="cc-btn'+(mine?' on':'')+'" onclick="OLBull.toggle()"><span>📷 GRAM Z KAMERĄ (AUTO-LICZENIE)</span><i>'+(mine?'TAK':'NIE')+'</i></button>'+
+    ps.map(p=>'<div class="cc-row"><b>'+p.nick+(p.uid===me()?' (Ty)':'')+'</b><span>'+(cr[p.uid]===true?'📷 kamera':'⌨️ ręcznie')+'</span></div>').join('')+
+    '<div class="cc-sum">'+(allCam(room)?'🎯 Wszyscy z kamerą → o kolejności zdecyduje RZUT DO BULLA (jedna lotka, kto bliżej środka, zaczyna).':'🎲 O kolejności zdecyduje rzut kostką. Rzut do bulla — gdy wszyscy włączą kamerę.')+'</div>';
+}
+async function setMine(v){
+  try{localStorage.setItem(PREF,v?'1':'0');}catch(e){}
+  if(!fbOk()||!OL.currentRoomId)return;
+  try{await getFb().updateDoc(ref(),{['camReady.'+me()]:!!v});}catch(e){}
+}
+
+/* ---------- nasłuch pokoju ---------- */
+let watchedId=null;
+setInterval(()=>{
+  let id=null;try{id=OL.currentRoomId;}catch(e){}
+  if(id!==watchedId){
+    if(unsubRoom){unsubRoom();unsubRoom=null;}room=null;watchedId=id;decided=false;
+    if(id&&fbOk()){
+      unsubRoom=getFb().onSnapshot(ref(),snap=>{
+        if(!snap.exists())return;const r=snap.data();r._id=id;room=r;
+        const cr=r.camReady||{};
+        if(r.status!=='playing'&&cr[me()]===undefined&&(r.players||[]).some(p=>p.uid===me()))setMine(myCam());
+        renderBox();
+        if(r.bullOffActive&&r.bullOffTs&&r.bullOffTs!==lastBoTs){lastBoTs=r.bullOffTs;openBull();}
+        if(BO&&r.bullOffCancelTs&&r.bullOffCancelTs!==lastCancel){lastCancel=r.bullOffCancelTs;closeBull(false);toast('🎲 Rzut do bulla anulowany — rzut kostką');
+          if(OL.isHost&&typeof _dice==='function')setTimeout(()=>_dice(),500);}
+        if(BO)onRoom(r);
+      });
+    }
+  }
+},600);
+
+/* ---------- start: host decyduje — kostka czy bull ---------- */
+const _dice=window.olShowDiceRoll;
+window.olShowDiceRoll=async function(){
+  try{
+    if(OL.isHost&&fbOk()&&OL.currentRoomId){
+      const snap=await getFb().getDoc(ref());const r=snap.exists()?snap.data():null;
+      if(r&&allCam(r)){const ts=Date.now();
+        await getFb().updateDoc(ref(),{bullOffActive:true,bullOffTs:ts,bullOff:{},bullRound:0});return;}
+    }
+  }catch(e){}
+  return _dice.apply(this,arguments);
+};
+
+/* ---------- rzut do bulla ---------- */
+function openBull(){
+  if(!window.AutoCam||!AutoCam.bullStart){toast('❌ Brak modułu kamery');return;}
+  BO={round:0,sent:false,shown:-1};decided=false;
+  document.getElementById('ol-room-modal').classList.remove('active');
+  AutoCam.bullStart({
+    onRes:()=>{},
+    onConfirm:async res=>{
+      if(!BO||BO.sent)return;BO.sent=true;
+      AutoCam.bullSet({locked:true,info:'⏳ Wysłano — czekam na rzut rywala…'});
+      try{await getFb().updateDoc(ref(),{['bullOff.'+myIdx()]:{mm:res.mm,lbl:res.lbl,img:res.img||null,round:BO.round,ts:Date.now(),nick:((room.players||[])[myIdx()]||{}).nick||''}});}
+      catch(e){BO.sent=false;AutoCam.bullSet({locked:false,info:'❌ Nie udało się wysłać — spróbuj ponownie'});}
+    }
+  });
+  AutoCam.bullSet({info:'Rzuć <b>jedną lotkę</b> w środek tarczy. Gdy kamera ją zaznaczy, kliknij <b>ZATWIERDŹ RZUT</b>. Jeśli grot jest źle zaznaczony — stuknij w obraz w jego miejscu.<br><a href="#" onclick="OLBull.cancel();return false" style="color:#8888aa;font-size:11px">🎲 problem z kamerą? zamiast tego rzut kostką</a>',board:boardHtml(room)});
+}
+function boardHtml(r){
+  const ps=(r&&r.players)||[],bo=(r&&r.bullOff)||{},rd=(r&&r.bullRound)||0;
+  return ps.map((p,i)=>{const e=bo[i]&&bo[i].round===rd?bo[i]:null;
+    return'<div><span>'+p.nick+(p.uid===me()?' (Ty)':'')+'</span><b>'+(e?(i===myIdx()||allIn(r)?(e.mm===null?'MISS':e.mm.toFixed(1)+' mm'):'✓ rzucił'):'…')+'</b></div>';}).join('');
+}
+function allIn(r){const ps=(r&&r.players)||[],bo=(r&&r.bullOff)||{},rd=r.bullRound||0;return ps.length>=2&&ps.every((p,i)=>bo[i]&&bo[i].round===rd);}
+function onRoom(r){
+  if(!BO)return;
+  if(r.status==='playing'){return;}
+  const rd=r.bullRound||0;
+  if(rd!==BO.round){BO.round=rd;BO.sent=false;AutoCam.bullRethrow(rd);
+    AutoCam.bullSet({info:'🔄 <b>Remis!</b> Wyjmij lotkę i rzućcie jeszcze raz.',board:boardHtml(r)});return;}
+  AutoCam.bullSet({board:boardHtml(r)});
+  if(allIn(r)&&BO.shown!==rd){BO.shown=rd;decide(r);}
+}
+function decide(r){
+  const ps=r.players||[],bo=r.bullOff||{};
+  const dist=ps.map((p,i)=>bo[i].mm===null||bo[i].mm===undefined?Infinity:bo[i].mm);
+  const best=Math.min(...dist),winners=dist.map((d,i)=>d===best?i:-1).filter(i=>i>=0);
+  const tie=best===Infinity||winners.length>1||dist.filter(d=>Math.abs(d-best)<0.5).length>1;
+  const gr=document.getElementById('bo-gr');gr.style.gridTemplateColumns='repeat('+Math.min(ps.length,2)+',1fr)';
+  gr.innerHTML=ps.map((p,i)=>'<div class="pl'+(!tie&&i===winners[0]?' win':'')+'">'+(bo[i].img?'<img src="'+bo[i].img+'">':'<img>')+
+    '<div class="n">'+p.nick+(p.uid===me()?' (Ty)':'')+'</div><div class="d">'+(dist[i]===Infinity?'MISS':dist[i].toFixed(1)+'<small> mm</small>')+'</div></div>').join('');
+  const msg=document.getElementById('bo-msg');
+  document.getElementById('bo-res').classList.add('on');
+  if(tie){msg.textContent=best===Infinity?'🔄 Nikt nie trafił w tarczę — rzucacie jeszcze raz':'🔄 REMIS — rzucacie jeszcze raz';
+    try{if(typeof TTS!=='undefined')TTS.say('Tie. Throw again',0.7,1.0);}catch(e){}
+    setTimeout(()=>{document.getElementById('bo-res').classList.remove('on');},2600);
+    if(OL.isHost)setTimeout(()=>{getFb().updateDoc(ref(),{bullRound:(r.bullRound||0)+1}).catch(()=>{});},2700);
+    return;}
+  const w=winners[0];msg.textContent='🎯 ZACZYNA '+(ps[w].nick||'').toUpperCase();
+  try{if(typeof TTS!=='undefined')TTS.say((ps[w].nick||'')+' to throw first. Game on!',0.7,1.0);}catch(e){}
+  if(decided)return;decided=true;
+  setTimeout(async()=>{
+    if(OL.isHost){try{await olStartOnlineGameWithWinner(w);await getFb().updateDoc(ref(),{bullOffActive:false});}catch(e){}}
+  },3200);
+}
+function closeBull(keepCam){
+  if(!BO)return;BO=null;document.getElementById('bo-res').classList.remove('on');
+  try{AutoCam.bullEnd(keepCam);}catch(e){}
+}
+// gra wystartowała → kamera zostaje włączona i od razu liczy mecz
+const _enter=window.olEnterOnlineGame;
+if(typeof _enter==='function')window.olEnterOnlineGame=function(){
+  const r=_enter.apply(this,arguments);
+  try{if(BO)setTimeout(()=>closeBull(true),300);}catch(e){}
+  return r;
+};
+window.OLBull={
+  set(v){setMine(!!v);},
+  toggle(){const cr=(room&&room.camReady)||{};setMine(!(cr[me()]===true));},
+  cancel(){if(!fbOk()||!OL.currentRoomId)return;getFb().updateDoc(ref(),{bullOffActive:false,bullOffCancelTs:Date.now()}).catch(()=>{});},
+  _state:()=>({room,BO})
+};
 })();
 </script>
 
