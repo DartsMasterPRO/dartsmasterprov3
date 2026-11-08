@@ -1,0 +1,7 @@
+{
+  "name": "dartsmaster-pro",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^12.1.0"
+  }
+}

@@ -76,3 +76,25 @@ self.addEventListener('fetch', event => {
       .catch(() => caches.match(req))
   );
 });
+
+// ── Powiadomienia push (zaproszenia do gry) ──
+self.addEventListener('push', event => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { notification: { title: 'DartsMaster Pro', body: event.data ? event.data.text() : '' } }; }
+  const n = d.notification || {}, data = d.data || {};
+  const title = n.title || data.title || 'DartsMaster Pro';
+  const link = (d.fcmOptions && d.fcmOptions.link) || data.link || '/app';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: n.body || data.body || '', icon: n.icon || '/icon-192x192.png', badge: '/icon-192x192.png',
+    tag: n.tag || data.tag || 'dm', renotify: true, requireInteraction: true, vibrate: [120, 60, 120], data: { link }
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const link = (event.notification.data && event.notification.data.link) || '/app';
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of all) { if (new URL(c.url).origin === self.location.origin) { try { await c.navigate(link); } catch (e) {} return c.focus(); } }
+    return self.clients.openWindow(link);
+  })());
+});
