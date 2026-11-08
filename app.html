@@ -8626,14 +8626,17 @@ function confirmTurn(){
     sumDarts=[];}
   else if(mode==='cricket'){nextCricketTurn();}
 }
+function lastIsDouble(){const d=turn[turn.length-1];return!!(d&&!d.fell&&(d.sc.m===2||d.sc.n===50));}
 function afterDart(){
   const mode=gm();
   if(turn.length>=3)closed=true;
   const rem=remaining();
   const diOk=!G.dIn||(G.diDone&&G.diDone[G.cp]);
   if(rem!==null&&diOk&&(rem<=1)){ // koniec lub przebicie
-    closed=true;
-    if(S.autoConfirm){clearTimeout(confirmT);confirmT=setTimeout(confirmTurn,1300);}
+    closed=true; // NIE zatwierdzaj od razu — gracz może jeszcze poprawić błędnie odczytaną lotkę.
+    // Tura zatwierdza się po wyjęciu lotek z tarczy albo przyciskiem ✓ ZATWIERDŹ.
+    clearTimeout(confirmT);
+    if(rem<0||rem===1||(rem===0&&G.dOut&&!(lastIsDouble())))toast('⚠️ BUST? Jeśli kamera źle odczytała lotkę — stuknij ją i popraw. Inaczej wyjmij lotki albo ZATWIERDŹ.');
   }
   if(mode==='cricket'&&!G.active)closed=true;
 }
@@ -9344,20 +9347,22 @@ function dmRender(){
   $('dm-darts').innerHTML=[0,1,2].map(i=>{const d=darts[i];
     return'<div class="dm-dart'+(d&&i===darts.length-1?' new':'')+(d&&d.un?' unsure':'')+'" onclick="AutoCam.pick('+i+')">'+dartSvg(d?(d.un?'#ffd700':'#00e5ff'):'#2a2a40')+'<b>'+(d?d.lbl+(d.un?'?':''):'&nbsp;')+'</b>'+(d&&d.un?'<small>lub '+d.un+'</small>':'')+(d&&d.fell?'<small style="color:#ff3c3c">wypadła</small>':'')+'</div>';}).join('');
   const prev=cr?(G.cScores||[])[cp]:G.scores[cp];let rem=cr?prev:prev-tsum;
-  const bust=!cr&&(rem<0||(G.dOut&&rem===1));
+  const bust=!cr&&(rem<0||(G.dOut&&rem===1)||(mine&&G.dOut&&rem===0&&darts.length&&!lastIsDouble()));
+  const ending=mine&&!cr&&turn.length&&turnKey0===tkey()&&(bust||rem===0);
   const pe=$('dm-prev');pe.textContent=(!cr&&tsum)?prev:'';pe.classList.toggle('x',!!tsum);
   $('dm-turn').textContent=tsum;
   const re=$('dm-rem');re.textContent=bust?'BUST':rem;re.classList.toggle('bust',bust);
   $('dm-name').textContent=G.players[cp]||'';
   $('dm-ppr').textContent=cr?'—':pprOf(cp);
   let co='';try{if(!cr&&!bust&&rem>1&&rem<=170&&typeof getCheckoutForScore==='function'){const c=getCheckoutForScore(rem);if(c)co='🎯 '+c;}}catch(e){}
-  $('dm-co').textContent=co;
+  if(ending)co=bust?'⚠️ BUST — źle odczytana lotka? Stuknij ją i popraw':'🏁 KONIEC — sprawdź lotki i zatwierdź';
+  $('dm-co').textContent=co;$('dm-co').style.color=ending?(bust?'#ff3c3c':'#00ff88'):'';
   $('dm-mode').innerHTML=(G.mode||'').toUpperCase()+'<span class="dm-modei">'+(isOnline()?'⚡':'i')+'</span>';
   $('dm-round').innerHTML='R'+(G.round||1)+' <small>· LEG '+(G.currentLeg||1)+(G.legs>1?'/'+G.legs:'')+'</small>';
   const me=isOnline()?OL.myIndex:-1;
   $('dm-others').innerHTML=G.players.map((n,i)=>i===cp?'':'<div><span>'+n+(i===me?' (TY)':'')+'</span><b>'+(cr?(G.cScores||[])[i]:G.scores[i])+'</b></div>').join('');
   $('dm-who').innerHTML='<i></i>'+(mine?(isOnline()?'TWOJA KAMERA · NA ŻYWO':'KAMERA'):'KAMERA: '+(G.players[cp]||'RYWAL'));
-  const nb=$('dm-next');if(nb)nb.disabled=isOnline()&&!myTurn();
+  const nb=$('dm-next');if(nb){nb.disabled=isOnline()&&!myTurn();nb.textContent=ending?'✓ ZATWIERDŹ':'NASTĘPNA RUNDA';}
   $('dm-zoom').textContent=(S.zoom||1)+'x';
 }
 function dmRenderTrain(md){
@@ -10918,7 +10923,7 @@ window.FORM={open,close(){document.getElementById('fm-ov').classList.remove('on'
 /* ⚙️ KONFIGURACJA POWIADOMIEŃ PUSH (gdy aplikacja jest zamknięta)
    Firebase Console → Ustawienia projektu → Cloud Messaging → Certyfikaty Web Push → „Generuj parę kluczy”
    i wklej tutaj klucz publiczny. Bez klucza zaproszenia działają, gdy aplikacja jest otwarta. */
-window.DM_PUSH_VAPID_KEY = '';
+window.DM_PUSH_VAPID_KEY = 'BJpP1OB9uZXTxC7KsGvXjFGPI8qsM7WmGbIP74jHSn5CzGedryJWtcqPsv_1ninj4_B9WlWw_arnnUlVVolIIVM';
 </script>
 <style>
 #iv-banner{display:none;position:fixed;left:12px;right:12px;top:calc(12px + env(safe-area-inset-top));z-index:130000;background:#12121a;border:2px solid #00e5ff;border-radius:14px;padding:14px;box-shadow:0 0 30px rgba(0,229,255,.35);font-family:'Rajdhani',sans-serif;color:#e8e8f0;max-width:440px;margin:0 auto;animation:popIn .3s ease-out}
