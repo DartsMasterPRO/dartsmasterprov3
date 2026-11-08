@@ -8361,13 +8361,16 @@ function hp(d){
 function effT(){return Math.max(S.thr,noiseEst*1.8);}
 function diffMask(cur,base){
   const{rw,rh,mask}=GEO,T=effT(),m=new Uint8Array(rw*rh),soft=new Uint8Array(rw*rh),a=hp(cur),b=hp(base);
+  // wykrywanie lotki: próg T; cienki grot (dociąganie końcówki): niższy próg — wysoki próg ustawiony przez gracza nie może „ucinać” grota
+  const TL=Math.max(noiseEst*1.8,Math.min(T,45)),rawM=new Uint8Array(rw*rh);
   for(let i=0;i<m.length;i++){if(!mask[i])continue;const j=i*3;
-    if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T*0.8)m[i]=1;}
+    const v=Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2]);
+    if(v>T*0.8)m[i]=1;if(v>TL*0.8)rawM[i]=1;}
   // filtr większościowy 3x3: usuwa szum, zostawia cienkie (2px) lotki
   const q=new Uint8Array(m.length);
   for(let y=1;y<rh-1;y++)for(let x=1;x<rw-1;x++){const i=y*rw+x;
     const c=m[i-rw-1]+m[i-rw]+m[i-rw+1]+m[i-1]+m[i]+m[i+1]+m[i+rw-1]+m[i+rw]+m[i+rw+1];if(c>=5)q[i]=1;}
-  q.raw=m;q.soft=soft;return q;
+  q.raw=rawM;q.soft=soft;return q;
 }
 function comps(m){
   const{rw,rh}=GEO,lab=new Int32Array(m.length),out=[];let id=0;const st=[];
@@ -8761,7 +8764,7 @@ function analyze(cur){
   // zmiana bez ruchu przed nią = tło (światło, dryf) — lotka zawsze powoduje ruch
   const sinceMove=tickN-lastMoveTick;
   // rozproszona zmiana w wielu miejscach = drgnięcie kamery / zmiana światła
-  if(r.total>blobN*2.5+GEO.minA){lg('rozproszona zmiana (światło/drgnięcie) → nowe tło');cand=null;ref=cur;if(!turn.length)empty=cur;return;}
+  if(r.total>blobN*2.5+GEO.minA){lg('rozproszona zmiana (światło/drgnięcie) → nowe tło');bgCalSoon('drgnięcie obrazu');cand=null;ref=cur;if(!turn.length)empty=cur;return;}
   // lotka się ruszyła / wypadła?
   if(turn.length){
     const last=turn[turn.length-1];const set=new Set(last.px);let ov=0;r.px.forEach(i=>{if(set.has(i))ov++;});
@@ -8987,11 +8990,22 @@ function lrnAdd(rawB,trueB,w){
   if(LRN.samples.length>200)LRN.samples.shift();lrnSave();lg('nauka: błąd '+e.toFixed(1)+' mm zapamiętany ('+LRN.samples.length+' próbek)');
 }
 // korekta w punkcie P: średnia błędów z okolicy (jądro Gaussa 30 mm) z „ostrożnością” — pojedyncza próbka działa tylko częściowo
+// 1) błąd wspólny dla całej tarczy (np. grot widziany zawsze ~1,5 mm za nisko z tej pozycji telefonu) — z ostatnich 60 poprawek
+// 2) do tego poprawka lokalna z okolicy (jądro Gaussa 30 mm) — pojedyncza próbka działa tylko częściowo
+function lrnGlobal(){
+  const Q=LRN.samples.slice(-60);if(Q.length<2)return[0,0];
+  let sw=0,gx=0,gy=0;for(const q of Q){sw+=q.w;gx+=q.w*q.ex;gy+=q.w*q.ey;}
+  let mm=0;for(const q of Q)mm+=q.w*Math.hypot(q.ex,q.ey);mm/=sw;
+  gx/=(sw+2);gy/=(sw+2);
+  // stosuj tylko, gdy błędy są zgodne co do kierunku (prawdziwe przesunięcie, a nie przypadkowy rozrzut)
+  const c=Math.hypot(gx,gy)*(sw+2)/sw/(mm||1),f=Math.max(0,Math.min(1,(c-0.3)/0.4));gx*=f;gy*=f;
+  const m=Math.hypot(gx,gy);if(m>4){gx*=4/m;gy*=4/m;}return[gx,gy];
+}
 function lrnOffset(P){
   if(S.learn===false||LRN.samples.length<1)return[0,0];
-  let sw=0,ox=0,oy=0;const s2=2*30*30;
-  for(const q of LRN.samples){const w=q.w*Math.exp(-((P[0]-q.x)**2+(P[1]-q.y)**2)/s2);sw+=w;ox+=w*q.ex;oy+=w*q.ey;}
-  const k=1/(sw+0.6);ox*=k;oy*=k;const m=Math.hypot(ox,oy);if(m>15){ox*=15/m;oy*=15/m;}return[ox,oy];
+  const g=lrnGlobal();let sw=0,ox=0,oy=0;const s2=2*30*30;
+  for(const q of LRN.samples){const w=q.w*Math.exp(-((P[0]-q.x)**2+(P[1]-q.y)**2)/s2);sw+=w;ox+=w*(q.ex-g[0]);oy+=w*(q.ey-g[1]);}
+  const k=1/(sw+0.6);ox=g[0]+ox*k;oy=g[1]+oy*k;const m=Math.hypot(ox,oy);if(m>15){ox*=15/m;oy*=15/m;}return[ox,oy];
 }
 function lrnApply(nx,ny){
   const b=ap(GEO.Hi,nx,ny);if(!b)return[nx,ny,null];const o=lrnOffset(b);if(!o[0]&&!o[1])return[nx,ny,b];
@@ -9044,6 +9058,7 @@ async function rptExport(){
 function confirmClear(){return RPT.cnt?window.confirm('Usunąć '+RPT.cnt+' zgłoszeń?'):true;}
 function takeout(cur){
   if(S.autoConfirm&&turn.length)confirmTurn();
+  bgCalSoon('po wyjęciu lotek',45000);
   turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;
   status('Tarcza czysta — rzucaj 🎯','#00ff88');renderDarts();
 }
@@ -9175,7 +9190,15 @@ async function refocus(manual){
 }
 // KALIBRACJA W TLE: co 3 minuty, gdy tarcza pusta i nikt nie rzuca, dopasuj siatkę na nowo (statyw osiada)
 let bgCalT=Date.now();
-setInterval(()=>bgCalRun(false),5000);
+// szybkie sprawdzenie siatki: po każdym wyjęciu lotek i po „drgnięciu” obrazu (telefon/statyw mógł się poruszyć)
+let bgWant=0,bgWhy='',bgSoonT=0;
+function bgCalSoon(why,minGap){if(S.bgCal===false)return;if(minGap&&Date.now()-bgSoonT<minGap)return;if(!bgWant)bgWant=Date.now();bgWhy=why||'';}
+setInterval(()=>{
+  if(bgWant){if(Date.now()-bgWant>25000){bgWant=0;return;}
+    if(!bgBusy&&running&&camReady&&!turn.length&&!dirty&&tickN-lastMoveTick>=6&&Date.now()-bgSoonT>8000){bgWant=0;bgSoonT=Date.now();lg('kontrola siatki ('+bgWhy+')');bgCalRun(true);}
+    return;}
+  bgCalRun(false);
+},1000);
 let bgBusy=false;
 async function bgCalRun(force){
   if(bgBusy||S.bgCal===false||!running||!camReady||!CAL||!GEO||suOn||focusBusy||turn.length||dirty)return;
@@ -9197,7 +9220,10 @@ async function bgCalRun(force){
     const spread=Math.max(...R.map(r=>calDiff(r.pts,M)));
     const d=calDiff(CAL.pts,M);
     if(d>0.05){lg('kalibracja w tle: telefon się przesunął — pełna autokalibracja');runAutoCal(false);return;}
-    if(mm(spread)>2.5){lg('kalibracja w tle: pomiary niezgodne ('+mm(spread).toFixed(1)+' mm) — bez zmian');return;}
+    if(mm(spread)>4){lg('kalibracja w tle: pomiary niezgodne ('+mm(spread).toFixed(1)+' mm) — bez zmian');return;}
+    {const IF=grabSmall(vw),h0=solveH(CAL_BOARD,CAL.pts),h1=solveH(CAL_BOARD,M),s0=h0?fineScore(IF,h0):-1e9,s1=h1?fineScore(IF,h1):-1e9;
+      window._bgsc=[s0,s1];lg('kalibracja w tle: dopasowanie obecnej '+s0.toFixed(4)+' / nowej '+s1.toFixed(4));
+      if(mm(d)>=3&&!(s1>s0+Math.max(0.01,Math.abs(s0)*0.05))){lg('kalibracja w tle: nowa siatka nie pasuje lepiej — bez zmian');return;}}
     if(mm(d)<3){lg('kalibracja w tle: OK (różnica '+mm(d).toFixed(1)+' mm)');return;}
     CAL={pts:M};saveCfg();buildGeo();resetRefs();
     if(LRN.cal&&calDiff(LRN.cal,CAL.pts)<0.02){LRN.cal=CAL.pts.map(p=>p.slice());lrnSave();}
@@ -9943,7 +9969,7 @@ window.AutoCam={
   toggleSet(){$('ac-set').classList.toggle('on');},
   set(k,v){S[k]=v;saveCfg();if(k==='lockExp'&&v)lockExposure();},
   async setCam(id){S.deviceId=id;saveCfg();stop();await start();},
-  _t:{autoCalibrate:(i)=>autoCalibrate(i),bgCal:()=>bgCalRun(true),cal:(v)=>{if(v){CAL={pts:v};buildGeo();resetRefs();}return CAL&&CAL.pts;},solveH,ap,scoreAt,learn:()=>LRN,turn:()=>turn.map(d=>({tip:d.tip,lbl:d.sc.lbl,un:d.unsure?d.unsure.lbl:null}))}
+  _t:{bgSoon:(w)=>bgCalSoon(w),autoCalibrate:(i)=>autoCalibrate(i),bgCal:()=>bgCalRun(true),cal:(v)=>{if(v){CAL={pts:v};buildGeo();resetRefs();}return CAL&&CAL.pts;},solveH,ap,scoreAt,learn:()=>LRN,turn:()=>turn.map(d=>({tip:d.tip,lbl:d.sc.lbl,un:d.unsure?d.unsure.lbl:null}))}
 };
 })();
 </script>
