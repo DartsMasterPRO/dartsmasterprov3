@@ -2,7 +2,7 @@
 // • strony (/, /app): najpierw sieć (zawsze najnowsza wersja), bez sieci — kopia z cache
 // • /media/* (intro, dźwięki, grafiki): z cache (pobierane raz)
 // • nic spoza domeny (Firebase, Google Fonts) nie jest dotykane
-const VERSION = 'dm-v9';
+const VERSION = 'dm-v11';
 const PAGES = VERSION + '-pages';
 const MEDIA = VERSION + '-media';
 const PRECACHE_MEDIA = ['/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.png', '/media/intro.mp4'];

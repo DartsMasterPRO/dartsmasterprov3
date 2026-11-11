@@ -5354,7 +5354,7 @@ function olSelLegs(n) {
   const btn = document.getElementById('oll-'+n);
   if(btn) btn.classList.add('m1','active');
   const needed = Math.ceil(n/2);
-  const desc = n===1 ? '1 leg (pierwszy do 1)' : (n+' legów (wygrywa '+needed+')');
+  const desc = n===1 ? 'jeden leg' : ('wygrywa '+needed);
   const el = document.getElementById('ol-legs-desc');
   if(el) el.textContent = desc;
 }
@@ -7253,14 +7253,15 @@ function showMessage(element, text, type) {
   <!-- ZALOGOWANY -->
   <div id="ol-main-panel" style="display:none">
 
-    <!-- HEADER UŻYTKOWNIKA -->
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <div style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#ff3c3c,#cc1f1f);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:20px;flex-shrink:0" id="ol-avatar">?</div>
-      <div>
-        <div style="font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:1px" id="ol-username-display">Gracz</div>
-        <div style="font-size:11px;color:#8888aa;font-family:monospace" id="ol-stats-display">W: 0 | P: 0</div>
+    <!-- HEADER UŻYTKOWNIKA (obok menu ☰) -->
+    <div id="ol-user-hdr">
+      <div id="ol-avatar">?</div>
+      <div class="olu-txt">
+        <div id="ol-username-display">Gracz</div>
+        <div id="ol-stats-display">W: 0 | P: 0</div>
       </div>
-      <button onclick="olLogout()" style="margin-left:auto;background:#1a1a26;border:1px solid #2a2a40;color:#8888aa;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:monospace;font-size:11px">WYLOGUJ</button>
+      <button type="button" id="iv-bell" class="off" onclick="IVBell&&IVBell.toggle()" aria-label="Powiadomienia o zaproszeniach"><span class="bl">🔔</span><span class="tip" id="iv-bell-tip"></span></button>
+      <button type="button" class="olu-out" onclick="olLogout()">WYLOGUJ</button>
     </div>
 
     <!-- TABS -->
@@ -7282,84 +7283,66 @@ function showMessage(element, text, type) {
       </div>
     </div>
 
-    <!-- TAB: UTWÓRZ POKÓJ -->
+    <!-- TAB: UTWÓRZ POKÓJ (nowy wygląd, mieści się bez przewijania) -->
     <div id="ol-tab-create-content" style="display:none">
-      <div class="card">
-        <div class="card-title">➕ NOWY POKÓJ</div>
-
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:#8888aa;margin-bottom:6px;font-family:monospace">TRYB GRY</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <button class="mult-btn m1 ol-mode-btn active" id="olm-501" onclick="olSelMode('501')">🎯 501</button>
-            <button class="mult-btn ol-mode-btn" id="olm-301" onclick="olSelMode('301')">🎯 301</button>
-            <button class="mult-btn ol-mode-btn" id="olm-cricket" onclick="olSelMode('cricket')">🏏 CRICKET</button>
-            <button class="mult-btn ol-mode-btn" id="olm-atc" onclick="olSelMode('atc')">🔄 ATC</button>
-          </div>
+      <div class="card olc">
+        <div class="olc-lbl">TRYB GRY</div>
+        <div class="olc-modes">
+          <button class="ol-mode-btn m1 active" id="olm-501" onclick="olSelMode('501')" style="--ac:#ff3c3c;--ac2:#ff8c00"><i>🎯</i><b>501</b><small>klasyk</small></button>
+          <button class="ol-mode-btn" id="olm-301" onclick="olSelMode('301')" style="--ac:#ff8c00;--ac2:#ffd700"><i>⚡</i><b>301</b><small>szybka gra</small></button>
+          <button class="ol-mode-btn" id="olm-cricket" onclick="olSelMode('cricket')" style="--ac:#00ff88;--ac2:#00b36b"><i>🏏</i><b>CRICKET</b><small>15–20 + B</small></button>
+          <button class="ol-mode-btn" id="olm-atc" onclick="olSelMode('atc')" style="--ac:#00e5ff;--ac2:#7b5cff"><i>🔄</i><b>ATC</b><small>od 1 do 20</small></button>
         </div>
 
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:#8888aa;margin-bottom:6px;font-family:monospace">MAKS. GRACZY</div>
-          <div style="display:flex;gap:8px">
-            <button class="mult-btn m1 ol-maxp-btn active" id="olp-2" onclick="olSelMaxP(2)">2</button>
-            <button class="mult-btn ol-maxp-btn" id="olp-3" onclick="olSelMaxP(3)">3</button>
-            <button class="mult-btn ol-maxp-btn" id="olp-4" onclick="olSelMaxP(4)">4</button>
-          </div>
-        </div>
-
-        <div style="margin-bottom:12px">
-          <div style="font-size:12px;color:#8888aa;margin-bottom:6px;font-family:monospace">LICZBA LEGÓW</div>
-          <div style="display:flex;gap:8px">
-            <button class="mult-btn m1 ol-legs-btn active" id="oll-1" onclick="olSelLegs(1)">1</button>
-            <button class="mult-btn ol-legs-btn" id="oll-3" onclick="olSelLegs(3)">3</button>
-            <button class="mult-btn ol-legs-btn" id="oll-5" onclick="olSelLegs(5)">5</button>
-            <button class="mult-btn ol-legs-btn" id="oll-7" onclick="olSelLegs(7)">7</button>
-          </div>
-          <div style="font-size:11px;color:#8888aa;margin-top:6px;font-family:monospace" id="ol-legs-desc">1 leg (pierwszy do 1)</div>
-        </div>
-        <!-- DOUBLE IN / DOUBLE OUT (tylko dla 301/501) -->
-        <div id="ol-x01-opts" style="margin-bottom:12px;background:#1a1a26;border:1px solid #2a2a40;border-radius:10px;padding:12px">
-          <div style="font-size:12px;color:#8888aa;margin-bottom:10px;font-family:monospace;letter-spacing:1px">OPCJE X01</div>
-          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:700;color:#e8e8f0">Double-In</div>
-              <div style="font-size:10px;color:#8888aa;margin-top:2px;font-family:monospace">Start tylko po trafieniu doubla</div>
+        <div class="olc-row">
+          <div class="olc-grp" style="flex:3">
+            <div class="olc-lbl">GRACZE</div>
+            <div class="olc-seg">
+              <button class="ol-maxp-btn m1 active" id="olp-2" onclick="olSelMaxP(2)">2</button>
+              <button class="ol-maxp-btn" id="olp-3" onclick="olSelMaxP(3)">3</button>
+              <button class="ol-maxp-btn" id="olp-4" onclick="olSelMaxP(4)">4</button>
             </div>
-            <div class="toggle" id="ol-tog-din" onclick="olTogDIn()"><div class="toggle-knob"></div></div>
           </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:700;color:#e8e8f0">Double-Out</div>
-              <div style="font-size:10px;color:#8888aa;margin-top:2px;font-family:monospace">Zakończ grę tylko na doublu</div>
+          <div class="olc-grp" id="ol-legs-opt" style="flex:4">
+            <div class="olc-lbl">LEGI <span id="ol-legs-desc">jeden leg</span></div>
+            <div class="olc-seg">
+              <button class="ol-legs-btn m1 active" id="oll-1" onclick="olSelLegs(1)">1</button>
+              <button class="ol-legs-btn" id="oll-3" onclick="olSelLegs(3)">3</button>
+              <button class="ol-legs-btn" id="oll-5" onclick="olSelLegs(5)">5</button>
+              <button class="ol-legs-btn" id="oll-7" onclick="olSelLegs(7)">7</button>
             </div>
-            <div class="toggle" id="ol-tog-dout" onclick="olTogDOut()"><div class="toggle-knob"></div></div>
           </div>
         </div>
 
-        <div style="margin-bottom:14px">
-          <div style="font-size:12px;color:#8888aa;margin-bottom:6px;font-family:monospace">NAZWA POKOJU (opcjonalnie)</div>
-          <input type="text" class="modal-input" id="ol-room-name" placeholder="np. Turniej Piątek" maxlength="30" style="margin-bottom:0">
+        <!-- DOUBLE IN / DOUBLE OUT (tylko dla 301/501) — cały kafelek jest przełącznikiem -->
+        <div id="ol-x01-opts">
+          <div class="olc-tg" onclick="olTogDIn()" role="switch">
+            <div class="olc-tt"><b>Double-In</b><small>na start</small></div>
+            <div class="toggle" id="ol-tog-din"><div class="toggle-knob"></div></div>
+          </div>
+          <div class="olc-tg" onclick="olTogDOut()" role="switch">
+            <div class="olc-tt"><b>Double-Out</b><small>na koniec</small></div>
+            <div class="toggle" id="ol-tog-dout"><div class="toggle-knob"></div></div>
+          </div>
         </div>
 
-        <div style="margin-bottom:14px">
-          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #2a2a40">
-            <div>
-              <div style="font-size:14px;font-weight:700">⏱ Timer tury</div>
-              <div style="font-size:10px;color:#8888aa;margin-top:2px;font-family:monospace">Odliczanie czasu na rzut</div>
-            </div>
-            <div class="toggle" id="ol-tog-timer" onclick="olTogTimer()"><div class="toggle-knob"></div></div>
+        <div class="olc-row olc-nm">
+          <div class="olc-in"><i>✏️</i><input type="text" id="ol-room-name" placeholder="Nazwa pokoju" maxlength="30"></div>
+          <div class="olc-tg olc-timer" onclick="olTogTimer()" role="switch">
+            <div class="olc-tt"><b>⏱ Timer</b><small>czas na turę</small></div>
+            <div class="toggle" id="ol-tog-timer"><div class="toggle-knob"></div></div>
           </div>
-          <div id="ol-timer-opts" style="display:none;margin-top:8px">
-            <div style="font-size:10px;color:#8888aa;margin-bottom:6px;font-family:monospace">CZAS NA TURĘ (sekundy)</div>
-            <div style="display:flex;gap:6px">
-              <div class="mult-btn ol-timer-btn" id="oltimer-15" onclick="olSelTimer(15)">15s</div>
-              <div class="mult-btn m1 ol-timer-btn" id="oltimer-30" onclick="olSelTimer(30)">30s</div>
-              <div class="mult-btn ol-timer-btn" id="oltimer-60" onclick="olSelTimer(60)">60s</div>
-            </div>
+        </div>
+        <div id="ol-timer-opts" style="display:none">
+          <div class="olc-seg olc-seg-t">
+            <div class="ol-timer-btn" id="oltimer-15" onclick="olSelTimer(15)">15 s</div>
+            <div class="ol-timer-btn m1" id="oltimer-30" onclick="olSelTimer(30)">30 s</div>
+            <div class="ol-timer-btn" id="oltimer-60" onclick="olSelTimer(60)">60 s</div>
           </div>
         </div>
 
         <div id="ol-create-msg"></div>
-        <button class="btn btn-cyan" style="margin-top:0" onclick="olCreateRoom()">UTWÓRZ POKÓJ</button>
+        <button class="olc-go" onclick="olCreateRoom()"><span>➕ UTWÓRZ POKÓJ</span></button>
       </div>
     </div>
 
@@ -11119,8 +11102,86 @@ window.DM_PUSH_VAPID_KEY = 'BJpP1OB9uZXTxC7KsGvXjFGPI8qsM7WmGbIP74jHSn5CzGedryJW
 .iv-btn{width:100%;padding:10px;margin:0 0 8px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.45);border-radius:9px;color:#00e5ff;font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;cursor:pointer}
 #iv-sent{font-family:monospace;font-size:11px;color:#8888aa;margin:-4px 0 10px}
 #iv-sent div{display:flex;justify-content:space-between;padding:2px 0}
-#iv-push{width:100%;padding:9px;margin:6px 0 10px;background:#12121a;border:1px solid #2a2a40;border-radius:9px;color:#c8c8d8;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;cursor:pointer}
-#iv-push.on{border-color:rgba(0,255,136,.5);color:#00ff88}
+/* ---- nagłówek online: avatar + nick + dzwonek + wyloguj obok menu ☰ ---- */
+#ol-user-hdr{display:flex;align-items:center;gap:10px;margin:-58px 0 12px 54px;min-height:44px;position:relative;z-index:5}
+#ol-avatar{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#ff3c3c,#cc1f1f);display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:19px;flex-shrink:0}
+#ol-user-hdr .olu-txt{min-width:0;flex:1}
+#ol-username-display{font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:1px;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ol-stats-display{font-size:11px;color:#8888aa;font-family:monospace;white-space:nowrap}
+#ol-user-hdr .olu-out{background:#1a1a26;border:1px solid #2a2a40;color:#8888aa;padding:6px 10px;border-radius:8px;cursor:pointer;font-family:monospace;font-size:11px;flex-shrink:0}
+/* dzwonek */
+#iv-bell{position:relative;width:42px;height:42px;padding:0;border-radius:50%;background:#12121a;border:1px solid #2a2a40;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .3s,background .3s}
+#iv-bell .bl{font-size:23px;line-height:1;display:inline-block;transform-origin:50% 10%;animation:ivRing 4.2s ease-in-out infinite;filter:brightness(.7) saturate(.7)}
+#iv-bell.on{border-color:rgba(255,215,0,.55);background:rgba(255,215,0,.07)}
+#iv-bell.on .bl{animation:ivRing 3.2s ease-in-out infinite,ivGlow 3.2s ease-in-out infinite}
+#iv-bell.on::after{content:'';position:absolute;inset:-1px;border-radius:50%;pointer-events:none;animation:ivPulse 3.2s ease-out infinite}
+#iv-bell:active{transform:scale(.92)}
+@keyframes ivRing{0%,52%,100%{transform:rotate(0)}56%{transform:rotate(18deg)}61%{transform:rotate(-15deg)}66%{transform:rotate(11deg)}71%{transform:rotate(-8deg)}76%{transform:rotate(5deg)}81%{transform:rotate(-2deg)}86%{transform:rotate(0)}}
+@keyframes ivGlow{0%,58%,92%,100%{filter:brightness(1.18) saturate(1.35) drop-shadow(0 0 5px rgba(255,215,0,.75))}70%,80%{filter:hue-rotate(72deg) saturate(1.7) brightness(1.15) drop-shadow(0 0 8px rgba(0,255,136,.95))}}
+@keyframes ivPulse{0%,60%{box-shadow:0 0 0 0 rgba(0,255,136,0)}70%{box-shadow:0 0 0 2px rgba(0,255,136,.8),0 0 14px rgba(0,255,136,.55)}100%{box-shadow:0 0 0 12px rgba(0,255,136,0)}}
+#iv-bell .tip{position:absolute;top:calc(100% + 8px);right:-46px;white-space:nowrap;padding:6px 10px;border-radius:8px;background:#12121a;border:1px solid #2a2a40;font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;color:#e8e8f0;opacity:0;transform:translateY(-4px);transition:opacity .25s,transform .25s;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.5)}
+#iv-bell .tip.show{opacity:1;transform:none}
+#iv-bell .tip.ok{border-color:rgba(0,255,136,.6);color:#00ff88}
+#iv-bell .tip.no{border-color:rgba(255,60,60,.5);color:#ff8080}
+@media (prefers-reduced-motion:reduce){#iv-bell .bl,#iv-bell.on::after{animation:none!important}}
+/* ---- formularz „Utwórz pokój” — nowy wygląd ---- */
+#ol-tab-create-content .olc{padding:14px 14px 16px;background:linear-gradient(160deg,#151522,#0f0f18);border-color:#26263a}
+#ol-tab-create-content .olc-lbl{font-size:11px;color:#8888aa;margin:0 0 7px 2px;font-family:monospace;letter-spacing:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ol-tab-create-content .olc-lbl span{color:#00e5ff;letter-spacing:0;font-size:10px;margin-left:6px;opacity:.85}
+/* kafelki trybów */
+#ol-tab-create-content .olc-modes{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:16px}
+#ol-tab-create-content .ol-mode-btn{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:10px 2px 9px;min-width:0;border-radius:14px;cursor:pointer;
+  background:linear-gradient(180deg,#1c1c2b,#141420);border:1px solid #2a2a40;color:#9a9ab8;transition:transform .15s,box-shadow .25s,border-color .25s,background .25s;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#ol-tab-create-content .ol-mode-btn i{font-style:normal;font-size:22px;line-height:1.1;filter:grayscale(.55) brightness(.85);transition:filter .25s,transform .25s}
+#ol-tab-create-content .ol-mode-btn b{font-family:'Bebas Neue',cursive;font-weight:normal;font-size:19px;letter-spacing:1px;line-height:1;white-space:nowrap}
+#ol-tab-create-content .ol-mode-btn small{font-family:monospace;font-size:9px;color:#66667f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#ol-tab-create-content .ol-mode-btn::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--ac),var(--ac2));opacity:.35;transition:opacity .25s}
+#ol-tab-create-content .ol-mode-btn:active{transform:scale(.95)}
+#ol-tab-create-content .ol-mode-btn.active{color:#fff;border-color:var(--ac);
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--ac) 30%,transparent),transparent 70%),linear-gradient(180deg,#20202f,#151520);
+  box-shadow:0 0 0 1px var(--ac) inset,0 6px 18px -6px var(--ac)}
+#ol-tab-create-content .ol-mode-btn.active::before{opacity:1}
+#ol-tab-create-content .ol-mode-btn.active i{filter:none;transform:scale(1.12)}
+#ol-tab-create-content .ol-mode-btn.active small{color:var(--ac)}
+#ol-tab-create-content .ol-mode-btn.active::after{content:'✓';position:absolute;top:5px;right:6px;width:14px;height:14px;border-radius:50%;background:var(--ac);color:#0a0a0f;font:900 9px/14px system-ui;text-align:center}
+/* przełączniki segmentowe */
+#ol-tab-create-content .olc-row{display:flex;gap:12px;margin-bottom:16px;align-items:flex-end}
+#ol-tab-create-content .olc-grp{min-width:0}
+#ol-tab-create-content .olc-seg{display:flex;gap:3px;padding:3px;border-radius:12px;background:#0b0b12;border:1px solid #26263a;box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+#ol-tab-create-content .olc-seg>*{flex:1;min-width:0;padding:10px 0;border:0;border-radius:9px;background:transparent;color:#7a7a96;font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:1px;text-align:center;cursor:pointer;transition:background .25s,color .25s,box-shadow .25s,transform .15s;-webkit-tap-highlight-color:transparent}
+#ol-tab-create-content .olc-seg>*:active{transform:scale(.93)}
+#ol-tab-create-content .olc-seg>.m1{color:#0a0a0f;background:linear-gradient(180deg,#5ff3ff,#00b8d4);box-shadow:0 0 14px rgba(0,229,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+#ol-tab-create-content .olc-seg-t>*{padding:8px 0;font-size:17px}
+/* kafelki-przełączniki */
+#ol-x01-opts{display:flex;gap:8px;margin-bottom:16px}
+#ol-x01-opts:not([style*="none"]){display:flex!important}
+#ol-tab-create-content .olc-tg{flex:1;display:flex;align-items:center;gap:6px;background:linear-gradient(180deg,#1a1a28,#141420);border:1px solid #2a2a40;border-radius:12px;padding:10px;min-width:0;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:border-color .25s,box-shadow .25s,background .25s;-webkit-tap-highlight-color:transparent}
+#ol-tab-create-content .olc-tg:active{transform:scale(.97)}
+#ol-tab-create-content .olc-tg:has(.toggle.on){border-color:rgba(0,255,136,.55);background:linear-gradient(180deg,rgba(0,255,136,.1),#141420);box-shadow:0 0 14px -4px rgba(0,255,136,.6)}
+#ol-tab-create-content .olc-tg:has(.toggle.on) .olc-tt b{color:#00ff88}
+#ol-tab-create-content .olc-tt{flex:1;min-width:0;line-height:1.1}
+#ol-tab-create-content .olc-tt b{display:block;font-size:14px;color:#e8e8f0;white-space:nowrap;transition:color .25s}
+#ol-tab-create-content .olc-tt small{display:block;font-size:10px;color:#8888aa;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ol-tab-create-content .olc-tg .toggle{pointer-events:none}
+/* nazwa + timer */
+#ol-tab-create-content .olc-nm{align-items:stretch}
+#ol-tab-create-content .olc-in{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:12px;background:#0b0b12;border:1px solid #26263a;box-shadow:inset 0 2px 6px rgba(0,0,0,.5);transition:border-color .25s,box-shadow .25s}
+#ol-tab-create-content .olc-in:focus-within{border-color:#00e5ff;box-shadow:0 0 0 3px rgba(0,229,255,.15)}
+#ol-tab-create-content .olc-in i{font-style:normal;font-size:14px;opacity:.6}
+#ol-tab-create-content .olc-in input{flex:1;min-width:0;background:none;border:0;outline:0;color:#e8e8f0;font-size:15px;padding:12px 0;font-family:'Rajdhani',sans-serif}
+#ol-tab-create-content .olc-timer{flex:0 0 auto}
+#ol-timer-opts{margin:-6px 0 16px}
+/* przycisk start */
+#ol-tab-create-content .olc-go{position:relative;width:100%;padding:16px;border:0;border-radius:14px;cursor:pointer;overflow:hidden;
+  background:linear-gradient(135deg,#00e5ff,#0091ff 55%,#7b5cff);color:#05060a;font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;
+  box-shadow:0 8px 24px -8px rgba(0,180,255,.8),inset 0 1px 0 rgba(255,255,255,.45);transition:transform .15s}
+#ol-tab-create-content .olc-go span{position:relative;z-index:1}
+#ol-tab-create-content .olc-go::after{content:'';position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:olcShine 3.4s ease-in-out infinite}
+#ol-tab-create-content .olc-go:active{transform:scale(.97)}
+#olm-cricket b{font-size:17px!important;letter-spacing:.3px!important}
+#ol-tab-create-content .ol-mode-btn.active::after{top:4px;right:4px;width:13px;height:13px;font-size:8px;line-height:13px}
+@keyframes olcShine{0%,55%{left:-60%}85%,100%{left:130%}}
+@media (prefers-reduced-motion:reduce){#ol-tab-create-content .olc-go::after{animation:none}}
 </style>
 <div id="iv-banner"><div class="t">📨 ZAPROSZENIE DO GRY</div><div class="s" id="iv-txt"></div><div class="b"><button class="no" onclick="INV.decline()">✕ NIE TERAZ</button><button class="yes" onclick="INV.accept()">✅ DOŁĄCZ</button></div></div>
 <div id="iv-pick"><div class="bx"><div class="hd"><b>📨 ZAPROŚ GRACZA</b><button onclick="INV.closePick()">✕</button></div>
@@ -11253,30 +11314,52 @@ let urlDone=false;
 setInterval(()=>{try{listen();if(!urlDone&&fbOk())urlDone=fromUrl()||true;}catch(e){}},1000);
 
 /* ---------- powiadomienia push ---------- */
-async function enablePush(){
-  if(!('Notification' in window)){toast('Ta przeglądarka nie obsługuje powiadomień');return;}
-  const perm=await Notification.requestPermission();
-  if(perm!=='granted'){toast('🔕 Powiadomienia zablokowane w ustawieniach przeglądarki');renderPushBtn();return;}
+// Zwraca {ok,msg}. silent=true: bez komunikatów (cicha rejestracja tokenu po starcie)
+async function enablePush(silent){
+  if(!('Notification' in window))return{ok:false,msg:'Telefon nie obsługuje powiadomień'};
+  const perm=silent?Notification.permission:await Notification.requestPermission();
+  if(perm!=='granted')return{ok:false,msg:'Zablokowane w ustawieniach'};
   try{
     let reg=await navigator.serviceWorker.getRegistration('/');if(!reg)reg=await navigator.serviceWorker.register('/sw.js',{scope:'/'});
-    if(window.DM_PUSH_VAPID_KEY){
+    if(window.DM_PUSH_VAPID_KEY&&fbOk()){
       const m=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
-      if(!(await m.isSupported())){toast('Push nie jest obsługiwany — na iPhonie dodaj aplikację do ekranu głównego');renderPushBtn();return;}
+      if(!(await m.isSupported()))return{ok:true,msg:'Włączone (przy otwartej aplikacji)'};
       const token=await m.getToken(m.getMessaging(getFb().db.app),{vapidKey:window.DM_PUSH_VAPID_KEY,serviceWorkerRegistration:reg});
       if(token){await getFb().setDoc(getFb().doc(getFb().db,'users',me()),{fcmTokens:{[token]:Date.now()}},{merge:true});localStorage.setItem('dm_push_tok',token);}
-      toast('🔔 Powiadomienia włączone — zaproszenia dotrą nawet przy zamkniętej aplikacji');
-    }else toast('🔔 Powiadomienia włączone (działają, gdy aplikacja jest otwarta w tle)');
-  }catch(e){console.log('push',e);toast('⚠️ Powiadomienia działają tylko przy otwartej aplikacji');}
-  renderPushBtn();
+    }
+    return{ok:true};
+  }catch(e){console.log('push',e);return{ok:true,msg:'Włączone (przy otwartej aplikacji)'};}
 }
+async function disablePush(){
+  try{localStorage.setItem('dm_push_off','1');}catch(e){}
+  const tok=localStorage.getItem('dm_push_tok');
+  if(tok&&fbOk()){try{const fb=getFb();await fb.updateDoc(fb.doc(fb.db,'users',me()),{['fcmTokens.'+tok]:fb.deleteField()});}catch(e){console.log('push off',e);}}
+  try{localStorage.removeItem('dm_push_tok');}catch(e){}
+}
+const bellOn=()=>('Notification' in window)&&Notification.permission==='granted'&&localStorage.getItem('dm_push_off')!=='1';
+let tipT=null,busy=false,silentTried=false;
+function bellTip(txt,cls){const t=document.getElementById('iv-bell-tip');if(!t)return;t.textContent=txt;t.className='tip show '+(cls||'');clearTimeout(tipT);tipT=setTimeout(()=>{t.className='tip';},2600);}
 function renderPushBtn(){
-  const host=document.getElementById('ol-main-panel');if(!host||!('Notification' in window))return;
-  let b=document.getElementById('iv-push');
-  if(!b){b=document.createElement('button');b.id='iv-push';b.type='button';b.onclick=enablePush;const tabs=document.getElementById('ol-tab-lobby');const anchor=tabs?tabs.parentNode:host.firstChild;host.insertBefore(b,anchor);}
-  const on=Notification.permission==='granted';b.classList.toggle('on',on);
-  b.textContent=on?'🔔 POWIADOMIENIA O ZAPROSZENIACH: WŁĄCZONE':'🔕 WŁĄCZ POWIADOMIENIA O ZAPROSZENIACH';
+  const b=document.getElementById('iv-bell');if(!b)return;
+  const on=bellOn();b.classList.toggle('on',on);b.classList.toggle('off',!on);
+  b.title=on?'Powiadomienia włączone — dotknij, żeby wyłączyć':'Powiadomienia wyłączone — dotknij, żeby włączyć';
+  // urządzenie ma zgodę, ale nie zapisany token (np. nowe logowanie) — dopisz po cichu
+  if(on&&!silentTried&&fbOk()&&me()&&!localStorage.getItem('dm_push_tok')){silentTried=true;enablePush(true);}
 }
-setInterval(renderPushBtn,2000);
+async function toggleBell(){
+  if(busy)return;busy=true;
+  try{
+    if(bellOn()){await disablePush();renderPushBtn();bellTip('🔕 Powiadomienia wyłączone','no');}
+    else{
+      try{localStorage.removeItem('dm_push_off');}catch(e){}
+      const r=await enablePush(false);
+      if(!r.ok){try{localStorage.setItem('dm_push_off','1');}catch(e){}renderPushBtn();bellTip('🔕 '+r.msg,'no');}
+      else{renderPushBtn();bellTip('🔔 '+(r.msg||'Powiadomienia włączone'),'ok');}
+    }
+  }finally{busy=false;}
+}
+window.IVBell={toggle:toggleBell,render:renderPushBtn};
+setInterval(renderPushBtn,2000);setTimeout(renderPushBtn,300);
 
 /* ---------- zaproszenie z profilu gracza (ranking) ---------- */
 const _ps=window.olShowPlayerStats;
