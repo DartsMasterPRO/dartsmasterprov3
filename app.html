@@ -2929,7 +2929,22 @@ function pushH(p,sc,bust,openedDI=false){
   const dartsUsed = G.countingMode === 'summary'
     ? 3  // tryb sumaryczny: zawsze zakładamy 3 lotki
     : G.throws.filter(t=>t!==null).length || 3;
-  G.history.push({p, round:G.round, sc, bust, openedDI, dartsUsed});
+  const _h={p, round:G.round, sc, bust, openedDI, dartsUsed, leg:G.currentLeg||1};
+  G.history.push(_h);
+  // Historia CAŁEGO meczu (G.history jest czyszczona co leg) — z niej liczymy statystyki
+  if(!G._allHistory) G._allHistory=[];
+  G._allHistory.push(_h);
+}
+// Tury gracza z całego meczu (wszystkie legi)
+function matchTurns(idx){
+  const all=(G._allHistory&&G._allHistory.length)?G._allHistory:G.history;
+  return all.filter(h=>h.p===idx);
+}
+// Średnia z pierwszych 9 lotek — liczona w każdym legu osobno
+function matchF9Avg(turns){
+  const byLeg={};turns.forEach(h=>{const l=h.leg||1;(byLeg[l]=byLeg[l]||[]).push(h);});
+  let pts=0,d=0;Object.values(byLeg).forEach(a=>a.slice(0,3).forEach(h=>{pts+=h.bust?0:h.sc;d+=(h.dartsUsed||3);}));
+  return d?pts/d*3:0;
 }
 
 function advancePlayer(newScores,newDI,sc,bust,openedDI=false){
@@ -3099,6 +3114,7 @@ function confirmThrow(){
 
 function undoTurn(){
   const last=G.history.pop(); if(!last){toast('Brak historii');return;}
+  if(G._allHistory){const _i=G._allHistory.lastIndexOf(last);if(_i>=0)G._allHistory.splice(_i,1);}
   G.cp=last.p; G.round=last.round;
   if(!last.bust){G.scores[last.p]+=last.sc;}
   if(last.openedDI) G.diDone[last.p]=false;
@@ -3558,7 +3574,7 @@ function recGame(winner){
   // Zbuduj per-player dane z historii (p = indeks gracza)
   const dataByPlayer = {};
   G.players.forEach((nick, idx) => {
-    const myTurns   = G.history.filter(r => r.p === idx);
+    const myTurns   = matchTurns(idx);
     const validTurns = myTurns.filter(r => !r.bust);
     dataByPlayer[nick] = {
       totalPoints: validTurns.reduce((s, r) => s + r.sc, 0),
@@ -6839,7 +6855,7 @@ async function olSyncGameState() {
 
     // Oblicz bieżące statystyki gracza z lokalnej historii i wyślij do Firebase
     const myIdx = OL.myIndex;
-    const myTurns    = G.history.filter(h => h.p === myIdx);
+    const myTurns    = matchTurns(myIdx);
     const validTurns = myTurns.filter(h => !h.bust);
     
     // Pobierz ostatni rzut
@@ -6859,6 +6875,7 @@ async function olSyncGameState() {
       totalDarts:     myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0),
       totalPoints:    validTurns.reduce((s, h) => s + h.sc, 0),
       scores:         validTurns.map(h => h.sc),
+      f9Avg:          matchF9Avg(myTurns),
       doubleAttempts: G._gameDoubleAttempts[myIdx] || 0,
       doubleHits:     G._gameDoubleHits[myIdx] || 0,
       lastThrow:      lastThrow,
@@ -6930,9 +6947,13 @@ async function olRecordWin(winnerIdx) {
 
     // Uzupełnij ze swoich lokalnych danych jeśli jesteśmy aktywnym graczem
     // (fallback gdy playerStats nie zdążył się zapisać)
-    if (gameTotalDarts === 0 && G.history.length > 0) {
-      const myTurns    = G.history.filter(h => h.p === myIdx);
+    // Lokalna historia całego meczu jest pełna (zawiera też ostatnią turę, która mogła nie zdążyć się zsynchronizować)
+    const _locTurns = matchTurns(myIdx);
+    const _locDarts = _locTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
+    if (_locDarts > 0 && _locDarts >= gameTotalDarts) {
+      const myTurns    = _locTurns;
       const validTurns = myTurns.filter(h => !h.bust);
+      ps.f9Avg = matchF9Avg(myTurns);
       ps.totalDarts  = myTurns.reduce((s, h) => s + (h.dartsUsed || 3), 0);
       ps.totalPoints = validTurns.reduce((s, h) => s + h.sc, 0);
       ps.scores      = validTurns.map(h => h.sc);
@@ -6946,7 +6967,8 @@ async function olRecordWin(winnerIdx) {
 
     // First 9 avg z tej gry
     const f9 = finalScores.slice(0, 3);
-    const f9Avg = f9.length > 0 ? (f9.reduce((a,b)=>a+b,0) / (f9.length * 3)) * 3 : 0;
+    const f9Avg = (typeof ps.f9Avg === 'number') ? ps.f9Avg
+      : (f9.length > 0 ? (f9.reduce((a,b)=>a+b,0) / (f9.length * 3)) * 3 : 0);
 
     // High scores
     let game180s = 0, game100s = 0, game140s = 0, gameBest = 0;
