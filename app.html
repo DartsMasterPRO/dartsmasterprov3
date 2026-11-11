@@ -11689,6 +11689,8 @@ body.gl #sec-badge,body:has(#online-screen.active) #sec-badge{display:none!impor
 #ol-game-bar #rchat-fab{position:relative!important;bottom:auto!important;right:auto!important;z-index:auto}
 #ol-game-bar #rchat-fab.rchat-alert{background:linear-gradient(180deg,#ffdd00,#cc8800)!important;border-color:#ffdd00!important}
 #ol-game-bar #rchat-badge{top:-5px!important;right:-5px!important}
+/* cofanie zatwierdzonej tury działa tylko lokalnie — online by rozsynchronizowało wynik z rywalem */
+body.gl.gl-ol .gl-undo-turn{display:none!important}
 /* kolejka (tylko 3–4 graczy) */
 #ol-turn-queue{padding-top:2px}
 </style>
@@ -11722,6 +11724,10 @@ body.gl #sec-badge,body:has(#online-screen.active) #sec-badge{display:none!impor
     const q=document.getElementById('ol-turn-queue');
     try{if(q){const n=(G&&G.players||[]).length;q.style.display=n>2?'flex':'none';}}catch(e){}
   }
+  const _undo=window.undoTurn;
+  if(typeof _undo==='function')window.undoTurn=function(){
+    try{if(OL&&OL.currentRoomId&&G&&G._onlineRoomId){toast('W grze online nie można cofnąć zatwierdzonej tury');return;}}catch(e){}
+    return _undo.apply(this,arguments);};
   const _ut=window.olUpdateTurnUI;
   if(typeof _ut==='function')window.olUpdateTurnUI=function(){const r=_ut.apply(this,arguments);try{setup();sync();}catch(e){}return r;};
   setup();setInterval(()=>{try{setup();sync();}catch(e){}},600);
