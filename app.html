@@ -11429,6 +11429,244 @@ window.INV={send:(u,n,b)=>invite(u,n,b),search,closePick(){document.getElementBy
 })();
 </script>
 
+<!-- ================= KOSTKA 3D Z FIZYKĄ (rzut „kto zaczyna” online) =================
+     three.js (render) + cannon-es (fizyka bryły sztywnej), wczytywane leniwie z /lib/ dopiero przy rzucie.
+     Wynik nadal losuje olRollDice i zapisuje w Firebase — tutaj tylko wierna animacja:
+     1) symulujemy rzut „na sucho” do zatrzymania kostki, 2) sprawdzamy, która ścianka wypadła na górze,
+     3) przenumerowujemy ścianki (prawidłowa kostka: przeciwległe = 7), żeby na górze była wylosowana liczba,
+     4) odtwarzamy nagrany ruch z dźwiękiem stukania. Brak WebGL / brak bibliotek → stara kostka CSS. -->
+<style>
+#dice-table.d3{height:210px!important;padding:0!important;background:#07070c!important}
+#dice-table.d3>canvas{position:absolute;inset:0;width:100%!important;height:100%!important;display:block;touch-action:none}
+#dice-table.d3>.dice3d-cube,#dice-table.d3>.dice-shadow{display:none!important}
+#dice-table{position:relative}
+#dice-table.d3::after{display:none}
+.d3-hint{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-family:monospace;font-size:10px;letter-spacing:1px;color:rgba(255,255,255,.55);pointer-events:none;text-shadow:0 1px 3px #000;transition:opacity .3s}
+.d3-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:11px;color:#8888aa}
+</style>
+<script>
+(function(){
+'use strict';
+const LIB='/lib/';
+let D=null,loading=null,LAST={};
+const W=2.4,DP=1.36,WALL=0.3,S=0.3,RAD=0.05;          // wymiary tacki i kostki (jednostki świata)
+const LANE_X=[-W/4,W/4];
+const N=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]; // kolejność ścianek BoxGeometry
+const L0=[2,5,1,6,3,4];                                         // standardowa kostka: przeciwległe sumują się do 7
+const _unused=0;
+const PIPS={1:[[.5,.5]],2:[[.27,.27],[.73,.73]],3:[[.27,.27],[.5,.5],[.73,.73]],4:[[.27,.27],[.73,.27],[.27,.73],[.73,.73]],
+  5:[[.27,.27],[.73,.27],[.5,.5],[.27,.73],[.73,.73]],6:[[.27,.25],[.73,.25],[.27,.5],[.73,.5],[.27,.75],[.73,.75]]};
+const STYLE=[{base:'#f4f1ea',edge:'#d8d3c8',pip:'#15151c',one:'#c4161c'},{base:'#c8102e',edge:'#8e0b20',pip:'#ffffff',one:'#ffffff'}];
+
+function rng(seed){let a=seed>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+/* ---------- 24 obroty kostki (macierze permutacji ze znakiem, wyznacznik +1) ---------- */
+const ROTS=(()=>{const out=[],P=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+  for(const p of P)for(let sx=-1;sx<=1;sx+=2)for(let sy=-1;sy<=1;sy+=2)for(let sz=-1;sz<=1;sz+=2){
+    const M=[[0,0,0],[0,0,0],[0,0,0]];M[0][p[0]]=sx;M[1][p[1]]=sy;M[2][p[2]]=sz;
+    const det=M[0][0]*(M[1][1]*M[2][2]-M[1][2]*M[2][1])-M[0][1]*(M[1][0]*M[2][2]-M[1][2]*M[2][0])+M[0][2]*(M[1][0]*M[2][1]-M[1][1]*M[2][0]);
+    if(det===1)out.push(M);}
+  return out;})();
+const faceOf=v=>N.findIndex(n=>n[0]===v[0]&&n[1]===v[1]&&n[2]===v[2]);
+function labelsFor(upFace,value,r){ // prawidłowa numeracja ścianek z „value” na ściance upFace
+  const ok=[];for(const M of ROTS){const L=N.map(n=>{const m=[0,1,2].map(i=>M[i][0]*n[0]+M[i][1]*n[1]+M[i][2]*n[2]);return L0[faceOf(m)];});if(L[upFace]===value)ok.push(L);}
+  return ok[Math.floor(r()*ok.length)]||L0;}
+
+/* ---------- ładowanie i scena ---------- */
+async function load(){
+  if(D!==null)return D;if(loading)return loading;
+  loading=(async()=>{
+    const c=document.createElement('canvas');if(!(c.getContext('webgl2')||c.getContext('webgl')))throw new Error('brak WebGL');
+    const [T,C]=await Promise.all([import(LIB+'three.module.min.js'),import(LIB+'cannon-es.min.js')]);
+    D=build(T,C);return D;
+  })().catch(e=>{console.log('dice3d:',e);D=false;return false;});
+  return loading;
+}
+function canvasTex(T,draw,size){const c=document.createElement('canvas');c.width=c.height=size||256;draw(c.getContext('2d'),c.width);const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;return t;}
+function faceTex(T,n,st){return canvasTex(T,(g,s)=>{
+  const gr=g.createRadialGradient(s*.5,s*.45,s*.1,s*.5,s*.5,s*.75);gr.addColorStop(0,st.base);gr.addColorStop(1,st.edge);g.fillStyle=gr;g.fillRect(0,0,s,s);
+  for(const[x,y]of PIPS[n]){const R=s*(n===1&&st.one!==st.pip?.13:.085),cx=x*s,cy=y*s;
+    const pg=g.createRadialGradient(cx-R*.3,cy-R*.3,R*.1,cx,cy,R);const col=n===1?st.one:st.pip;
+    pg.addColorStop(0,col);pg.addColorStop(.85,col);pg.addColorStop(1,'rgba(0,0,0,.55)');
+    g.fillStyle=pg;g.beginPath();g.arc(cx,cy,R,0,Math.PI*2);g.fill();}
+});}
+function roundedBox(T,s,r,seg){
+  const g=new T.BoxGeometry(s,s,s,seg,seg,seg),p=g.attributes.position,nm=g.attributes.normal,h=s/2-r,v=new T.Vector3(),inner=new T.Vector3();
+  for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);inner.set(Math.max(-h,Math.min(h,v.x)),Math.max(-h,Math.min(h,v.y)),Math.max(-h,Math.min(h,v.z)));
+    const d=v.clone().sub(inner).normalize();p.setXYZ(i,inner.x+d.x*r,inner.y+d.y*r,inner.z+d.z*r);nm.setXYZ(i,d.x,d.y,d.z);}
+  return g;}
+function build(T,C){
+  const o={T,C,dice:[null,null],anim:[null,null],raf:0,host:null};
+  const ren=new T.WebGLRenderer({antialias:true,powerPreference:'low-power'});
+  ren.setPixelRatio(Math.min(2,window.devicePixelRatio||1));ren.shadowMap.enabled=true;ren.shadowMap.type=T.PCFSoftShadowMap;ren.setClearColor(0x07070c,1);
+  o.ren=ren;
+  const sc=new T.Scene();o.sc=sc;
+  const cam=new T.PerspectiveCamera(34,1.6,.1,50);o.cam=cam;
+  sc.add(new T.HemisphereLight(0xfff4e6,0x1a1a28,.75));
+  const dl=new T.DirectionalLight(0xffffff,1.6);dl.position.set(1.2,3.2,1.6);dl.castShadow=true;dl.shadow.mapSize.set(1024,1024);
+  Object.assign(dl.shadow.camera,{left:-1.8,right:1.8,top:1.2,bottom:-1.2,near:.5,far:8});dl.shadow.radius=4;dl.shadow.bias=-.0008;sc.add(dl);
+  // filc
+  const felt=canvasTex(T,(g,s)=>{g.fillStyle='#0d4a33';g.fillRect(0,0,s,s);for(let i=0;i<9000;i++){const l=Math.random();g.fillStyle=`rgba(${l>.5?255:0},${l>.5?255:0},${l>.5?255:0},${Math.random()*.05})`;g.fillRect(Math.random()*s,Math.random()*s,1.2,1.2);}},256);
+  felt.wrapS=felt.wrapT=T.RepeatWrapping;felt.repeat.set(4,2.4);
+  const floor=new T.Mesh(new T.PlaneGeometry(W,DP),new T.MeshStandardMaterial({map:felt,roughness:.95,metalness:0}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;sc.add(floor);
+  // drewniane bandy + przegroda między torami
+  const wood=canvasTex(T,(g,s)=>{g.fillStyle='#5b3a21';g.fillRect(0,0,s,s);for(let i=0;i<60;i++){g.strokeStyle=`rgba(${30+Math.random()*40},${15+Math.random()*20},5,.35)`;g.lineWidth=1+Math.random()*2;g.beginPath();const y=Math.random()*s;g.moveTo(0,y);g.bezierCurveTo(s*.3,y+Math.random()*8-4,s*.6,y+Math.random()*8-4,s,y+Math.random()*6-3);g.stroke();}},256);
+  const wm=new T.MeshStandardMaterial({map:wood,roughness:.55,metalness:.05});
+  const wallDefs=[[0,DP/2+.06,W+.24,.12],[0,-DP/2-.06,W+.24,.12],[W/2+.06,0,.12,DP],[-W/2-.06,0,.12,DP]];
+  for(const[x,z,w,d]of wallDefs){const m=new T.Mesh(new T.BoxGeometry(w,WALL,d),wm);m.position.set(x,WALL/2,z);m.castShadow=m.receiveShadow=true;sc.add(m);}
+  const div=new T.Mesh(new T.BoxGeometry(.05,.12,DP),wm);div.position.set(0,.06,0);div.castShadow=true;sc.add(div);
+  // kostki: geometria wspólna, numeracja ścianek ustawiana przy każdym rzucie
+  const geo=roundedBox(T,S,RAD,6);
+  o.mats=STYLE.map(st=>{const a=[];for(let n=1;n<=6;n++)a[n]=new T.MeshStandardMaterial({map:faceTex(T,n,st),roughness:.32,metalness:0});return a;});
+  for(let i=0;i<2;i++){const m=new T.Mesh(geo,L0.map(n=>o.mats[i][n]));m.castShadow=true;m.receiveShadow=true;m.visible=false;sc.add(m);o.dice[i]=m;}
+  // nicki graczy „wydrukowane” na filcu w ich torach
+  o.names=[0,1].map(i=>{const c=document.createElement('canvas');c.width=512;c.height=128;const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;
+    const m=new T.Mesh(new T.PlaneGeometry(W/2-.14,(W/2-.14)/4),new T.MeshStandardMaterial({map:t,transparent:true,opacity:.9,roughness:1,depthWrite:false}));
+    m.rotation.x=-Math.PI/2;m.position.set(LANE_X[i],.002,.02);sc.add(m);return{c,t,m};});
+  o.setNames=(a)=>{o.names.forEach((n,i)=>{const g=n.c.getContext('2d');g.clearRect(0,0,512,128);g.font='bold 64px "Bebas Neue", Impact, sans-serif';g.textAlign='center';g.textBaseline='middle';
+    g.fillStyle=i===0?'rgba(0,229,255,.32)':'rgba(255,140,0,.34)';g.fillText(String(a[i]||'').toUpperCase().slice(0,14),256,68);n.t.needsUpdate=true;});};
+  o.render=()=>ren.render(sc,cam);
+  return o;
+}
+function attach(table){
+  if(!D)return false;
+  if(D.host!==table){D.host=table;table.classList.add('d3');table.appendChild(D.ren.domElement);
+    const h=document.createElement('div');h.className='d3-hint';h.id='d3-hint';table.appendChild(h);bindSwipe(table);}
+  const w=table.clientWidth||320,h=table.clientHeight||210;D.ren.setSize(w,h,false);D.cam.aspect=w/h;
+  // dopasuj kamerę, żeby cała tacka mieściła się w kadrze niezależnie od proporcji ekranu
+  const halfW=W/2+.16,fovH=2*Math.atan(Math.tan(D.cam.fov*Math.PI/360)*D.cam.aspect),dist=Math.max(2.4,halfW/Math.tan(fovH/2)*1.0);
+  D.cam.position.set(0,dist*.97,dist*.3);D.cam.lookAt(0,0,.03);D.cam.updateProjectionMatrix();
+  loop();return true;
+}
+function loop(){if(D.raf)return;const tick=now=>{D.raf=0;const modal=document.getElementById('dice-roll-modal');if(!modal||!modal.classList.contains('active'))return;
+  for(let i=0;i<2;i++)step(i,now);D.render();D.raf=requestAnimationFrame(tick);};D.raf=requestAnimationFrame(tick);}
+
+/* ---------- fizyka „na sucho”: nagrywa cały rzut ---------- */
+function simulate(lane,seed,power){
+  const {C}=D,r=rng(seed),world=new C.World({gravity:new C.Vec3(0,-26,0),allowSleep:true});
+  world.broadphase=new C.NaiveBroadphase();world.solver.iterations=14;
+  const mFelt=new C.Material('felt'),mWood=new C.Material('wood'),mDie=new C.Material('die');
+  world.addContactMaterial(new C.ContactMaterial(mDie,mFelt,{friction:.38,restitution:.36}));
+  world.addContactMaterial(new C.ContactMaterial(mDie,mWood,{friction:.18,restitution:.5}));
+  const ground=new C.Body({mass:0,material:mFelt});ground.addShape(new C.Plane());ground.quaternion.setFromEuler(-Math.PI/2,0,0);world.addBody(ground);
+  const walls=[];const wall=(x,z,w,d)=>{const b=new C.Body({mass:0,material:mWood});b.addShape(new C.Box(new C.Vec3(w/2,1,d/2)));b.position.set(x,1,z);world.addBody(b);walls.push(b);};
+  const lx=LANE_X[lane],lw=W/2;
+  wall(lx,DP/2+.06,lw,.12);wall(lx,-DP/2-.06,lw,.12);wall(lx-lw/2-.03,0,.06,DP);wall(lx+lw/2+.03,0,.06,DP); // tor gracza = osobny „boks”
+  const die=new C.Body({mass:1,material:mDie,linearDamping:.06,angularDamping:.07,sleepSpeedLimit:.1,sleepTimeLimit:.4});
+  die.addShape(new C.Box(new C.Vec3(S/2,S/2,S/2)));
+  const pw=Math.max(.55,Math.min(1.35,power||1));
+  die.position.set(lx+(r()-.5)*.3,.7+r()*.2,DP/2-.22);
+  die.quaternion.setFromEuler(r()*6.28,r()*6.28,r()*6.28);
+  die.velocity.set((r()-.5)*1.2,.3+r()*.6,-(1.9+r()*.9)*pw);
+  die.angularVelocity.set(-(14+r()*12)*pw,(r()-.5)*14,(r()-.5)*16);
+  world.addBody(die);
+  const frames=[],hits=[];let last={felt:-9,wood:-9},stepN=0;
+  die.addEventListener('collide',e=>{const v=Math.abs(e.contact.getImpactVelocityAlongNormal());if(v<.55)return;const kind=e.body===ground?'felt':'wood';const f=frames.length;if(f-last[kind]<3)return;last[kind]=f;hits.push({f,v,kind});});
+  const DT=1/120;
+  for(let i=0;i<120*7;i++){world.step(DT);stepN++;
+    if(stepN%2===0)frames.push([die.position.x,die.position.y,die.position.z,die.quaternion.x,die.quaternion.y,die.quaternion.z,die.quaternion.w]);
+    if(die.sleepState===C.Body.SLEEPING&&frames.length>30)break;}
+  // która ścianka jest na górze?
+  const q=die.quaternion,inv=new C.Quaternion(-q.x,-q.y,-q.z,q.w),up=inv.vmult(new C.Vec3(0,1,0));
+  let best=0,bi=0;N.forEach((n,i)=>{const d=n[0]*up.x+n[1]*up.y+n[2]*up.z;if(d>best){best=d;bi=i;}});
+  return{frames,hits,upFace:bi,flat:best,r};
+}
+function plan(lane,value,seed,power){
+  let s=seed,res=null;
+  for(let k=0;k<6;k++){res=simulate(lane,s,power);if(res.flat>.985)break;s=(s*1103515245+12345)>>>0;} // oparta o bandę → inny rzut
+  res.labels=labelsFor(res.upFace,value,res.r);return res;
+}
+
+/* ---------- odtwarzanie ---------- */
+function setLabels(i,L){D.dice[i].material=L.map(n=>D.mats[i][n]);}
+function place(i,fr){const m=D.dice[i];m.position.set(fr[0],fr[1],fr[2]);m.quaternion.set(fr[3],fr[4],fr[5],fr[6]);}
+function step(i,now){const a=D.anim[i];if(!a)return;if(a.t0===null)a.t0=now;
+  const t=a.frozen!=null?a.frozen:(now-a.t0)/1000*60,fi=Math.min(a.frames.length-1,Math.floor(t)),fr=a.frames[fi],nx=a.frames[Math.min(a.frames.length-1,fi+1)],k=t-fi;
+  if(fi<a.frames.length-1){const T=D.T,m=D.dice[i];m.position.set(fr[0]+(nx[0]-fr[0])*k,fr[1]+(nx[1]-fr[1])*k,fr[2]+(nx[2]-fr[2])*k);
+    const q1=new T.Quaternion(fr[3],fr[4],fr[5],fr[6]),q2=new T.Quaternion(nx[3],nx[4],nx[5],nx[6]);m.quaternion.copy(q1.slerp(q2,k));}
+  else place(i,fr);
+  while(a.hi<a.hits.length&&a.hits[a.hi].f<=fi){clack(a.hits[a.hi]);a.hi++;}
+  if(fi>=a.frames.length-1&&!a.done){a.done=true;const cb=a.cb;setTimeout(()=>{if(cb)cb();},280);}
+}
+function simulateRest(i,r){ // kostka „czeka” przy krawędzi swojego toru: płasko, losowa ścianka do góry
+  const T=D.T,m=D.dice[i],M=ROTS[Math.floor(r()*ROTS.length)];
+  const m4=new T.Matrix4().set(M[0][0],M[0][1],M[0][2],0,M[1][0],M[1][1],M[1][2],0,M[2][0],M[2][1],M[2][2],0,0,0,0,1);
+  const q=new T.Quaternion().setFromAxisAngle(new T.Vector3(0,1,0),r()*6.28).multiply(new T.Quaternion().setFromRotationMatrix(m4));
+  m.position.set(LANE_X[i]+(i===0?-.3:.3),S/2,DP/2-.24);m.quaternion.copy(q);m.visible=true;
+}
+
+/* ---------- dźwięk stukania (syntetyczny) ---------- */
+let ac=null;
+function clack(h){try{if(typeof isMuted!=='undefined'&&isMuted)return;}catch(e){}
+  try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume();
+    const t=ac.currentTime,vol=Math.min(.55,.08+h.v*.05)*(h.kind==='wood'?1:.55),len=h.kind==='wood'?.05:.035;
+    const buf=ac.createBuffer(1,Math.floor(ac.sampleRate*len),ac.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
+    const src=ac.createBufferSource();src.buffer=buf;const bp=ac.createBiquadFilter();bp.type='bandpass';bp.frequency.value=h.kind==='wood'?1900+Math.random()*500:900+Math.random()*300;bp.Q.value=h.kind==='wood'?4:1.6;
+    const g=ac.createGain();g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+len);src.connect(bp);bp.connect(g);g.connect(ac.destination);src.start(t);
+    if(h.kind==='wood'){const o=ac.createOscillator(),og=ac.createGain();o.frequency.value=520+Math.random()*120;og.gain.setValueAtTime(vol*.35,t);og.gain.exponentialRampToValueAtTime(.001,t+.06);o.connect(og);og.connect(ac.destination);o.start(t);o.stop(t+.07);}
+  }catch(e){}}
+
+/* ---------- rzut gestem: przesuń palcem w górę po swoim torze ---------- */
+function bindSwipe(table){
+  let st=null;const el=D.ren.domElement;
+  el.addEventListener('pointerdown',e=>{st={x:e.clientX,y:e.clientY,t:performance.now()};});
+  el.addEventListener('pointerup',e=>{if(!st)return;const dy=st.y-e.clientY,dt=Math.max(30,performance.now()-st.t);const s0=st;st=null;
+    const me=OL_diceState&&OL_diceState.myIndex;if(me!==0&&me!==1)return;const btn=document.getElementById('dice-p'+(me+1)+'-btn');if(!btn||btn.disabled)return;
+    if(dy<25)return; const speed=dy/dt; // px/ms
+    window.olRollDice(me,Math.max(.6,Math.min(1.35,speed*1.1)));});
+}
+function hint(txt){const h=document.getElementById('d3-hint');if(h){h.textContent=txt||'';h.style.opacity=txt?'1':'0';}}
+
+/* ---------- podpięcie pod istniejący rzut kostką ---------- */
+const _reset=window.olResetDiceOnTable,_throw=window.olThrowDiceOnTable,_upd=window.olUpdateDiceDisplay,_roll=window.olRollDice;
+window.olUpdateDiceDisplay=function(rolls){try{LAST=rolls||{};}catch(e){}return _upd.apply(this,arguments);};
+window.olRollDice=async function(playerIndex,power){
+  // jak oryginał, ale z „ziarnem” i siłą rzutu, żeby rywal zobaczył ten sam lot kostki
+  const fb=getFb();if(!fb||!OL.currentRoomId)return;
+  try{if(OL_diceState.rollingNow&&OL_diceState.rollingNow[playerIndex])return;if(OL_diceState.rollingNow)OL_diceState.rollingNow[playerIndex]=true;}catch(e){}
+  const btn=document.getElementById('dice-p'+(playerIndex+1)+'-btn');if(btn){btn.disabled=true;btn.textContent='🎲 …';}
+  const value=Math.floor(Math.random()*6)+1,ts=Date.now(),seed=Math.floor(Math.random()*2147483647),pw=+(power||0.8+Math.random()*0.35).toFixed(3);
+  try{const roomRef=fb.doc(fb.db,'rooms',OL.currentRoomId);const snap=await fb.getDoc(roomRef);if(!snap.exists())return;
+    const rolls=snap.data().diceRolls||{};rolls[playerIndex]={value,ts,seed,pw};await fb.updateDoc(roomRef,{diceRolls:rolls});
+  }catch(e){console.error('Dice roll error:',e);toast('❌ '+e.message);try{OL_diceState.rollingNow[playerIndex]=false;}catch(_){}
+    if(btn){btn.disabled=false;btn.textContent='RZUĆ';}}
+};
+window.olResetDiceOnTable=function(i){
+  const table=document.getElementById('dice-table');
+  if(D===false)return _reset.apply(this,arguments);
+  if(table&&!D&&!table.querySelector('.d3-load')){const l=document.createElement('div');l.className='d3-load';l.textContent='🎲 przygotowuję kostki…';table.appendChild(l);}
+  load().then(ok=>{const l=table&&table.querySelector('.d3-load');if(l)l.remove();
+    if(!ok||!attach(table))return _reset(i);
+    D.anim[i]=null;simulateRest(i,rng(Date.now()+i*977));
+    try{const pl=OL_diceState.players||[];D.setNames([pl[0]&&pl[0].nick||'Gracz 1',pl[1]&&pl[1].nick||'Gracz 2']);}catch(e){}
+    const me=OL_diceState&&OL_diceState.myIndex;hint(me===0||me===1?'przesuń palcem w górę albo stuknij RZUĆ':'');D.render();});
+};
+window.olThrowDiceOnTable=function(i,value,onDone){
+  const table=document.getElementById('dice-table');
+  load().then(ok=>{
+    if(!ok||!attach(table))return _throw(i,value,onDone);
+    hint('');
+    const roll=LAST&&LAST[i]||{},seed=(roll.seed>>>0)||((roll.ts||Date.now())%2147483647),pw=roll.pw||1;
+    const p=plan(i,value,seed,pw);
+    setLabels(i,p.labels);D.dice[i].visible=true;place(i,p.frames[0]);
+    D.anim[i]={frames:p.frames,hits:p.hits,hi:0,t0:null,done:false,cb:onDone};loop();
+  });
+};
+// zwycięzcę ogłaszamy dopiero, gdy OBIE kostki faktycznie się zatrzymają
+const _fin=window.olFinalizeDiceRoll;
+if(typeof _fin==='function')window.olFinalizeDiceRoll=async function(rolls){
+  const t0=Date.now();
+  if(D)while(Date.now()-t0<9000&&[0,1].some(i=>D.anim[i]&&!D.anim[i].done||(rolls&&rolls[i]&&!D.anim[i])))await new Promise(r=>setTimeout(r,120));
+  await new Promise(r=>setTimeout(r,500));
+  return _fin.apply(this,arguments);
+};
+// test / podgląd
+window.Dice3D={seek(i,fi){const a=D&&D.anim[i];if(a){a.frozen=fi;}},frames(i){const a=D&&D.anim[i];return a?a.frames.length:0;},pos(i){const m=D.dice[i];return [m.position.x,m.position.y,m.position.z].map(v=>+v.toFixed(2));},load,attach:()=>attach(document.getElementById('dice-table')),plan:(l,v,s,p)=>plan(l,v,s,p),get ready(){return !!D;},
+  topValue(i){if(!D)return null;const m=D.dice[i],T=D.T,inv=m.quaternion.clone().invert(),up=new T.Vector3(0,1,0).applyQuaternion(inv);let b=-2,bi=0;N.forEach((n,k)=>{const d=n[0]*up.x+n[1]*up.y+n[2]*up.z;if(d>b){b=d;bi=k;}});
+    const mat=Array.isArray(m.material)?m.material[bi]:null;return D.mats[i].indexOf(mat);}};
+})();
+</script>
+
 <!-- ================= MOTYW „NEON TILES” (DartsMaster Pro) =================
      Wspólny wygląd całej aplikacji: kafelki z gradientem, kolorowe akcenty, poświata dla
      wybranych opcji, przełączniki segmentowe. Zmienia tylko wygląd (kolory, tła, ramki,
