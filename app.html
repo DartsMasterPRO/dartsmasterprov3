@@ -10185,13 +10185,13 @@ body.gl.gl-ol .menu-toggle{top:calc(env(safe-area-inset-top) + 3px)!important;le
 
 /* gracze obok siebie */
 body.gl #scoreboard.gl-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
-body.gl #scoreboard.gl-grid .player-card{margin:0!important;padding:7px 8px 7px 10px!important;gap:6px!important;min-width:0}
-body.gl #scoreboard.gl-grid .player-avatar{width:26px!important;height:26px!important;font-size:13px!important}
+body.gl #scoreboard.gl-grid .player-card{margin:0!important;padding:calc(7px + var(--glp,0px)) 8px calc(7px + var(--glp,0px)) 10px!important;gap:6px!important;min-width:0}
+body.gl #scoreboard.gl-grid .player-avatar{width:calc(26px + var(--glf,0px)*0.45)!important;height:calc(26px + var(--glf,0px)*0.45)!important;font-size:calc(13px + var(--glf,0px)*0.25)!important}
 body.gl #scoreboard.gl-grid .player-card>div:nth-child(2){min-width:0}
-body.gl #scoreboard.gl-grid .player-name{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-body.gl #scoreboard.gl-grid .player-sub{font-size:9px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-body.gl #scoreboard.gl-grid .player-score{font-size:34px!important;min-width:0!important}
-body.gl #scoreboard:not(.gl-grid) .player-card{margin-bottom:5px!important;padding:6px 12px!important}
+body.gl #scoreboard.gl-grid .player-name{font-size:calc(13px + var(--glf,0px)*0.25)!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.gl #scoreboard.gl-grid .player-sub{font-size:calc(9px + var(--glf,0px)*0.12)!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+body.gl #scoreboard.gl-grid .player-score{font-size:calc(34px + var(--glf,0px))!important;line-height:1;min-width:0!important}
+body.gl #scoreboard:not(.gl-grid) .player-card{margin-bottom:5px!important;padding:calc(6px + var(--glp,0px)) 12px!important}
 
 /* podpowiedź zejścia w jednej linii */
 body.gl #co-hint{padding:5px 10px!important;margin-bottom:8px!important;align-items:center;gap:10px}
@@ -10245,6 +10245,31 @@ body.gl #cricket-in .npad{padding:10px 4px!important}
 
 /* plakietka SECURED zasłaniała przyciski */
 body.gl .gl-secured{display:none!important}
+
+/* historia tur (gra lokalna) */
+.gl-h-chip{flex-shrink:0;min-width:40px;padding:3px 7px;border-radius:6px;text-align:center;font-family:'Bebas Neue',cursive;letter-spacing:.5px;line-height:1.05}
+.gl-h-chip b{display:block;font-size:17px;font-weight:normal}
+.gl-h-chip small{display:block;font-family:monospace;font-size:8px;color:#8888aa;letter-spacing:0}
+#gl-hist-classic{display:none;align-items:center;gap:8px;overflow-x:auto;overflow-y:hidden;padding:5px 8px;margin-top:8px;background:#12121a;border:1px solid #2a2a40;border-radius:10px;scrollbar-width:none}
+#gl-hist-classic::-webkit-scrollbar,#x01-summary-in .card>div:last-child::-webkit-scrollbar{display:none}
+body.gl #gl-hist-classic.on{display:flex}
+#gl-hist-classic>span{font-size:9px;color:#8888aa;font-family:monospace;letter-spacing:1px;flex-shrink:0}
+.gl-h-empty{font-size:10px;color:#555570;font-family:monospace;white-space:nowrap}
+/* większe pola graczy — dopasowane do wolnego miejsca na ekranie */
+body.gl #scoreboard .player-card{padding-top:calc(7px + var(--glp,0px))!important;padding-bottom:calc(7px + var(--glp,0px))!important}
+body.gl #scoreboard .player-score{font-size:calc(34px + var(--glf,0px))!important;line-height:1}
+body.gl #scoreboard .player-name{font-size:calc(13px + var(--glf,0px)*0.25)!important}
+body.gl #scoreboard .player-sub{font-size:calc(9px + var(--glf,0px)*0.12)!important}
+body.gl #scoreboard .player-avatar{width:calc(26px + var(--glf,0px)*0.45)!important;height:calc(26px + var(--glf,0px)*0.45)!important;font-size:calc(13px + var(--glf,0px)*0.25)!important}
+body.gl #scoreboard:not(.gl-grid) .player-score{font-size:calc(30px + var(--glf,0px))!important}
+
+/* tryb „duże pola”: nazwa u góry, wynik pod spodem na całą szerokość */
+body.gl #scoreboard.gl-big .player-card{display:grid!important;grid-template-columns:auto minmax(0,1fr);column-gap:8px!important;row-gap:0;align-items:center;padding:8px 10px 6px!important}
+body.gl #scoreboard.gl-big .player-card>*:nth-child(n+4){grid-column:1/-1}
+body.gl #scoreboard.gl-big .player-avatar{width:30px!important;height:30px!important;font-size:15px!important}
+body.gl #scoreboard.gl-big .player-name{font-size:15px!important}
+body.gl #scoreboard.gl-big .player-sub{font-size:10px!important}
+body.gl #scoreboard.gl-big .player-score{grid-column:1/-1;font-size:var(--glF,48px)!important;line-height:.95!important;text-align:right;min-width:0!important}
 </style>
 <script>
 (function(){
@@ -10261,8 +10286,59 @@ body.gl .gl-secured{display:none!important}
     const sb=document.getElementById('scoreboard');
     if(sb){const n=sb.querySelectorAll('.player-card').length;sb.classList.toggle('gl-grid',on&&n>=2&&n<=4);}
     restructure();applyClassic(on);
+    try{renderLocalHist();}catch(e){}
+    if(on)requestAnimationFrame(()=>{try{fit();}catch(e){}});
     const ch=document.querySelector('.gl-undo-turn'),tr=document.getElementById('training-in');if(ch)ch.style.display=(tr&&tr.style.display==='block')?'none':'';
   }
+
+  /* ---------- historia tur w grze lokalnej ---------- */
+  const HCOL=['#00e5ff','#ff8c00','#00ff88','#ff3cac'];
+  function histHTML(){
+    const H=(typeof G!=='undefined'&&G.history)||[];
+    if(!H.length)return'<span class="gl-h-empty">pierwsza tura…</span>';
+    return H.map(h=>{const c=HCOL[h.p%4],nm=(G.players[h.p]||'?').slice(0,8);
+      return'<div class="gl-h-chip" style="color:'+c+';background:'+c+'14;border:1px solid '+c+'4d"><b>'+(h.bust?'✕':h.sc)+'</b><small>'+nm+'</small></div>';}).join('');
+  }
+  function renderLocalHist(){
+    if(typeof G==='undefined'||!G||!(G.mode==='501'||G.mode==='301'))return;
+    const online=!!(G._onlineRoomId||(typeof OL!=='undefined'&&OL.currentRoomId));
+    let cl=document.getElementById('gl-hist-classic');
+    if(!cl){const xi=document.getElementById('x01-in');if(xi){cl=document.createElement('div');cl.id='gl-hist-classic';xi.appendChild(cl);}}
+    if(online){if(cl)cl.classList.remove('on');return;}
+    const html=histHTML();
+    const sh=document.getElementById('sum-history');
+    if(sh&&G.countingMode==='summary'){sh.style.display='';sh.innerHTML=html;const box=sh.parentNode;if(box)box.scrollLeft=box.scrollWidth;}
+    if(cl){const on=G.countingMode!=='summary'&&!cl.dataset.noroom;cl.classList.toggle('on',on);if(on){cl.innerHTML='<span>HISTORIA</span>'+html;cl.scrollLeft=cl.scrollWidth;}}
+  }
+  /* ---------- większe pola graczy: wykorzystaj wolne miejsce nad dolnym paskiem ---------- */
+  let fitSig='';
+  function fit(force){
+    const g=gs();if(!g||!g.classList.contains('active'))return;
+    const sb=document.getElementById('scoreboard');if(!sb)return;
+    const n=sb.querySelectorAll('.player-card').length;
+    const co=document.getElementById('co-hint'),coOn=!!(co&&co.classList.contains('on'));
+    const sig=[innerHeight,innerWidth,n,G.mode,G.countingMode,document.body.classList.contains('gl-ol'),(document.getElementById('ac-bar')||{}).offsetHeight,coOn,
+      (document.getElementById('training-in')||{style:{}}).style.display,(document.getElementById('xg-in')||{style:{}}).style.display].join('|');
+    fitSig=sig; // przeliczane za każdym razem (bez migania — pomiar i ustawienie w jednej klatce)
+    const root=document.body.style;root.setProperty('--glp','0px');root.setProperty('--glf','0px');sb.classList.remove('gl-big');
+    const nav=document.querySelector('.nav');const limit=nav?nav.getBoundingClientRect().top:innerHeight;
+    let bottom=0;g.querySelectorAll('button,.npad,input,#sum-history,#gl-hist-classic,.card').forEach(e=>{if(e.offsetParent===null)return;const b=e.getBoundingClientRect();if(b.height>0&&b.bottom>bottom)bottom=b.bottom;});
+    const isX=G.mode==='501'||G.mode==='301';
+    let slack=limit-bottom-10+window.scrollY-(isX&&!coOn?40:0); // miejsce zarezerwowane na podpowiedź zejścia
+    const rows=sb.classList.contains('gl-grid')?Math.ceil(n/2):n;
+    const hc=document.getElementById('gl-hist-classic');
+    if(hc&&hc.classList.contains('on')&&limit-bottom+window.scrollY<0){hc.classList.remove('on');hc.dataset.noroom='1';}
+    if(slack<=4||!rows){return;}
+    const E=slack/rows;
+    if(E>=40){ // dużo miejsca: wynik pod nazwą, duża czcionka
+      const F=Math.min(rows>1?58:76,30+(E-40)*0.9);
+      root.setProperty('--glF',F.toFixed(0)+'px');sb.classList.add('gl-big');
+    }else{
+      const f=Math.min(5,E*0.3),p=Math.max(0,(E-f*1.05)/2);
+      root.setProperty('--glf',f.toFixed(1)+'px');root.setProperty('--glp',p.toFixed(1)+'px');
+    }
+  }
+  window.addEventListener('resize',()=>{const hc=document.getElementById('gl-hist-classic');if(hc)delete hc.dataset.noroom;fit(true);});
   // plakietka „SECURED” (tworzona dynamicznie, bez id)
   function tagSecured(){document.querySelectorAll('body>div').forEach(d=>{if(!d.classList.contains('gl-secured')&&d.textContent.trim()==='🔒 SECURED')d.classList.add('gl-secured');});}
   const _goto=window.goto;
