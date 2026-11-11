@@ -851,49 +851,75 @@ input{outline:none}
   </div>
 </div>
 <div class="modal-overlay" id="info-modal" onclick="if(event.target===this)closeInfo()">
-  <div class="modal-box" style="max-width:92%;width:92%;max-height:85vh;overflow-y:auto">
+  <div class="modal-box ab-box">
     <button class="modal-close" onclick="closeInfo()">✕</button>
-    <div class="modal-title">🎯 DARTMASTER PRO</div>
-    <div style="color:#8888aa;font-size:13px;font-family:monospace;line-height:1.7">
-      <p style="color:#e8e8f0;margin:0 0 14px">Aplikacja do liczenia punktów w darta — szybka, prosta, działa offline.</p>
-
-      <div style="color:#ff3c3c;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:2px;margin-bottom:6px">🎮 TRYBY GRY</div>
-      <div style="margin-bottom:14px">
-        🎯 <b style="color:#e8e8f0">301 / 501</b> — klasyczny X01, tryb po lotce lub sumaryczny<br>
-        🏏 <b style="color:#e8e8f0">Cricket</b> — zamykanie numerów 15–20 i bull<br>
-        🔄 <b style="color:#e8e8f0">Around the Clock</b> — trafienie każdego numeru po kolei<br>
-        💪 <b style="color:#e8e8f0">Trening</b> — 8 ćwiczeń (RTW, Double, Shanghai, Checkout i inne)
-      </div>
-
-      <div style="color:#00e5ff;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:2px;margin-bottom:6px">🌐 GRA ONLINE</div>
-      <div style="margin-bottom:14px">
-        • Graj z innymi przez internet w czasie rzeczywistym<br>
-        • Twórz pokoje lub dołączaj do istniejących<br>
-        • Lobby z listą dostępnych gier<br>
-        • Obsługuje Cricket i X01
-      </div>
-
-      <div style="color:#00ff88;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:2px;margin-bottom:6px">👥 GRACZE</div>
-      <div style="margin-bottom:14px">
-        • 1–4 graczy lokalnie lub multiplayer online<br>
-        • Wybór kolejności przed grą<br>
-        • Best Of 1–11 legów<br>
-        • Double-In / Double-Out
-      </div>
-
-      <div style="color:#ffd700;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:2px;margin-bottom:6px">📊 STATYSTYKI</div>
-      <div style="margin-bottom:14px">
-        • Średnia punktów na turę<br>
-        • Historia rzutów<br>
-        • Podpowiedzi checkout
-      </div>
-
-      <div style="border-top:1px solid #2a2a40;padding-top:12px;margin-top:4px">
-        ✅ Dark mode &nbsp;·&nbsp; działa offline &nbsp;·&nbsp; PWA<br>
-        ✅ Bez reklam &nbsp;·&nbsp; swój login i hasło &nbsp;·&nbsp; 100% bezpieczne
-      </div>
-      <div style="margin-top:12px;color:#2a2a40;font-size:11px;text-align:right">v3.2 |by Doktor Sztos 2026</div>
+    <div class="ab-hero">
+      <div class="ab-logo">🎯</div>
+      <div class="ab-name">DARTSMASTER PRO</div>
+      <div class="ab-tag">Liczenie punktów, kamera z auto-liczeniem, gra online i statystyki — w jednej aplikacji na telefon.</div>
+      <div class="ab-pills"><span>v4.0</span><span>bez reklam</span><span>działa offline</span><span>PWA</span></div>
     </div>
+
+    <div class="ab-sec" style="--ac:#ff3c3c">
+      <div class="ab-h">🎮 TRYBY GRY</div>
+      <div class="ab-grid">
+        <div><b>501 / 301</b><small>klasyczny i sumaryczny, Double-In/Out, mecz do 2–6 legów</small></div>
+        <div><b>Cricket</b><small>zamykanie 15–20 i bulla</small></div>
+        <div><b>Around the Clock</b><small>od 1 do 20 po kolei</small></div>
+        <div><b>Killer</b><small>zabij rywali doublami (2+ graczy)</small></div>
+        <div><b>Halve-It</b><small>nie trafisz — tracisz połowę</small></div>
+        <div><b>Shanghai</b><small>single + double + triple = wygrana</small></div>
+        <div><b>Bob's 27</b><small>trening doubli 1–20 + bull</small></div>
+        <div><b>121 Checkout</b><small>zejścia od 121 w górę</small></div>
+      </div>
+      <p>💪 <b>Trening</b> — 8 ćwiczeń: celność, double, checkout, Shanghai, Power Scoring, 9-Dart Finish i inne.</p>
+    </div>
+
+    <div class="ab-sec" style="--ac:#00e5ff">
+      <div class="ab-h">📷 KAMERA Z AUTO-LICZENIEM</div>
+      <ul>
+        <li>Telefon na statywie sam rozpoznaje, gdzie wbiła się lotka, i liczy punkty.</li>
+        <li>Lektor od razu podaje wynik lotki i sumę tury.</li>
+        <li>Błędnie odczytaną lotkę poprawisz jednym dotknięciem — także przed BUST-em i końcem lega.</li>
+        <li>Kalibracja przy starcie, a potem automatyczna korekta w tle, gdy telefon lekko się przesunie.</li>
+        <li>Aplikacja uczy się Twojej tarczy i z każdą grą liczy dokładniej.</li>
+        <li>Działa w grze, w treningach i online.</li>
+      </ul>
+    </div>
+
+    <div class="ab-sec" style="--ac:#00ff88">
+      <div class="ab-h">🌐 GRA ONLINE</div>
+      <ul>
+        <li>Pokoje dla 2–4 graczy w czasie rzeczywistym: X01, Cricket, ATC, timer tury.</li>
+        <li>Zaproszenia do gry po nicku lub z rankingu.</li>
+        <li>🔔 Dzwonek obok nicku włącza powiadomienia, które przychodzą nawet przy zamkniętej aplikacji.</li>
+        <li>Kto zaczyna: rzut kostką albo — gdy obaj gracie z kamerą — rzut jedną lotką w bulla. Bliżej środka zaczyna.</li>
+        <li>Podgląd kamery rywala, czat i rewanż jednym przyciskiem.</li>
+        <li>Ranking ELO z rangami 🥉🥈🥇💠💎👑 i ranking wygranych.</li>
+      </ul>
+    </div>
+
+    <div class="ab-sec" style="--ac:#ffd700">
+      <div class="ab-h">📊 STATYSTYKI</div>
+      <ul>
+        <li>Średnia z 3 lotek, średnia z 9 pierwszych lotek, 180-tki, 100+ i 140+, zejścia %, double %, najlepsza tura.</li>
+        <li>📊 Statystyki meczu — po każdym meczu 501/301 porównanie wyników graczy (online: Ty i rywal), leg po legu.</li>
+        <li>📈 Wykres formy — średnia i zejścia dzień po dniu, porównanie z poprzednim okresem.</li>
+        <li>🎯 Mapa trafień i skupienie przy T20 (z kamery).</li>
+        <li>Statystyki zbierane z całego meczu, ze wszystkich legów.</li>
+      </ul>
+    </div>
+
+    <div class="ab-sec" style="--ac:#ff5cc8">
+      <div class="ab-h">🔊 DŹWIĘKI</div>
+      <ul>
+        <li>Lektor wyników, specjalny dźwięk przy 180.</li>
+        <li>Krótkie oklaski po turze z kamerą i fanfary zwycięstwa (tylko u zwycięzcy).</li>
+        <li>Możesz wgrać własne dźwięki w menu.</li>
+      </ul>
+    </div>
+
+    <div class="ab-foot">Zainstaluj na ekranie głównym telefonu: menu przeglądarki → „Dodaj do ekranu głównego”.<br><span>v4.0 · by Doktor Sztos · 2026</span></div>
   </div>
 </div>
 
@@ -1659,7 +1685,7 @@ function setLegs(n){
       G.legs = n;
       const needed = Math.ceil(n/2);
       const legsDescEl1 = document.getElementById('legs-desc');
-      if(legsDescEl1) legsDescEl1.textContent = (n + ' legów (wygrywa ' + needed + ')');
+      if(legsDescEl1) legsDescEl1.textContent = 'mecz do ' + needed + ' wygranych';
       toast('Liczba legów zmieniona na ' + n);
       goto('home');
     }
@@ -1667,7 +1693,7 @@ function setLegs(n){
     G.legs = n;
     const needed = Math.ceil(n/2);
     const legsDescEl2 = document.getElementById('legs-desc');
-    if(legsDescEl2) legsDescEl2.textContent = (n + ' legów (wygrywa ' + needed + ')');
+    if(legsDescEl2) legsDescEl2.textContent = 'mecz do ' + needed + ' wygranych';
     toast('Liczba legów zmieniona na ' + n);
     // Update UI
     ['1','3','5','7','9'].forEach(id=>{
@@ -11181,6 +11207,23 @@ window.DM_PUSH_VAPID_KEY = 'BJpP1OB9uZXTxC7KsGvXjFGPI8qsM7WmGbIP74jHSn5CzGedryJW
 #ol-tab-create-content .olc-go:active{transform:scale(.97)}
 #olm-cricket b{font-size:17px!important;letter-spacing:.3px!important}
 #ol-tab-create-content .ol-mode-btn.active::after{top:4px;right:4px;width:13px;height:13px;font-size:8px;line-height:13px}
+/* tryby gry: siatka 2×2, większe kafelki z ikoną z lewej */
+#ol-tab-create-content .olc-modes{grid-template-columns:1fr 1fr!important;gap:9px!important}
+#ol-tab-create-content .ol-mode-btn{display:grid!important;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;row-gap:3px;align-items:center;justify-items:start;text-align:left;padding:15px 12px 13px!important;min-height:84px}
+#ol-tab-create-content .ol-mode-btn{column-gap:10px!important}
+#ol-tab-create-content .ol-mode-btn i{grid-row:1/3;font-size:32px!important}
+#ol-tab-create-content .ol-mode-btn b{font-size:28px!important;letter-spacing:1.5px!important;align-self:end;max-width:100%;overflow:hidden;text-overflow:clip}
+#ol-tab-create-content .ol-mode-btn small{font-size:11px!important;align-self:start}
+#ol-tab-create-content .ol-mode-btn.active::after{top:auto!important;bottom:8px!important;right:8px!important;width:18px!important;height:18px!important;font-size:11px!important;line-height:18px!important}
+#olm-cricket b{font-size:25px!important;letter-spacing:.5px!important}
+@media (max-width:380px){
+  #ol-tab-create-content .ol-mode-btn{column-gap:8px!important;padding:14px 10px 12px!important}
+  #ol-tab-create-content .ol-mode-btn i{font-size:27px!important}
+  #ol-tab-create-content .ol-mode-btn.active i{transform:scale(1.05)!important}
+  #ol-tab-create-content .ol-mode-btn b{font-size:26px!important}
+  #olm-cricket b{font-size:23px!important;letter-spacing:0!important}
+  #ol-tab-create-content .ol-mode-btn.active::after{display:none}
+}
 @keyframes olcShine{0%,55%{left:-60%}85%,100%{left:130%}}
 @media (prefers-reduced-motion:reduce){#ol-tab-create-content .olc-go::after{animation:none}}
 </style>
@@ -11500,6 +11543,30 @@ window.INV={send:(u,n,b)=>invite(u,n,b),search,closePick(){document.getElementBy
 #legs-select-screen>.nav-btn{flex:none;flex-direction:row;justify-content:center;gap:8px;padding:15px!important;border-radius:14px!important;font-family:'Bebas Neue',cursive!important;font-size:20px!important;letter-spacing:2px!important;font-weight:normal!important;text-shadow:none!important}
 #legs-select-screen>.nav-btn:first-of-type{background:linear-gradient(135deg,#ff5a3c,#ff3c3c 45%,#c4102e)!important;color:#fff!important;border:0!important;box-shadow:0 8px 24px -8px rgba(255,60,60,.85),inset 0 1px 0 rgba(255,255,255,.35)!important}
 #legs-select-screen>.nav-btn:last-of-type{background:var(--th-tile)!important;border:1px solid #2a2a40!important;color:#9a9ab8!important;font-size:16px!important;padding:12px!important}
+/* ---------- okno „O aplikacji” ---------- */
+#info-modal .ab-box{max-width:520px;width:94%;max-height:88vh;overflow-y:auto;padding:0 0 16px;background:var(--th-card);border:1px solid var(--th-bd);border-radius:20px;position:relative;font-family:'Rajdhani',sans-serif}
+#info-modal .modal-close{position:sticky;top:10px;float:right;margin:10px 10px 0 0;z-index:3;width:32px;height:32px;border-radius:50%;background:rgba(10,10,15,.8);border:1px solid #2a2a40;color:#8888aa}
+.ab-hero{text-align:center;padding:26px 18px 18px;background:radial-gradient(120% 90% at 50% 0%,rgba(255,60,60,.28),transparent 65%);border-bottom:1px solid var(--th-bd)}
+.ab-logo{font-size:44px;line-height:1;filter:drop-shadow(0 0 14px rgba(255,60,60,.7))}
+.ab-name{font-family:'Bebas Neue',cursive;font-size:30px;letter-spacing:3px;margin-top:6px;background:linear-gradient(90deg,#ff5a3c,#ffd700);-webkit-background-clip:text;background-clip:text;color:transparent}
+.ab-tag{font-size:14px;color:#c8c8d8;line-height:1.4;margin:4px auto 10px;max-width:360px}
+.ab-pills{display:flex;flex-wrap:wrap;justify-content:center;gap:6px}
+.ab-pills span{font-family:monospace;font-size:10px;letter-spacing:1px;padding:4px 9px;border-radius:20px;background:rgba(0,229,255,.08);border:1px solid rgba(0,229,255,.35);color:#00e5ff;text-transform:uppercase}
+.ab-sec{margin:12px 12px 0;padding:12px 14px;border-radius:14px;background:var(--th-tile);border:1px solid #2a2a40;position:relative;overflow:hidden}
+.ab-sec::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--ac),transparent)}
+.ab-h{font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:2px;color:var(--ac);margin-bottom:8px;text-shadow:0 0 12px color-mix(in srgb,var(--ac) 45%,transparent)}
+.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ab-grid div{background:var(--th-in);border:1px solid var(--th-bd);border-radius:10px;padding:7px 9px}
+.ab-grid b{display:block;font-family:'Bebas Neue',cursive;font-weight:normal;font-size:16px;letter-spacing:1px;color:#e8e8f0}
+.ab-grid small{display:block;font-size:11px;color:#8888aa;line-height:1.25}
+.ab-sec p{margin:8px 0 0;font-size:13px;color:#c8c8d8;line-height:1.4}
+.ab-sec ul{margin:0;padding:0;list-style:none}
+.ab-sec li{position:relative;padding-left:16px;font-size:13px;color:#c8c8d8;line-height:1.4;margin:5px 0}
+.ab-sec li::before{content:'';position:absolute;left:2px;top:.5em;width:6px;height:6px;border-radius:50%;background:var(--ac);box-shadow:0 0 6px var(--ac)}
+.ab-sec b{color:#e8e8f0}
+.ab-foot{margin:14px 16px 0;text-align:center;font-size:12px;color:#8888aa;line-height:1.5}
+.ab-foot span{font-family:monospace;font-size:10px;color:#55556e}
+
 @media (prefers-reduced-motion:reduce){.btn-primary::after,.btn-cyan::after,.exercise-card button::after{animation:none}}
 </style>
 
