@@ -11667,6 +11667,67 @@ window.Dice3D={seek(i,fi){const a=D&&D.anim[i];if(a){a.frozen=fi;}},frames(i){co
 })();
 </script>
 
+<!-- ================= PORZĄDEK NA EKRANIE GRY ONLINE =================
+     Wszystkie przyciski online w jednym pasku u góry: kto rzuca | 📷 moja kamera · 🎙 mikrofon · 📺 kamera rywala (WRC) · 💬 czat.
+     Pływające przyciski (WRC w lewym dolnym rogu, zielony czat w prawym) znikają z ekranu gry,
+     kolejka graczy pokazuje się tylko przy 3–4 graczach (przy 2 wystarczą karty graczy). -->
+<style>
+/* pływające elementy, które zasłaniały klawiaturę */
+#wrc-open-btn{display:none!important}
+body.gl #sec-badge,body:has(#online-screen.active) #sec-badge{display:none!important}
+/* jeden równy rząd w pasku */
+#ol-game-bar .olb-row{display:flex;align-items:center;gap:6px;min-height:40px}
+#ol-game-bar .olb-row>span:first-child,#ol-game-bar #ol-game-bar-txt{display:none!important}
+#ol-turn-pill{margin-left:0!important;padding:6px 12px!important;border-radius:12px!important;font-size:15px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:0 1 auto;border:1px solid rgba(255,255,255,.08)}
+#ol-game-bar .olb-acts{margin-left:auto;display:flex;gap:6px;flex-shrink:0}
+#ol-game-bar .olb-acts>button{position:relative;width:38px!important;height:38px!important;border-radius:12px!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;font-size:17px!important;cursor:pointer;
+  background:linear-gradient(180deg,#1c1c2b,#141420)!important;border:1px solid #2a2a40!important;color:#c8c8d8;box-shadow:none;transition:border-color .2s,box-shadow .2s,transform .12s;-webkit-tap-highlight-color:transparent}
+#ol-game-bar .olb-acts>button:active{transform:scale(.92)}
+#ol-game-bar .olb-acts>button.on{border-color:#00e5ff!important;box-shadow:0 0 12px rgba(0,229,255,.45)!important;background:linear-gradient(180deg,rgba(0,229,255,.22),rgba(0,229,255,.06))!important}
+#ol-game-bar .olb-acts>button.live{border-color:rgba(255,60,60,.7)!important;box-shadow:0 0 12px rgba(255,60,60,.5)!important;background:linear-gradient(180deg,rgba(255,60,60,.22),rgba(255,60,60,.06))!important}
+/* czat przeniesiony do paska */
+#ol-game-bar #rchat-fab{position:relative!important;bottom:auto!important;right:auto!important;z-index:auto}
+#ol-game-bar #rchat-fab.rchat-alert{background:linear-gradient(180deg,#ffdd00,#cc8800)!important;border-color:#ffdd00!important}
+#ol-game-bar #rchat-badge{top:-5px!important;right:-5px!important}
+/* kolejka (tylko 3–4 graczy) */
+#ol-turn-queue{padding-top:2px}
+</style>
+<script>
+(function(){
+  'use strict';
+  function setup(){
+    const bar=document.getElementById('ol-game-bar');const share=document.getElementById('wrc-share-btn');
+    if(!bar||!share||bar.dataset.olb)return;bar.dataset.olb='1';
+    const row=share.parentNode;row.classList.add('olb-row');
+    const acts=document.createElement('div');acts.className='olb-acts';row.appendChild(acts);
+    acts.appendChild(share);
+    const mic=document.getElementById('wrc-mic-btn');if(mic)acts.appendChild(mic);
+    // 📺 podgląd kamery rywala (dawny przycisk „WRC” z dołu ekranu)
+    const w=document.createElement('button');w.id='olb-wrc';w.type='button';w.title='Kamera rywala (WRC)';w.textContent='📺';
+    w.onclick=()=>{try{if(wrcState.open)wrcToggle();else wrcOpen();}catch(e){}sync();};
+    acts.appendChild(w);
+    // 💬 czat z rywalem (dawny zielony okrągły przycisk)
+    const fab=document.getElementById('rchat-fab');
+    if(fab){acts.appendChild(fab);const t=[...fab.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());if(t)t.textContent='💬';fab.title='Czat z rywalem';}
+    tagBadge();
+  }
+  function tagBadge(){
+    if(!document.getElementById('sec-badge')){const b=[...document.body.children].find(e=>e.tagName==='DIV'&&/CHRONIONE/.test(e.textContent||'')&&e.style.position==='fixed');if(b)b.id='sec-badge';}
+  }
+  function sync(){
+    tagBadge();
+    const w=document.getElementById('olb-wrc');
+    try{if(w){w.classList.toggle('on',!!wrcState.open);w.style.display=wrcState.roomId?'':'none';}}catch(e){}
+    try{const sb=document.getElementById('wrc-share-btn'),mb=document.getElementById('wrc-mic-btn');if(sb)sb.classList.toggle('live',!!wrcState.sharing);if(mb)mb.classList.toggle('live',!!wrcState.micActive);}catch(e){}
+    const q=document.getElementById('ol-turn-queue');
+    try{if(q){const n=(G&&G.players||[]).length;q.style.display=n>2?'flex':'none';}}catch(e){}
+  }
+  const _ut=window.olUpdateTurnUI;
+  if(typeof _ut==='function')window.olUpdateTurnUI=function(){const r=_ut.apply(this,arguments);try{setup();sync();}catch(e){}return r;};
+  setup();setInterval(()=>{try{setup();sync();}catch(e){}},600);
+})();
+</script>
+
 <!-- ================= MOTYW „NEON TILES” (DartsMaster Pro) =================
      Wspólny wygląd całej aplikacji: kafelki z gradientem, kolorowe akcenty, poświata dla
      wybranych opcji, przełączniki segmentowe. Zmienia tylko wygląd (kolory, tła, ramki,
