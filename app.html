@@ -999,8 +999,8 @@ input{outline:none}
     <div class="card-title">OPCJE X01</div>
     
     <div style="margin-bottom:14px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:8px;color:#00e5ff">⚙️ Tryb Liczenia</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+      <div class="th-lbl">TRYB LICZENIA</div>
+      <div class="th-seg">
         <div class="leg-btn selected" id="mode-classic" onclick="setCountingMode('classic')" style="background:rgba(255,255,255,.08);border-color:#e8e8f0;color:#e8e8f0">Klasyczny</div>
         <div class="leg-btn" id="mode-summary" onclick="setCountingMode('summary')" style="background:#1a1a26;border-color:#2a2a40;color:#8888aa">Sumaryczny</div>
       </div>
@@ -1008,23 +1008,24 @@ input{outline:none}
     </div>
     
     <div style="margin-bottom:14px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:8px">Liczba wygranych legów</div>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px">
-        <div class="leg-btn selected" id="leg-3" onclick="selLegs(3)">BEST OF 2 LEGS</div>
-        <div class="leg-btn" id="leg-5" onclick="selLegs(5)">BEST OF 3 LEGS</div>
-        <div class="leg-btn" id="leg-7" onclick="selLegs(7)">BEST OF 4 LEGS</div>
-        <div class="leg-btn" id="leg-9" onclick="selLegs(9)">BEST OF 5 LEGS</div>
-        <div class="leg-btn" id="leg-11" onclick="selLegs(11)">BEST OF 6 LEGS</div>
+      <div class="th-lbl">LEGI DO WYGRANIA <span id="legs-desc">mecz do 2 wygranych</span></div>
+      <div class="th-seg">
+        <div class="leg-btn selected" id="leg-3" onclick="selLegs(3)">2</div>
+        <div class="leg-btn" id="leg-5" onclick="selLegs(5)">3</div>
+        <div class="leg-btn" id="leg-7" onclick="selLegs(7)">4</div>
+        <div class="leg-btn" id="leg-9" onclick="selLegs(9)">5</div>
+        <div class="leg-btn" id="leg-11" onclick="selLegs(11)">6</div>
       </div>
     </div>
-    <div style="height:1px;background:#2a2a40;margin-bottom:14px"></div>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-      <div style="flex:1"><div style="font-size:14px;font-weight:700">Double-Out</div><div style="font-size:11px;color:#8888aa;margin-top:2px">Finisz tylko na doublu lub Bull</div></div>
-      <div class="toggle" id="tog-dout" onclick="togDOut()"><div class="toggle-knob"></div></div>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <div style="flex:1"><div style="font-size:14px;font-weight:700">Double-In</div><div style="font-size:11px;color:#8888aa;margin-top:2px">Start tylko po trafieniu doubla</div></div>
-      <div class="toggle" id="tog-din" onclick="togDIn()"><div class="toggle-knob"></div></div>
+    <div class="th-tgs">
+      <div class="th-tg" onclick="togDOut()" role="switch">
+        <div class="th-tt"><b>Double-Out</b><small>na koniec</small></div>
+        <div class="toggle" id="tog-dout"><div class="toggle-knob"></div></div>
+      </div>
+      <div class="th-tg" onclick="togDIn()" role="switch">
+        <div class="th-tt"><b>Double-In</b><small>na start</small></div>
+        <div class="toggle" id="tog-din"><div class="toggle-knob"></div></div>
+      </div>
     </div>
   </div>
 
@@ -2407,7 +2408,7 @@ function selLegs(n){
     if(b){b.className='leg-btn'+(n===l?' selected':'');}
   });
   const needed=Math.ceil(n/2);
-  document.getElementById('legs-desc').textContent=(n+' legów (wygrywa '+needed+')');
+  const _ld=document.getElementById('legs-desc'); if(_ld) _ld.textContent='mecz do '+needed+' wygranych';
 }
 
 function setCountingMode(mode){
@@ -11380,6 +11381,127 @@ setInterval(()=>{const w=window.__ivAfterCreate;if(!w)return;try{if(OL.currentRo
 window.INV={send:(u,n,b)=>invite(u,n,b),search,closePick(){document.getElementById('iv-pick').classList.remove('on');},open:openPick,accept:()=>respond(true),decline:()=>respond(false)};
 })();
 </script>
+
+<!-- ================= MOTYW „NEON TILES” (DartsMaster Pro) =================
+     Wspólny wygląd całej aplikacji: kafelki z gradientem, kolorowe akcenty, poświata dla
+     wybranych opcji, przełączniki segmentowe. Zmienia tylko wygląd (kolory, tła, ramki,
+     cienie, zaokrąglenia) — rozmiary i odstępy zostają, więc dopasowanie ekranu gry działa jak dotąd. -->
+<style>
+:root{--th-tile:linear-gradient(180deg,#1c1c2b,#141420);--th-card:linear-gradient(160deg,#151522,#0f0f18);--th-bd:#26263a;--th-in:#0b0b12;
+  --th-cy:linear-gradient(180deg,#5ff3ff,#00b8d4);--th-cyg:0 0 14px rgba(0,229,255,.45),inset 0 1px 0 rgba(255,255,255,.5)}
+
+/* ---------- karty ---------- */
+.card,.exercise-card{background:var(--th-card);border-color:var(--th-bd);border-radius:16px!important;box-shadow:0 10px 30px -18px rgba(0,0,0,.9)}
+.card-title{display:flex;align-items:center;gap:8px}
+.card-title::before{content:'';width:4px;height:.95em;border-radius:3px;background:linear-gradient(180deg,#ff3c3c,#ff8c00);box-shadow:0 0 8px rgba(255,60,60,.6);flex-shrink:0}
+.th-lbl{font-size:11px;color:#8888aa;margin:0 0 7px 2px;font-family:monospace;letter-spacing:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.th-lbl span{color:#00e5ff;letter-spacing:0;font-size:10px;margin-left:6px;opacity:.85}
+
+/* ---------- kafelki trybów (ekran główny, więcej gier, wybór legów) ---------- */
+.mode-btn,.leg-select-btn{--ac:#ff3c3c;--ac2:#ff8c00;position:relative;overflow:hidden;background:var(--th-tile)!important;border:1px solid #2a2a40!important;border-radius:16px!important;
+  transition:transform .15s,box-shadow .25s,border-color .25s,background .25s!important;-webkit-tap-highlight-color:transparent}
+.mode-btn::before,.leg-select-btn::before{content:'';position:absolute;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,var(--ac),var(--ac2));opacity:.35;transition:opacity .25s}
+.mode-btn:active,.leg-select-btn:active{transform:scale(.96)}
+.mode-btn>div:first-child{filter:grayscale(.5) brightness(.85);transition:filter .25s,transform .25s}
+.mode-btn>div:nth-child(2){color:var(--ac)!important;opacity:.75;transition:opacity .25s}
+.mode-btn.selected,.leg-select-btn.selected{border-color:var(--ac)!important;
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--ac) 28%,transparent),transparent 70%),linear-gradient(180deg,#20202f,#151520)!important;
+  box-shadow:0 0 0 1px var(--ac) inset,0 8px 22px -8px var(--ac)!important}
+.mode-btn.selected::before,.leg-select-btn.selected::before{opacity:1}
+.mode-btn.selected>div:first-child{filter:none;transform:scale(1.1)}
+.mode-btn.selected>div:nth-child(2){opacity:1;text-shadow:0 0 12px color-mix(in srgb,var(--ac) 60%,transparent)}
+.mode-btn.selected::after,.leg-select-btn.selected::after{content:'✓';position:absolute;top:7px;right:8px;width:16px;height:16px;border-radius:50%;background:var(--ac);color:#0a0a0f;font:900 10px/16px system-ui;text-align:center}
+#mb-301{--ac:#ff8c00;--ac2:#ffd700}#mb-cricket{--ac:#00ff88;--ac2:#00b36b}#mb-atc{--ac:#00e5ff;--ac2:#7b5cff}
+#mb-killer{--ac:#ff3c3c;--ac2:#b3001e}#mb-halveit{--ac:#ffd700;--ac2:#ff8c00}#mb-shanghai{--ac:#ff5cc8;--ac2:#7b5cff}#mb-bobs27{--ac:#00ff88;--ac2:#00e5ff}#mb-co121{--ac:#7b5cff;--ac2:#00e5ff}
+#xg-more .mode-btn>div{filter:none!important;transform:none!important;opacity:1!important;text-shadow:none!important}
+#xg-more .mode-btn .t{color:var(--ac)!important;opacity:.8!important}
+#xg-more .mode-btn.selected .t{opacity:1!important;text-shadow:0 0 12px color-mix(in srgb,var(--ac) 60%,transparent)!important}
+#xg-more .mode-btn .d{color:#8888aa!important}
+.leg-select-btn .leg-select-number{color:var(--ac)!important}
+
+/* ---------- przełączniki segmentowe ---------- */
+.th-seg,#st-filter-bar{display:flex!important;gap:3px!important;padding:3px;border-radius:12px;background:var(--th-in);border:1px solid var(--th-bd);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.th-seg>.leg-btn{flex:1;min-width:0;border:0!important;border-radius:9px!important;background:transparent!important;color:#7a7a96!important;box-shadow:none!important;padding:10px 2px!important;transition:background .25s,color .25s,box-shadow .25s,transform .15s}
+.th-seg>.leg-btn:active{transform:scale(.94)}
+.th-seg>.leg-btn.selected{background:var(--th-cy)!important;color:#0a0a0f!important;box-shadow:var(--th-cyg)!important}
+#st-filter-bar{overflow-x:auto}
+.st-filter-btn{flex:1 0 auto;border:0!important;border-radius:9px!important;background:transparent!important;color:#7a7a96!important;padding:8px 12px!important;transition:background .25s,color .25s}
+.st-filter-btn.st-filter-active{background:var(--th-cy)!important;color:#0a0a0f!important;box-shadow:var(--th-cyg)}
+/* ogólne leg-btn poza segmentem (np. inne ekrany) */
+.leg-btn{border-radius:10px!important}
+.leg-btn.selected:not(.th-seg>*){border-color:#00e5ff!important;color:#00e5ff!important;background:rgba(0,229,255,.1)!important;box-shadow:0 0 12px rgba(0,229,255,.25)!important}
+
+/* ---------- przyciski mnożników / filtrów ---------- */
+.mult-btn{background:var(--th-tile)!important;border:1px solid #2a2a40!important;border-radius:10px!important;transition:background .2s,color .2s,box-shadow .2s,transform .12s,border-color .2s!important}
+.mult-btn:active{transform:scale(.95)}
+.mult-btn.m1{background:var(--th-cy)!important;border-color:transparent!important;color:#0a0a0f!important;box-shadow:var(--th-cyg)!important}
+.mult-btn.m2{background:linear-gradient(180deg,#5dffb4,#00c46a)!important;border-color:transparent!important;color:#04140b!important;box-shadow:0 0 14px rgba(0,255,136,.45),inset 0 1px 0 rgba(255,255,255,.45)!important}
+.mult-btn.m3{background:linear-gradient(180deg,#ffbb55,#ff7a00)!important;border-color:transparent!important;color:#1a0d00!important;box-shadow:0 0 14px rgba(255,140,0,.45),inset 0 1px 0 rgba(255,255,255,.45)!important}
+
+/* ---------- klawiatura numeryczna ---------- */
+.npad{background:linear-gradient(180deg,#1e1e2e,#151521)!important;border:1px solid #2a2a40!important;border-radius:11px!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 2px 0 rgba(0,0,0,.35);transition:transform .08s,background .1s,box-shadow .1s!important}
+.npad:active{transform:translateY(1px) scale(.97);background:linear-gradient(180deg,rgba(0,229,255,.28),rgba(0,229,255,.12))!important;border-color:#00e5ff!important;box-shadow:0 0 14px rgba(0,229,255,.35)!important}
+.npad.gold{background:linear-gradient(180deg,rgba(255,215,0,.14),rgba(255,215,0,.04))!important;border-color:rgba(255,215,0,.35)!important}
+.npad.red{background:linear-gradient(180deg,rgba(255,60,60,.16),rgba(255,60,60,.05))!important;border-color:rgba(255,60,60,.4)!important}
+.throw-slot{background:var(--th-in)!important;border-color:var(--th-bd)!important;border-radius:10px!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.45)}
+.throw-slot.filled{border-color:#00e5ff!important;background:rgba(0,229,255,.07)!important;box-shadow:0 0 10px rgba(0,229,255,.25),inset 0 0 8px rgba(0,229,255,.12)}
+
+/* ---------- karty graczy w grze (tylko wygląd) ---------- */
+.player-card{background:var(--th-tile)!important;border-color:#2a2a40!important;border-radius:14px!important}
+.player-card.active{border-color:#ff3c3c!important;background:radial-gradient(120% 100% at 0% 0%,rgba(255,60,60,.22),transparent 65%),linear-gradient(180deg,#1f1a24,#161219)!important;box-shadow:0 0 0 1px rgba(255,60,60,.6) inset,0 8px 24px -10px rgba(255,60,60,.8)!important}
+
+/* ---------- przyciski główne ---------- */
+.btn{border-radius:14px!important;position:relative;overflow:hidden}
+.btn:active{transform:scale(.97)}
+.btn-primary,.exercise-card button{background:linear-gradient(135deg,#ff5a3c,#ff3c3c 45%,#c4102e)!important;color:#fff!important;border:0!important;border-radius:12px!important;
+  box-shadow:0 8px 24px -8px rgba(255,60,60,.85),inset 0 1px 0 rgba(255,255,255,.35)!important;position:relative;overflow:hidden}
+.btn-cyan{background:linear-gradient(135deg,#00e5ff,#0091ff 55%,#7b5cff)!important;color:#05060a!important;box-shadow:0 8px 24px -8px rgba(0,180,255,.8),inset 0 1px 0 rgba(255,255,255,.45)!important}
+.btn-primary::after,.btn-cyan::after,.exercise-card button::after{content:'';position:absolute;top:0;bottom:0;width:40%;left:-60%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);animation:thShine 3.6s ease-in-out infinite;pointer-events:none}
+.btn-secondary{background:var(--th-tile)!important;border:1px solid #2a2a40!important}
+@keyframes thShine{0%,55%{left:-60%}85%,100%{left:130%}}
+
+/* ---------- przełączniki on/off ---------- */
+.toggle{background:#23233a!important;box-shadow:inset 0 2px 5px rgba(0,0,0,.55)}
+.toggle.on{background:linear-gradient(90deg,#00c46a,#00ff88)!important;box-shadow:0 0 12px rgba(0,255,136,.45),inset 0 1px 0 rgba(255,255,255,.35)}
+.toggle-knob{box-shadow:0 2px 5px rgba(0,0,0,.45)}
+.th-tgs{display:flex;gap:8px}
+.th-tg{flex:1;display:flex;align-items:center;gap:6px;background:var(--th-tile);border:1px solid #2a2a40;border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .25s,box-shadow .25s,background .25s,transform .12s;-webkit-tap-highlight-color:transparent}
+.th-tg:active{transform:scale(.97)}
+.th-tg .toggle{pointer-events:none}
+.th-tg:has(.toggle.on){border-color:rgba(0,255,136,.55);background:linear-gradient(180deg,rgba(0,255,136,.1),#141420);box-shadow:0 0 14px -4px rgba(0,255,136,.6)}
+.th-tt{flex:1;min-width:0;line-height:1.15}
+.th-tt b{display:block;font-size:14px;color:#e8e8f0;white-space:nowrap;transition:color .25s}
+.th-tg:has(.toggle.on) .th-tt b{color:#00ff88}
+.th-tt small{display:block;font-size:10px;color:#8888aa;font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ---------- statystyki ---------- */
+.stat-card{background:var(--th-tile);border-color:#2a2a40;border-radius:14px!important;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;left:18%;right:18%;top:0;height:2px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(0,229,255,.7),transparent)}
+.stat-val{text-shadow:0 0 14px rgba(0,229,255,.35)}
+
+/* ---------- zakładki online + pola ---------- */
+.online-tab{background:var(--th-tile)!important;border:1px solid #2a2a40!important;border-radius:12px!important;transition:all .2s!important}
+.online-tab.active{background:linear-gradient(180deg,rgba(0,229,255,.22),rgba(0,229,255,.06))!important;border-color:#00e5ff!important;color:#00e5ff!important;box-shadow:0 0 0 1px rgba(0,229,255,.5) inset,0 8px 20px -10px rgba(0,229,255,.9)!important}
+.modal-input{background:var(--th-in)!important;border:1px solid var(--th-bd)!important;border-radius:12px!important;box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+.modal-input:focus{border-color:#00e5ff!important;box-shadow:0 0 0 3px rgba(0,229,255,.15)!important}
+#add-player-btn{border-radius:12px!important;border-color:#33334d!important;transition:all .2s}
+#add-player-btn:active{border-color:#00e5ff!important;color:#00e5ff!important}
+
+/* ---------- dolne menu ---------- */
+.nav{background:linear-gradient(180deg,rgba(14,14,22,.92),rgba(8,8,12,.98))!important;border-top-color:#22223a!important}
+.nav-btn .nav-icon{transition:transform .25s,filter .25s;filter:grayscale(.35) brightness(.85)}
+.nav-btn.active .nav-icon{transform:translateY(-2px) scale(1.12);filter:drop-shadow(0 0 8px rgba(255,60,60,.7))}
+.nav-btn.active{text-shadow:0 0 10px rgba(255,60,60,.6)}
+
+/* ---------- menu boczne ---------- */
+.menu-toggle{background:linear-gradient(180deg,rgba(255,60,60,.16),rgba(255,60,60,.05))!important;border-radius:12px!important;box-shadow:0 6px 16px -8px rgba(255,60,60,.8)}
+
+/* ---------- ekran wyboru legów: przyciski na dole ---------- */
+#legs-select-screen>.nav-btn{flex:none;flex-direction:row;justify-content:center;gap:8px;padding:15px!important;border-radius:14px!important;font-family:'Bebas Neue',cursive!important;font-size:20px!important;letter-spacing:2px!important;font-weight:normal!important;text-shadow:none!important}
+#legs-select-screen>.nav-btn:first-of-type{background:linear-gradient(135deg,#ff5a3c,#ff3c3c 45%,#c4102e)!important;color:#fff!important;border:0!important;box-shadow:0 8px 24px -8px rgba(255,60,60,.85),inset 0 1px 0 rgba(255,255,255,.35)!important}
+#legs-select-screen>.nav-btn:last-of-type{background:var(--th-tile)!important;border:1px solid #2a2a40!important;color:#9a9ab8!important;font-size:16px!important;padding:12px!important}
+@media (prefers-reduced-motion:reduce){.btn-primary::after,.btn-cyan::after,.exercise-card button::after{animation:none}}
+</style>
 
 </body>
 </html>
