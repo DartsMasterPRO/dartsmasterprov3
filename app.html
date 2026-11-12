@@ -11505,7 +11505,7 @@ window.INV={send:(u,n,b)=>invite(u,n,b),search,closePick(){document.getElementBy
   const usePack=()=>{try{return localStorage.getItem('dm_caller')!=='sys';}catch(e){return true;}};
   const raw={},buf={};let seq=0,cur=null,pre=false;
   const ctx=()=>{try{return (typeof ac==='function')?ac():(window.__clrAC=window.__clrAC||new (window.AudioContext||window.webkitAudioContext)());}catch(e){return null;}};
-  async function fetchRaw(k){if(raw[k])return raw[k];raw[k]=fetch(BASE+k+'.mp3?v=2').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();});
+  async function fetchRaw(k){if(raw[k])return raw[k];raw[k]=fetch(BASE+k+'.mp3?v=3').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();});
     raw[k].catch(()=>{delete raw[k];});return raw[k];}
   async function getBuf(k){
     if(buf[k])return buf[k];
