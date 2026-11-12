@@ -913,13 +913,13 @@ input{outline:none}
     <div class="ab-sec" style="--ac:#ff5cc8">
       <div class="ab-h">🔊 DŹWIĘKI</div>
       <ul>
-        <li>Lektor wyników, specjalny dźwięk przy 180.</li>
+        <li>Męski lektor jak na zawodach: wyniki, lotki („Treble twenty”), „Game on!”, „Game shot, and the leg!”. Własny dźwięk przy 180.</li>
         <li>Krótkie oklaski po turze z kamerą i fanfary zwycięstwa (tylko u zwycięzcy).</li>
         <li>Możesz wgrać własne dźwięki w menu.</li>
       </ul>
     </div>
 
-    <div class="ab-foot">Zainstaluj na ekranie głównym telefonu: menu przeglądarki → „Dodaj do ekranu głównego”.<br><span>v4.0 · by Doktor Sztos · 2026</span></div>
+    <div class="ab-foot">Zainstaluj na ekranie głównym telefonu: menu przeglądarki → „Dodaj do ekranu głównego”.<br><span>v4.0 · by Doktor Sztos · 2026<br>Głos lektora: Kokoro TTS „George” (Apache 2.0)</span></div>
   </div>
 </div>
 
@@ -3188,6 +3188,7 @@ function trigWin(pi,lastSc){
   // Start next leg
   toast('🏆 '+G.players[pi]+' wygrywa lega '+G.currentLeg+'! ('+G.legWins.map((w,i)=>G.players[i].split(' ')[0]+':'+w).join(' - ')+')');
   SFX.leg();
+  setTimeout(()=>{try{TTS.say('Game shot, and the leg!',0.7,0.95);}catch(e){}},900);
   G.currentLeg++;
   // Zasada profesjonalna: gracze zaczynają naprzemiennie, a nie zwycięzca zaczyna
   G.firstPlayerLeg=(G.firstPlayerLeg+1)%G.players.length;
@@ -9871,7 +9872,7 @@ function applyVoice(){try{if(typeof TTS==='undefined')return;const all=voicesLis
   if(v){TTS._voice=v;TTS._isMale=true;}
   const sel=$('ac-voice');if(sel&&!sel.dataset.filled){sel.dataset.filled='1';
     const en=all.filter(x=>/^en/i.test(x.lang)).concat(all.filter(x=>!/^en/i.test(x.lang)));
-    sel.innerHTML='<option value="">Automatycznie (męski)</option>'+en.map(x=>'<option value="'+x.voiceURI.replace(/"/g,'&quot;')+'"'+((x.voiceURI===S.voice)?' selected':'')+'>'+x.name+' ('+x.lang+')</option>').join('');}
+    const pk=!(window.Caller&&!Caller.on);sel.innerHTML='<option value="__pack"'+(pk?' selected':'')+'>🎙 Lektor DartsMaster (męski, nagrany)</option><option value=""'+(!pk&&!S.voice?' selected':'')+'>Głos telefonu — automatycznie</option>'+en.map(x=>'<option value="'+x.voiceURI.replace(/"/g,'&quot;')+'"'+((!pk&&x.voiceURI===S.voice)?' selected':'')+'>'+x.name+' ('+x.lang+')</option>').join('');}
 }catch(e){console.log('[AutoCam] voice',e);}}
 try{if(window.speechSynthesis){speechSynthesis.addEventListener('voiceschanged',()=>{const s=$('ac-voice');if(s)delete s.dataset.filled;applyVoice();});setTimeout(applyVoice,800);setTimeout(applyVoice,3000);}}catch(e){}
 
@@ -9946,6 +9947,7 @@ function mount(){
      '<label>Kalibracja w tle (co 3 min) <input type="checkbox" id="ac-bgc" onchange="AutoCam.set(\'bgCal\',this.checked)"></label>'+
      '<label>Wykrywanie wypadniętych lotek <input type="checkbox" id="ac-fall" onchange="AutoCam.set(\'fallDetect\',this.checked)"></label>'+
      '<label>Lektor po każdej lotce <input type="checkbox" id="ac-say" onchange="AutoCam.set(\'sayDarts\',this.checked)"></label>'+
+     '<label>Lektor: nick + ile zostało (≤170) <input type="checkbox" id="ac-req" onchange="window.Caller&&Caller.setReq(this.checked)"></label>'+
      '<label>Głos lektora <select id="ac-voice" onchange="AutoCam.setVoice(this.value)"></select></label>'+
      '<div style="display:flex;justify-content:flex-end;margin:-2px 0 6px"><button onclick="AutoCam.testVoice()" style="background:#1a1a26;border:1px solid #2a2a40;color:#00e5ff;border-radius:6px;padding:5px 10px;font-family:monospace;font-size:10px;cursor:pointer">▶ TEST GŁOSU</button></div>'+
      '<label>Kompensacja ukrytego grota (eksperymentalna) <input type="checkbox" id="ac-hc" onchange="AutoCam.set(\'hideComp\',this.checked)"></label>'+
@@ -10001,7 +10003,7 @@ function mount(){
     const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
     addManual(nx,ny);
   });
-  const thr=$('ac-thr');thr.value=135-S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
+  const thr=$('ac-thr');thr.value=135-S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;if($('ac-req'))$('ac-req').checked=!window.Caller||Caller.reqOn;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
@@ -10046,7 +10048,7 @@ window.AutoCam={
   learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;lrnSave();toast('🧠 Zapomniano nauczone korekty');},
   async clearReports(){if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
   reportDart(i){$('dm-pick').classList.remove('on');if(turn[i])report('manual',turn[i],null,null);},
-  setVoice(v){S.voice=v;saveCfg();applyVoice();try{TTS.say('Treble twenty',0.7,0.95);}catch(e){}},
+  setVoice(v){if(v==='__pack'){try{Caller.set(true);}catch(e){}}else{try{Caller.set(false);}catch(e){}S.voice=v;saveCfg();applyVoice();}try{TTS.say('Treble twenty',0.7,0.95);}catch(e){}},
   testVoice(){applyVoice();try{TTS.say('One hundred and eighty',0.7,0.9);}catch(e){}},
   zoom(){const z=[1,1.2,1.4,2],i=z.indexOf(S.zoom||1);S.zoom=z[(i+1)%z.length];saveCfg();dmRender();},
   camToggle(){if(running)stop();else start();},
@@ -10598,7 +10600,7 @@ function decide(r){
     if(OL.isHost)setTimeout(()=>{getFb().updateDoc(ref(),{bullRound:(r.bullRound||0)+1}).catch(()=>{});},2700);
     return;}
   const w=winners[0];msg.textContent='🎯 ZACZYNA '+(ps[w].nick||'').toUpperCase();
-  try{if(typeof TTS!=='undefined')TTS.say((ps[w].nick||'')+' to throw first. Game on!',0.7,1.0);}catch(e){}
+  try{if(typeof TTS!=='undefined')TTS.say('Game on!',0.7,1.0);}catch(e){}
   if(decided)return;decided=true;
   setTimeout(async()=>{
     if(OL.isHost){try{await olStartOnlineGameWithWinner(w);await getFb().updateDoc(ref(),{bullOffActive:false});}catch(e){}}
@@ -10760,7 +10762,7 @@ function finish(win){
     if(typeof showWin==='function')showWin(name,X.round+1,'—',NAMES[X.kind]);
     const ws=document.getElementById('win-stats');if(ws)ws.innerHTML=(X.shanghai!==undefined?'<div style="text-align:center;color:#ffd700;font-family:Bebas Neue,cursive;font-size:22px;letter-spacing:2px;margin-bottom:6px">🀄 SHANGHAI!</div>':'')+lines;
     const wn=document.getElementById('win-name');if(wn&&tie)wn.textContent='REMIS!';
-    try{TTS.say(tie?'Draw':(G.players[win]+' wins'),0.7,1.0);}catch(e){}
+    try{TTS.say(tie?'Draw':'Game shot!',0.7,1.0);}catch(e){}
   },500);
 }
 function undo(){if(!STACK.length){toast('Brak historii');return false;}X=STACK.pop();G.cp=X.cp;G.active=true;render();return true;}
@@ -11479,6 +11481,135 @@ if(typeof _ps==='function')window.olShowPlayerStats=async function(uid){
 setInterval(()=>{const w=window.__ivAfterCreate;if(!w)return;try{if(OL.currentRoomId&&OL.isHost){window.__ivAfterCreate=null;invite(w.uid,w.nick);}}catch(e){}},1000);
 
 window.INV={send:(u,n,b)=>invite(u,n,b),search,closePick(){document.getElementById('iv-pick').classList.remove('on');},open:openPick,accept:()=>respond(true),decline:()=>respond(false)};
+})();
+</script>
+
+<!-- ================= LEKTOR DARTSMASTER (nagrany męski głos) =================
+     Zamiast syntezatora telefonu (na Androidzie często tylko głos kobiecy) odtwarzamy nagrane wcześniej zwroty:
+     media/voice/<klucz>.mp3 — wyniki 1–180, „Treble/Double 1–20”, Bullseye, No score, Game on, Game shot…
+     Głos: Kokoro TTS „George” (en-GB, licencja Apache 2.0), delikatny pogłos hali.
+     Nicki graczy nagrywa co godzinę GitHub (tools/lektor_nicki.py, ten sam głos George) do media/voice/names/, a przy wyniku ≤170 lektor mówi: „Zeltron, you require 145”.
+     Czego nie ma w paczce — mówi jak dotąd syntezator telefonu.
+     Własne dźwięki użytkownika (180, wygrana, intro) zostają bez zmian. -->
+<script>
+(function(){
+  'use strict';
+  const BASE='media/voice/',KEYS=["n1", "n2", "n3", "n4", "n5", "n6", "n7", "n8", "n9", "n10", "n11", "n12", "n13", "n14", "n15", "n16", "n17", "n18", "n19", "n20", "n21", "n22", "n23", "n24", "n25", "n26", "n27", "n28", "n29", "n30", "n31", "n32", "n33", "n34", "n35", "n36", "n37", "n38", "n39", "n40", "n41", "n42", "n43", "n44", "n45", "n46", "n47", "n48", "n49", "n50", "n51", "n52", "n53", "n54", "n55", "n56", "n57", "n58", "n59", "n60", "n61", "n62", "n63", "n64", "n65", "n66", "n67", "n68", "n69", "n70", "n71", "n72", "n73", "n74", "n75", "n76", "n77", "n78", "n79", "n80", "n81", "n82", "n83", "n84", "n85", "n86", "n87", "n88", "n89", "n90", "n91", "n92", "n93", "n94", "n95", "n96", "n97", "n98", "n99", "n100", "n101", "n102", "n103", "n104", "n105", "n106", "n107", "n108", "n109", "n110", "n111", "n112", "n113", "n114", "n115", "n116", "n117", "n118", "n119", "n120", "n121", "n122", "n123", "n124", "n125", "n126", "n127", "n128", "n129", "n130", "n131", "n132", "n133", "n134", "n135", "n136", "n137", "n138", "n139", "n140", "n141", "n142", "n143", "n144", "n145", "n146", "n147", "n148", "n149", "n150", "n151", "n152", "n153", "n154", "n155", "n156", "n157", "n158", "n159", "n160", "n161", "n162", "n163", "n164", "n165", "n166", "n167", "n168", "n169", "n170", "n171", "n172", "n173", "n174", "n175", "n176", "n177", "n178", "n179", "n180", "t1", "d1", "t2", "d2", "t3", "d3", "t4", "d4", "t5", "d5", "t6", "d6", "t7", "d7", "t8", "d8", "t9", "d9", "t10", "d10", "t11", "d11", "t12", "d12", "t13", "d13", "t14", "d14", "t15", "d15", "t16", "d16", "t17", "d17", "t18", "d18", "t19", "d19", "t20", "d20", "noscore", "bull", "miss", "gameon", "gameshot", "gameshotleg", "gameshotmatch", "bounce", "tie", "draw", "require", "require2"],TXT={"n1": "One.", "n2": "Two.", "n3": "Three.", "n4": "Four.", "n5": "Five.", "n6": "Six.", "n7": "Seven.", "n8": "Eight.", "n9": "Nine.", "n10": "Ten.", "n11": "Eleven.", "n12": "Twelve.", "n13": "Thirteen.", "n14": "Fourteen.", "n15": "Fifteen.", "n16": "Sixteen.", "n17": "Seventeen.", "n18": "Eighteen.", "n19": "Nineteen.", "n20": "Twenty.", "n21": "Twenty-one.", "n22": "Twenty-two.", "n23": "Twenty-three.", "n24": "Twenty-four.", "n25": "Twenty-five.", "n26": "Twenty-six.", "n27": "Twenty-seven.", "n28": "Twenty-eight.", "n29": "Twenty-nine.", "n30": "Thirty.", "n31": "Thirty-one.", "n32": "Thirty-two.", "n33": "Thirty-three.", "n34": "Thirty-four.", "n35": "Thirty-five.", "n36": "Thirty-six.", "n37": "Thirty-seven.", "n38": "Thirty-eight.", "n39": "Thirty-nine.", "n40": "Forty.", "n41": "Forty-one.", "n42": "Forty-two.", "n43": "Forty-three.", "n44": "Forty-four.", "n45": "Forty-five.", "n46": "Forty-six.", "n47": "Forty-seven.", "n48": "Forty-eight.", "n49": "Forty-nine.", "n50": "Fifty.", "n51": "Fifty-one.", "n52": "Fifty-two.", "n53": "Fifty-three.", "n54": "Fifty-four.", "n55": "Fifty-five.", "n56": "Fifty-six.", "n57": "Fifty-seven.", "n58": "Fifty-eight.", "n59": "Fifty-nine.", "n60": "Sixty.", "n61": "Sixty-one.", "n62": "Sixty-two.", "n63": "Sixty-three.", "n64": "Sixty-four.", "n65": "Sixty-five.", "n66": "Sixty-six.", "n67": "Sixty-seven.", "n68": "Sixty-eight.", "n69": "Sixty-nine.", "n70": "Seventy.", "n71": "Seventy-one.", "n72": "Seventy-two.", "n73": "Seventy-three.", "n74": "Seventy-four.", "n75": "Seventy-five.", "n76": "Seventy-six.", "n77": "Seventy-seven.", "n78": "Seventy-eight.", "n79": "Seventy-nine.", "n80": "Eighty.", "n81": "Eighty-one.", "n82": "Eighty-two.", "n83": "Eighty-three.", "n84": "Eighty-four.", "n85": "Eighty-five.", "n86": "Eighty-six.", "n87": "Eighty-seven.", "n88": "Eighty-eight.", "n89": "Eighty-nine.", "n90": "Ninety.", "n91": "Ninety-one.", "n92": "Ninety-two.", "n93": "Ninety-three.", "n94": "Ninety-four.", "n95": "Ninety-five.", "n96": "Ninety-six.", "n97": "Ninety-seven.", "n98": "Ninety-eight.", "n99": "Ninety-nine.", "n100": "One hundred!", "n101": "One hundred and one!", "n102": "One hundred and two!", "n103": "One hundred and three!", "n104": "One hundred and four!", "n105": "One hundred and five!", "n106": "One hundred and six!", "n107": "One hundred and seven!", "n108": "One hundred and eight!", "n109": "One hundred and nine!", "n110": "One hundred and ten!", "n111": "One hundred and eleven!", "n112": "One hundred and twelve!", "n113": "One hundred and thirteen!", "n114": "One hundred and fourteen!", "n115": "One hundred and fifteen!", "n116": "One hundred and sixteen!", "n117": "One hundred and seventeen!", "n118": "One hundred and eighteen!", "n119": "One hundred and nineteen!", "n120": "One hundred and twenty!", "n121": "One hundred and twenty-one!", "n122": "One hundred and twenty-two!", "n123": "One hundred and twenty-three!", "n124": "One hundred and twenty-four!", "n125": "One hundred and twenty-five!", "n126": "One hundred and twenty-six!", "n127": "One hundred and twenty-seven!", "n128": "One hundred and twenty-eight!", "n129": "One hundred and twenty-nine!", "n130": "One hundred and thirty!", "n131": "One hundred and thirty-one!", "n132": "One hundred and thirty-two!", "n133": "One hundred and thirty-three!", "n134": "One hundred and thirty-four!", "n135": "One hundred and thirty-five!", "n136": "One hundred and thirty-six!", "n137": "One hundred and thirty-seven!", "n138": "One hundred and thirty-eight!", "n139": "One hundred and thirty-nine!", "n140": "One hundred and forty!", "n141": "One hundred and forty-one!", "n142": "One hundred and forty-two!", "n143": "One hundred and forty-three!", "n144": "One hundred and forty-four!", "n145": "One hundred and forty-five!", "n146": "One hundred and forty-six!", "n147": "One hundred and forty-seven!", "n148": "One hundred and forty-eight!", "n149": "One hundred and forty-nine!", "n150": "One hundred and fifty!", "n151": "One hundred and fifty-one!", "n152": "One hundred and fifty-two!", "n153": "One hundred and fifty-three!", "n154": "One hundred and fifty-four!", "n155": "One hundred and fifty-five!", "n156": "One hundred and fifty-six!", "n157": "One hundred and fifty-seven!", "n158": "One hundred and fifty-eight!", "n159": "One hundred and fifty-nine!", "n160": "One hundred and sixty!", "n161": "One hundred and sixty-one!", "n162": "One hundred and sixty-two!", "n163": "One hundred and sixty-three!", "n164": "One hundred and sixty-four!", "n165": "One hundred and sixty-five!", "n166": "One hundred and sixty-six!", "n167": "One hundred and sixty-seven!", "n168": "One hundred and sixty-eight!", "n169": "One hundred and sixty-nine!", "n170": "One hundred and seventy!", "n171": "One hundred and seventy-one!", "n172": "One hundred and seventy-two!", "n173": "One hundred and seventy-three!", "n174": "One hundred and seventy-four!", "n175": "One hundred and seventy-five!", "n176": "One hundred and seventy-six!", "n177": "One hundred and seventy-seven!", "n178": "One hundred and seventy-eight!", "n179": "One hundred and seventy-nine!", "n180": "One hundred and eighty!", "t1": "Treble one.", "d1": "Double one.", "t2": "Treble two.", "d2": "Double two.", "t3": "Treble three.", "d3": "Double three.", "t4": "Treble four.", "d4": "Double four.", "t5": "Treble five.", "d5": "Double five.", "t6": "Treble six.", "d6": "Double six.", "t7": "Treble seven.", "d7": "Double seven.", "t8": "Treble eight.", "d8": "Double eight.", "t9": "Treble nine.", "d9": "Double nine.", "t10": "Treble ten.", "d10": "Double ten.", "t11": "Treble eleven.", "d11": "Double eleven.", "t12": "Treble twelve.", "d12": "Double twelve.", "t13": "Treble thirteen.", "d13": "Double thirteen.", "t14": "Treble fourteen.", "d14": "Double fourteen.", "t15": "Treble fifteen.", "d15": "Double fifteen.", "t16": "Treble sixteen.", "d16": "Double sixteen.", "t17": "Treble seventeen.", "d17": "Double seventeen.", "t18": "Treble eighteen.", "d18": "Double eighteen.", "t19": "Treble nineteen.", "d19": "Double nineteen.", "t20": "Treble twenty.", "d20": "Double twenty.", "noscore": "No score.", "bull": "Bullseye!", "miss": "Miss.", "gameon": "Game on!", "gameshot": "Game shot!", "gameshotleg": "Game shot, and the leg!", "gameshotmatch": "Game shot, and the match!", "bounce": "Bounce out.", "tie": "Tie. Throw again.", "draw": "Draw.", "require": "You require", "require2": "you require"};
+  const norm=t=>String(t||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+  const MAP={};
+  KEYS.forEach(k=>{MAP[norm(TXT[k])]=k;});
+  for(let n=1;n<=180;n++)MAP[String(n)]='n'+n;
+  for(let n=1;n<=20;n++){MAP['treble '+n]='t'+n;MAP['double '+n]='d'+n;MAP['triple '+n]='t'+n;}
+  Object.assign(MAP,{'0':'noscore','no score':'noscore','bull':'bull','bullseye':'bull','bulls eye':'bull','miss':'miss','game on':'gameon',
+    'game shot':'gameshot','bounce out':'bounce','tie throw again':'tie','draw':'draw'});
+  const usePack=()=>{try{return localStorage.getItem('dm_caller')!=='sys';}catch(e){return true;}};
+  const raw={},buf={};let seq=0,cur=null,pre=false;
+  const ctx=()=>{try{return (typeof ac==='function')?ac():(window.__clrAC=window.__clrAC||new (window.AudioContext||window.webkitAudioContext)());}catch(e){return null;}};
+  async function fetchRaw(k){if(raw[k])return raw[k];raw[k]=fetch(BASE+k+'.mp3?v=2').then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();});
+    raw[k].catch(()=>{delete raw[k];});return raw[k];}
+  async function getBuf(k){
+    if(buf[k])return buf[k];
+    const c=ctx(),ab=await fetchRaw(k);
+    const b=await new Promise((res,rej)=>{const p=c.decodeAudioData(ab.slice(0),res,rej);if(p&&p.then)p.then(res,rej);});
+    const d=b.getChannelData(0);let st=0;for(let i=0;i<d.length;i++){if(Math.abs(d[i])>0.015){st=i;break;}}
+    b._st=Math.max(0,st/b.sampleRate-0.005);b._en=tailEnd(b);buf[k]=b;return b;
+  }
+  // koniec właściwej mowy (bez wybrzmienia pogłosu) — kolejny zwrot zaczyna się naturalnie, a pogłos dalej wybrzmiewa pod spodem
+  function tailEnd(b){const d=b.getChannelData(0);for(let i=d.length-1;i>0;i--){if(Math.abs(d[i])>0.03)return Math.min(b.duration,i/b.sampleRate+0.06);}return b.duration;}
+  function stop(){try{if(cur)cur.stop();}catch(e){}cur=null;}
+  function play(k,fallback){
+    try{if(typeof isMuted!=='undefined'&&isMuted)return true;}catch(e){}
+    const c=ctx();if(!c)return false;if(c.state==='suspended')c.resume();
+    try{if(window.speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending))speechSynthesis.cancel();}catch(e){}
+    stop();const my=++seq;
+    getBuf(k).then(b=>{if(my!==seq)return;const s=c.createBufferSource();s.buffer=b;const g=c.createGain();g.gain.value=1;s.connect(g);g.connect(c.destination);s.start(0,b._st||0);cur=s;s.onended=()=>{if(cur===s)cur=null;};})
+      .catch(()=>{if(my===seq&&fallback)fallback();});
+    return true;
+  }
+  // pobierz wszystkie nagrania w tle (raz; potem są w pamięci podręcznej aplikacji)
+  function preload(){if(pre||!usePack())return;pre=true;let i=0;const order=['gameon','require','require2','noscore','n60','n100','n140','n45','n41','n26','n85','n81','t20','t19','d20','d16','bull','gameshotleg']
+    .concat(KEYS);const step=()=>{if(i>=order.length)return;const k=order[i++];fetchRaw(k).catch(()=>{}).finally(()=>setTimeout(step,40));};step();}
+  ['pointerdown','touchstart','keydown'].forEach(ev=>document.addEventListener(ev,()=>{preload();['gameon','noscore','n60','n100','n140','t20'].forEach(k=>getBuf(k).catch(()=>{}));},{passive:true,capture:true,once:true}));
+  if(typeof TTS==='undefined')return;
+  const _say=TTS.say.bind(TTS);
+  TTS.say=function(text,pitch,rate,vol){
+    const k=usePack()&&MAP[norm(text)];
+    if(k&&play(k,()=>_say(text,pitch,rate,vol)))return;
+    return _say(text,pitch,rate,vol);
+  };
+  // ── „Zeltron, you require 145” — nick + ile zostało do zejścia (od 170 w dół) ──
+  const reqOn=()=>{try{return localStorage.getItem('dm_caller_req')!=='0';}catch(e){return true;}};
+  const BOGEY=new Set([169,168,166,165,163,162,159]);
+  const nameBuf={},nameReq={};
+  const plainName=n=>{n=String(n||'').trim();if(!n||/^(gracz|player|p)\s*\d*$/i.test(n)||/^(ty|ja|you|me|bot|cpu)$/i.test(n))return '';return n.slice(0,32);};
+  // nicki nagrywa raz na godzinę GitHub (tools/lektor_nicki.py) → media/voice/names/<slug>.mp3, spis w /voice-names.json
+  const PLM={'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z','Ą':'A','Ć':'C','Ę':'E','Ł':'L','Ń':'N','Ó':'O','Ś':'S','Ź':'Z','Ż':'Z'};
+  const slug=n=>String(n||'').replace(/[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g,c=>PLM[c]).normalize('NFKD').replace(/[^\x00-\x7f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40);
+  let nameIdx=null,idxAt=0;
+  function loadIdx(){
+    if(nameIdx&&Date.now()-idxAt<300000)return nameIdx;idxAt=Date.now();
+    const old=nameIdx;
+    nameIdx=fetch('/voice-names.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).catch(()=>old?old:{});
+    return nameIdx;
+  }
+  function getName(n){
+    n=plainName(n);if(!n)return Promise.reject();const s=slug(n);if(!s)return Promise.reject();
+    if(nameBuf[s])return Promise.resolve(nameBuf[s]);
+    if(!nameReq[s]){
+      if(location.protocol==='file:')return Promise.reject();
+      nameReq[s]=Promise.resolve(loadIdx()).then(ix=>{if(!ix||!ix[s])throw new Error('brak');return fetch(BASE+'names/'+s+'.mp3?v='+ix[s]);})
+        .then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer();})
+        .then(ab=>new Promise((res,rej)=>{const p=ctx().decodeAudioData(ab,res,rej);if(p&&p.then)p.then(res,rej);}))
+        .then(b=>{const d=b.getChannelData(0);let st=0;for(let i=0;i<d.length;i++){if(Math.abs(d[i])>0.015){st=i;break;}}b._st=Math.max(0,st/b.sampleRate-0.005);b._en=tailEnd(b);nameBuf[s]=b;return b;});
+      nameReq[s].catch(()=>{setTimeout(()=>{delete nameReq[s];},300000);});
+    }
+    return nameReq[s];
+  }
+  function prefetchNames(){try{(G.players||[]).forEach(n=>getName(n).catch(()=>{}));}catch(e){}}
+  // kilka nagrań po kolei, jako jedna wypowiedź
+  function playSeq(parts){
+    const c=ctx();if(!c)return;if(c.state==='suspended')c.resume();
+    stop();const my=++seq;let t=c.currentTime+0.05,last=null;
+    parts.forEach(([b,gap])=>{const s=c.createBufferSource();s.buffer=b;s.connect(c.destination);const off=b._st||0;s.start(t,off);t+=(b._en||b.duration)-off+(gap||0);last=s;});
+    cur=last;if(last)last.onended=()=>{if(cur===last)cur=null;};
+    return my;
+  }
+  let lastKey='',reqTimer=null;
+  async function sayRequire(nick,rem){
+    if(rem<2||rem>170)return;
+    try{if(typeof isMuted!=='undefined'&&isMuted)return;}catch(e){}
+    if(!usePack()){const n=plainName(nick);_say((n?n+', you require ':'You require ')+rem,0.7,0.9);return;}
+    const my=seq;
+    let nb=null;try{nb=await Promise.race([getName(nick),new Promise((_,r)=>setTimeout(r,2500))]);}catch(e){}
+    try{
+      const num=await getBuf('n'+rem);
+      if(seq!==my&&cur)return; // w międzyczasie lektor zaczął mówić coś innego
+      if(nb)playSeq([[nb,0.14],[await getBuf('require2'),0.04],[num,0]]);
+      else playSeq([[await getBuf('require'),0.04],[num,0]]);
+    }catch(e){}
+  }
+  function busy(){try{if(cur)return true;if(window.speechSynthesis&&(speechSynthesis.speaking||speechSynthesis.pending))return true;
+    return [...document.querySelectorAll('audio')].some(a=>!a.paused&&!a.ended);}catch(e){return false;}}
+  function watch(){
+    try{
+      if(!reqOn()||typeof G==='undefined'||!G.active||!(G.mode==='501'||G.mode==='301'))return;
+      {const gs=document.getElementById('game-screen');if(!gs||!gs.classList.contains('active'))return;}
+      const cp=G.cp,rem=G.scores&&G.scores[cp];if(typeof rem!=='number')return;
+      if((G.throws||[]).some(t=>t!==null))return; // gracz już rzuca
+      const key=(G.currentLeg||1)+'|'+G.round+'|'+cp+'|'+rem;
+      if(key===lastKey)return;lastKey=key;
+      if(rem>170||rem<2||(G.dOut&&BOGEY.has(rem)))return;
+      if(G.dIn&&G.diDone&&!G.diDone[cp])return;
+      const nick=G.players[cp];getName(nick).catch(()=>{});
+      clearTimeout(reqTimer);const t0=Date.now();
+      const go=()=>{if(G.cp!==cp||G.scores[cp]!==rem||(G.throws||[]).some(t=>t!==null))return;
+        if(busy()&&Date.now()-t0<6000){reqTimer=setTimeout(go,150);return;}sayRequire(nick,rem);};
+      reqTimer=setTimeout(go,650);
+    }catch(e){}
+  }
+  setInterval(watch,200);
+  ['startGame','olEnterOnlineGame','startGameWithOrder'].forEach(f=>{const o=window[f];if(typeof o==='function')window[f]=function(){const r=o.apply(this,arguments);setTimeout(prefetchNames,300);return r;};});
+  window.Caller={play,name:getName,require:sayRequire,setReq:on=>{try{localStorage.setItem('dm_caller_req',on?'1':'0');}catch(e){}},get reqOn(){return reqOn();},has:t=>!!MAP[norm(t)],key:t=>MAP[norm(t)]||null,set:(on)=>{try{localStorage.setItem('dm_caller',on?'pack':'sys');}catch(e){}if(on)preload();},get on(){return usePack();}};
 })();
 </script>
 
