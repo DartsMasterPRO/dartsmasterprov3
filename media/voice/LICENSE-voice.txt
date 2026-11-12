@@ -1,2 +1,0 @@
-Nagrania lektora wygenerowane syntezatorem Kokoro-82M (hexgrad/Kokoro-82M), głos bm_george.
-Licencja modelu: Apache License 2.0.
