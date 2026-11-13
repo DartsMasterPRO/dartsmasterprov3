@@ -10962,7 +10962,7 @@ window.olRefreshLb=async function(){
     const snap=await fb.getDocs(fb.query(fb.collection(fb.db,'users'),fb.orderBy('elo','desc'),fb.limit(50)));
     let h=tabs(),i=0;
     snap.forEach(doc=>{i++;const u=doc.data(),t=tier(u.elo||START),cls=['g','s','b'][i-1]||'',wr=u.games>0?Math.round(u.wins/u.games*100):0;
-      h+='<div class="elo-row'+(doc.id===me?' me':'')+'" onclick="olShowPlayerStats(\''+doc.id.replace(/'/g,"\\'")+'\')"><div class="rk '+cls+'">'+i+'</div><div class="tier">'+t[1]+'</div>'+
+      h+='<div class="elo-row'+(doc.id===me?' me':'')+'" onclick="olShowPlayerStats(\''+doc.id.replace(/'/g,"\\'")+'\')"><div class="rk '+cls+'">'+i+'</div><div class="tier">'+t[1]+'</div>'+(window.PC?PC.mini(u):'')+
         '<div class="nm"><b>'+(u.nick||'Gracz')+'</b><small>'+t[2]+' · '+mecz(u.eloGames||0)+' · '+wr+'% wygr.</small></div><div class="el">'+(u.elo||START)+'<small>ELO</small></div></div>';});
     if(!i)h+='<div style="text-align:center;color:#8888aa;padding:24px;font-family:monospace;font-size:12px">Brak meczów rankingowych.<br>Zagraj mecz online 1 na 1, żeby trafić do rankingu ELO.</div>';
     h+='<div style="font-size:10px;color:#8888aa;font-family:monospace;padding:10px 4px;line-height:1.5">Każdy startuje z 1000 ELO. Wygrana z mocniejszym daje więcej punktów, porażka ze słabszym zabiera więcej. Liczą się mecze online 1 na 1.<br>🥉 &lt;900 · 🥈 900+ · 🥇 1100+ · 💠 1300+ · 💎 1500+ · 👑 1700+</div>';
@@ -12103,6 +12103,343 @@ body.gl.gl-ol .gl-undo-turn{display:none!important}
   const _g=window.goto;
   if(typeof _g==='function')window.goto=function(){const r=_g.apply(this,arguments);try{sync();}catch(e){}return r;};
   sync();setInterval(sync,500);
+})();
+</script>
+
+<!-- ================= KARTA ZAWODNIKA + AVATAR =================
+     • Dotknięcie karty gracza w grze online, swojego avatara w nagłówku Online albo gracza w rankingu
+       otwiera „kartę zawodnika”: avatar, ranga ELO, statystyki, forma, wykres ELO, bilans z Tobą.
+     • Na swojej karcie: „Zmień avatar” — emoji na kolorowym tle albo własne zdjęcie (przesuwanie + zoom).
+     • Avatar zapisuje się w Firestore (users/<uid>.avatar): {t:'e',e:'🦅',c:3} albo {t:'p',d:'data:image/jpeg…'} (~8 KB).
+     • Avatary widać też w nagłówku Online, na kartach graczy w meczu online i w rankingu. -->
+<style>
+.pc-av{position:relative;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;font-family:'Bebas Neue',cursive;color:#fff;line-height:1;user-select:none}
+.pc-av img{width:100%;height:100%;object-fit:cover;display:block}
+.pc-av .em{font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;line-height:1}
+#ol-avatar.pc-has{background:none!important;padding:0;overflow:hidden}
+#ol-avatar{cursor:pointer;position:relative;-webkit-tap-highlight-color:transparent}
+#ol-avatar .pc-av{width:100%;height:100%}
+#ol-avatar::after{content:'✎';position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;border-radius:50%;background:#00e5ff;color:#0a0a0f;font-size:10px;font-family:sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #0a0a0f}
+#ol-user-hdr{overflow:visible}
+body.pc-ol #scoreboard .player-card{cursor:pointer;-webkit-tap-highlight-color:transparent}
+body.pc-ol #scoreboard .player-card:active{transform:scale(.985)}
+#scoreboard .player-avatar.pc-has{background:none!important;padding:0;overflow:hidden}
+#scoreboard .player-avatar .pc-av{width:100%;height:100%}
+.elo-row .pc-av{width:34px;height:34px;font-size:16px}
+
+/* ---- karta ---- */
+#pc-ov{position:fixed;inset:0;z-index:10050;background:rgba(4,4,8,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:14px}
+#pc-ov.on{display:flex;animation:pcFade .2s ease-out}
+@keyframes pcFade{from{opacity:0}to{opacity:1}}
+@keyframes pcPop{from{transform:translateY(24px) scale(.96);opacity:0}to{transform:none;opacity:1}}
+.pc-card{--tc:#00e5ff;--tc2:#0077ff;position:relative;width:100%;max-width:380px;max-height:calc(100vh - 28px);max-height:calc(100dvh - 28px);overflow-y:auto;overscroll-behavior:contain;border-radius:22px;background:#101018;border:1px solid rgba(255,255,255,.08);box-shadow:0 30px 80px -20px rgba(0,0,0,.9),0 0 0 1px rgba(0,0,0,.4);animation:pcPop .28s cubic-bezier(.2,.9,.3,1.2);scrollbar-width:none}
+.pc-card::-webkit-scrollbar{display:none}
+.pc-hero{position:relative;padding:22px 18px 16px;text-align:center;overflow:hidden;border-radius:22px 22px 0 0;
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--tc) 38%,transparent),transparent 70%),linear-gradient(180deg,#191926,#101018)}
+.pc-hero::before{content:'';position:absolute;left:50%;top:-150px;width:420px;height:420px;transform:translateX(-50%);border-radius:50%;opacity:.13;pointer-events:none;
+  background:repeating-radial-gradient(circle,transparent 0 22px,var(--tc) 22px 24px),conic-gradient(from 9deg,rgba(255,255,255,.5) 0 18deg,transparent 18deg 36deg,rgba(255,255,255,.5) 36deg 54deg,transparent 54deg 72deg,rgba(255,255,255,.5) 72deg 90deg,transparent 90deg 108deg,rgba(255,255,255,.5) 108deg 126deg,transparent 126deg 144deg,rgba(255,255,255,.5) 144deg 162deg,transparent 162deg 180deg,rgba(255,255,255,.5) 180deg 198deg,transparent 198deg 216deg,rgba(255,255,255,.5) 216deg 234deg,transparent 234deg 252deg,rgba(255,255,255,.5) 252deg 270deg,transparent 270deg 288deg,rgba(255,255,255,.5) 288deg 306deg,transparent 306deg 324deg,rgba(255,255,255,.5) 324deg 342deg,transparent 342deg 360deg);
+  -webkit-mask:radial-gradient(circle,#000 30%,transparent 72%);mask:radial-gradient(circle,#000 30%,transparent 72%)}
+.pc-x{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,.12);background:rgba(10,10,16,.6);color:#c8c8d8;font-size:16px;cursor:pointer;z-index:2;display:flex;align-items:center;justify-content:center}
+.pc-ring{position:relative;width:112px;height:112px;margin:4px auto 10px;border-radius:50%;padding:4px;
+  background:conic-gradient(from 210deg,var(--tc),var(--tc2),var(--tc));box-shadow:0 0 34px -4px color-mix(in srgb,var(--tc) 70%,transparent)}
+.pc-ring .pc-av{width:100%;height:100%;box-shadow:0 0 0 3px #12121b;font-size:46px}
+.pc-ring .pc-tier{position:absolute;right:-2px;bottom:2px;width:36px;height:36px;border-radius:50%;background:#12121b;border:2px solid var(--tc);display:flex;align-items:center;justify-content:center;font-size:19px;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.pc-edit-av{position:absolute;left:-4px;bottom:2px;height:30px;padding:0 10px;border-radius:15px;border:0;background:#00e5ff;color:#06121a;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;cursor:pointer;box-shadow:0 4px 14px rgba(0,229,255,.45)}
+.pc-nick{font-family:'Bebas Neue',cursive;font-size:36px;letter-spacing:1.5px;line-height:1;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.6);word-break:break-word}
+.pc-tierline{display:inline-flex;align-items:center;gap:8px;margin-top:8px;padding:5px 12px;border-radius:20px;background:rgba(0,0,0,.35);border:1px solid color-mix(in srgb,var(--tc) 50%,transparent)}
+.pc-tierline b{font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1.5px;color:var(--tc)}
+.pc-tierline span{font-family:'Bebas Neue',cursive;font-size:20px;color:#fff;letter-spacing:.5px}
+.pc-tierline small{font-family:monospace;font-size:9px;color:#8888aa}
+.pc-since{margin-top:7px;font-family:monospace;font-size:10px;color:#7a7a96}
+.pc-form{display:flex;gap:5px;justify-content:center;margin-top:10px}
+.pc-form i{width:22px;height:22px;border-radius:6px;font-style:normal;font-family:'Bebas Neue',cursive;font-size:14px;display:flex;align-items:center;justify-content:center}
+.pc-form i.w{background:rgba(0,255,136,.15);color:#00ff88;border:1px solid rgba(0,255,136,.4)}
+.pc-form i.l{background:rgba(255,60,60,.13);color:#ff5a5a;border:1px solid rgba(255,60,60,.35)}
+.pc-form i.n{background:#191926;color:#44445a;border:1px dashed #2a2a40}
+.pc-body{padding:12px 14px 16px}
+.pc-big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
+.pc-big div{border-radius:14px;padding:10px 4px 8px;text-align:center;background:linear-gradient(180deg,#1b1b29,#141420);border:1px solid #262638;position:relative;overflow:hidden}
+.pc-big div::before{content:'';position:absolute;left:0;right:0;top:0;height:2px;background:var(--c)}
+.pc-big b{display:block;font-family:'Bebas Neue',cursive;font-size:30px;line-height:1;color:var(--c);text-shadow:0 0 14px color-mix(in srgb,var(--c) 45%,transparent)}
+.pc-big small,.pc-grid small{display:block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:#8888aa;margin-top:3px}
+.pc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pc-grid div{border-radius:11px;padding:8px 4px 7px;text-align:center;background:#151520;border:1px solid #22223a}
+.pc-grid b{display:block;font-family:'Bebas Neue',cursive;font-size:21px;line-height:1;color:#e8e8f0}
+.pc-sec{display:flex;align-items:center;gap:8px;margin:14px 2px 8px;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1.5px;color:#a8a8c8}
+.pc-sec::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,#2a2a40,transparent)}
+.pc-h2h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,rgba(0,255,136,.08),rgba(255,60,60,.08));border:1px solid #262638}
+.pc-h2h b{font-family:'Bebas Neue',cursive;font-size:30px;line-height:1}
+.pc-h2h span{font-family:monospace;font-size:10px;color:#8888aa;text-align:center;flex:1}
+.pc-elo{border-radius:14px;background:#141420;border:1px solid #22223a;padding:10px 10px 8px}
+.pc-elo canvas{width:100%;height:70px;display:block}
+.pc-elo .r{display:flex;justify-content:space-between;font-family:monospace;font-size:10px;color:#8888aa;margin-top:4px}
+.pc-last{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.pc-last div{display:flex;align-items:center;gap:8px;font-size:12px;padding:5px 8px;border-radius:8px;background:#141420}
+.pc-last div b{font-family:'Bebas Neue',cursive;font-size:15px;width:16px}
+.pc-last div span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#c8c8d8}
+.pc-last div em{font-style:normal;font-family:monospace;font-size:11px}
+.pc-empty{text-align:center;color:#8888aa;font-family:monospace;font-size:11px;padding:6px 0 2px;line-height:1.5}
+.pc-load{padding:60px 0;text-align:center;color:#8888aa;font-family:monospace;font-size:12px}
+.pc-btn{display:block;width:100%;margin-top:14px;padding:13px;border-radius:14px;border:1px solid #2a2a40;background:linear-gradient(180deg,#1c1c2b,#141420);color:#c8c8d8;font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:1.5px;cursor:pointer}
+.pc-btn.pri{border:0;color:#06121a;background:linear-gradient(135deg,#00e5ff,#00b3ff);box-shadow:0 8px 22px -8px rgba(0,229,255,.7)}
+
+/* ---- edytor avatara ---- */
+.pc-ed{padding:18px 16px 16px}
+.pc-ed h3{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:1.5px;text-align:center;margin-bottom:12px;color:#fff}
+.pc-prev{width:120px;height:120px;margin:0 auto 14px;border-radius:50%;padding:4px;background:conic-gradient(from 210deg,#00e5ff,#0077ff,#00e5ff)}
+.pc-prev .pc-av{width:100%;height:100%;font-size:52px;box-shadow:0 0 0 3px #12121b}
+.pc-tabs{display:flex;gap:6px;padding:4px;border-radius:14px;background:#0c0c13;border:1px solid #22223a;margin-bottom:12px}
+.pc-tabs button{flex:1;padding:9px;border:0;border-radius:10px;background:none;color:#8888aa;font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;cursor:pointer}
+.pc-tabs button.on{background:linear-gradient(180deg,#22223a,#1a1a2b);color:#00e5ff;box-shadow:inset 0 0 0 1px rgba(0,229,255,.35)}
+.pc-emo{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.pc-emo button{aspect-ratio:1;border-radius:12px;border:1px solid #22223a;background:#151520;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif;padding:0}
+.pc-emo button.on{border-color:#00e5ff;background:rgba(0,229,255,.12);box-shadow:0 0 12px rgba(0,229,255,.35)}
+.pc-cols{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.pc-cols button{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;box-shadow:0 0 0 1px rgba(255,255,255,.1)}
+.pc-cols button.on{border-color:#fff;transform:scale(1.12)}
+.pc-crop{position:relative;width:240px;height:240px;margin:0 auto;border-radius:18px;overflow:hidden;background:#0c0c13;touch-action:none;cursor:grab}
+.pc-crop canvas{width:240px;height:240px;display:block}
+.pc-crop::after{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at center,transparent 0 108px,rgba(4,4,8,.68) 109px);box-shadow:inset 0 0 0 1px #22223a}
+.pc-crop .ring{position:absolute;left:12px;top:12px;width:216px;height:216px;border-radius:50%;border:2px dashed rgba(0,229,255,.7);pointer-events:none;z-index:1}
+.pc-zoom{display:flex;align-items:center;gap:10px;margin:12px 6px 0;color:#8888aa;font-size:18px}
+.pc-zoom input{flex:1;accent-color:#00e5ff}
+.pc-pick{display:flex;gap:8px;margin-top:4px}
+.pc-pick label{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 8px;border-radius:14px;border:1px dashed #33334d;background:#141420;color:#c8c8d8;font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:1px;cursor:pointer;text-align:center}
+.pc-pick label i{font-style:normal;font-size:28px}
+.pc-pick input{display:none}
+.pc-note{font-family:monospace;font-size:10px;color:#7a7a96;text-align:center;margin-top:10px;line-height:1.5}
+.pc-row{display:flex;gap:8px;margin-top:14px}
+.pc-row .pc-btn{margin-top:0}
+@media (max-height:640px){.pc-ring{width:92px;height:92px}.pc-nick{font-size:30px}.pc-big b{font-size:26px}}
+</style>
+<script>
+(function(){
+'use strict';
+const START=1000;
+const EMO=['🎯','🦅','🐺','🦁','🐯','🐉','🦈','🐍','🦂','🦊','🐻','🦉','🔥','⚡','💀','👑','🤖','👽','🚀','💎','🍺','☘️','🏹','🥷'];
+const COL=[['#ff3c3c','#8a0c1e'],['#ff8c00','#b33c00'],['#ffd000','#b37a00'],['#2bff88','#00804a'],['#00e5ff','#0060b3'],['#4d7cff','#2a1fb3'],['#b44dff','#5a10a8'],['#ff4dc4','#a3106a'],['#8a8aa8','#2a2a3e'],['#1a1a26','#000000']];
+const TC={'MISTRZ':['#ffd700','#ff3c3c'],'DIAMENT':['#7df9ff','#4d7cff'],'PLATYNA':['#3fffd2','#00a3a3'],'ZŁOTO':['#ffd000','#ff8c00'],'SREBRO':['#e0e0f0','#7a7a96'],'BRĄZ':['#e09a5a','#8a4a1e']};
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fb=()=>{try{return getFb();}catch(e){return null;}};
+const me=()=>{try{return getFbUser();}catch(e){return null;}};
+const uref=uid=>{const f=fb();return f.doc(f.db,'users',uid);};
+const tierOf=e=>{try{return eloTier(e);}catch(x){return{icon:'🥉',name:'BRĄZ'};}};
+const CACHE={},NICK2UID={};let UIDS=[];
+
+/* ---------- avatar ---------- */
+function avHTML(av,nick,size){
+  const st=size?'width:'+size+'px;height:'+size+'px;font-size:'+Math.round(size*.46)+'px;':'';
+  if(av&&av.t==='p'&&/^data:image\/(jpeg|png|webp);base64,/.test(av.d||''))return'<div class="pc-av" style="'+st+'"><img alt="" src="'+av.d+'"></div>';
+  if(av&&av.t==='e'){const c=COL[av.c|0]||COL[0];return'<div class="pc-av" style="'+st+'background:radial-gradient(circle at 30% 25%,'+c[0]+','+c[1]+')"><span class="em">'+esc(av.e||'🎯')+'</span></div>';}
+  return'<div class="pc-av" style="'+st+'background:linear-gradient(135deg,#ff3c3c,#880000)">'+esc((String(nick||'G').trim()[0]||'G').toUpperCase())+'</div>';
+}
+async function getUser(uid,fresh){
+  if(!fresh&&CACHE[uid]&&Date.now()-CACHE[uid]._t<60000)return CACHE[uid];
+  const s=await fb().getDoc(uref(uid));const d=s.exists()?s.data():null;
+  if(d){d._t=Date.now();CACHE[uid]=d;if(d.nick)NICK2UID[d.nick]=uid;}
+  return d;
+}
+function paintHeader(){
+  const el=document.getElementById('ol-avatar'),u=me();if(!el||!u)return;
+  const d=CACHE[u.uid]||{};const nick=d.nick||u.displayName||'G';
+  el.innerHTML=avHTML(d.avatar,nick);el.classList.add('pc-has');el.title='Twoja karta zawodnika';
+}
+
+/* ---------- karta zawodnika ---------- */
+let ov=null;
+function overlay(){
+  if(ov)return ov;ov=document.createElement('div');ov.id='pc-ov';
+  ov.addEventListener('click',e=>{if(e.target===ov)close();});
+  document.body.appendChild(ov);return ov;
+}
+function close(){if(ov){ov.classList.remove('on');ov.innerHTML='';}}
+const pct=(a,b)=>b>0?Math.round(a/b*100)+'%':'—';
+function spark(cv,hist){
+  const W=(cv.clientWidth||320)*2,H=140;cv.width=W;cv.height=H;const g=cv.getContext('2d');
+  const v=[START].concat(hist.map(h=>h.e));const mn=Math.min(...v)-10,mx=Math.max(...v)+10;
+  const X=i=>8+i*(W-16)/Math.max(1,v.length-1),Y=e=>H-10-(e-mn)/(mx-mn)*(H-20);
+  g.strokeStyle='rgba(136,136,170,.25)';g.setLineDash([4,4]);g.beginPath();g.moveTo(0,Y(START));g.lineTo(W,Y(START));g.stroke();g.setLineDash([]);
+  const grd=g.createLinearGradient(0,0,0,H);grd.addColorStop(0,'rgba(0,229,255,.35)');grd.addColorStop(1,'rgba(0,229,255,0)');
+  g.beginPath();v.forEach((e,i)=>i?g.lineTo(X(i),Y(e)):g.moveTo(X(i),Y(e)));g.lineTo(X(v.length-1),H);g.lineTo(X(0),H);g.closePath();g.fillStyle=grd;g.fill();
+  g.beginPath();v.forEach((e,i)=>i?g.lineTo(X(i),Y(e)):g.moveTo(X(i),Y(e)));g.strokeStyle='#00e5ff';g.lineWidth=3;g.stroke();
+  const l=v.length-1;g.beginPath();g.arc(X(l),Y(v[l]),6,0,7);g.fillStyle='#00e5ff';g.fill();
+}
+async function open(uid){
+  if(!uid||!fb())return;
+  const o=overlay();o.innerHTML='<div class="pc-card"><div class="pc-load">🎯 Ładowanie karty…</div></div>';o.classList.add('on');
+  let u;try{u=await getUser(uid,true);}catch(e){o.innerHTML='<div class="pc-card"><div class="pc-load" style="color:#ff5a5a">❌ Nie udało się wczytać profilu<br><small>'+esc(e.message)+'</small></div></div>';return;}
+  if(!u){o.innerHTML='<div class="pc-card"><div class="pc-load">Ten gracz nie ma jeszcze profilu.</div></div>';return;}
+  render(uid,u);
+}
+function render(uid,u){
+  const o=overlay(),mine=me()&&me().uid===uid;
+  const nick=u.nick||'Gracz',e=typeof u.elo==='number'?u.elo:START,t=tierOf(e),tc=TC[t.name]||TC['BRĄZ'];
+  const games=u.games||0,wins=u.wins||0,avg=(u.totalDarts||0)>0?((u.totalPoints||0)/u.totalDarts*3).toFixed(1):'—';
+  const hist=u.eloHist||[];
+  let since='';try{const ts=u.createdAt;const dt=ts&&ts.toDate?ts.toDate():(ts&&ts.seconds?new Date(ts.seconds*1000):null);
+    if(dt)since='w grze od '+dt.toLocaleDateString('pl-PL',{month:'long',year:'numeric'});}catch(x){}
+  const form=hist.slice(-5).map(h=>'<i class="'+(h.w?'w':'l')+'">'+(h.w?'W':'P')+'</i>');while(form.length<5)form.unshift('<i class="n">·</i>');
+  // bilans z zalogowanym graczem (z mojej historii ELO)
+  let h2h='';
+  if(!mine&&me()){const my=CACHE[me().uid];if(my&&my.eloHist){const vs=my.eloHist.filter(h=>h.vs===nick);if(vs.length){const w=vs.filter(h=>h.w).length,l=vs.length-w;
+    h2h='<div class="pc-sec">BILANS Z TOBĄ</div><div class="pc-h2h"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>z ostatnich meczów rankingowych</span><b style="color:#ff5a5a">'+l+'</b></div>';}}}
+  const big=(v,l,c)=>'<div style="--c:'+c+'"><b>'+v+'</b><small>'+l+'</small></div>';
+  const sm=(v,l)=>'<div><b>'+v+'</b><small>'+l+'</small></div>';
+  const streak=(u.streak||0)>=2?'🔥'+u.streak:(u.streak||0);
+  o.innerHTML='<div class="pc-card" style="--tc:'+tc[0]+';--tc2:'+tc[1]+'" onclick="event.stopPropagation()">'+
+    '<div class="pc-hero"><button class="pc-x" onclick="PC.close()" aria-label="Zamknij">✕</button>'+
+      '<div class="pc-ring">'+avHTML(u.avatar,nick)+'<div class="pc-tier">'+t.icon+'</div>'+(mine?'<button class="pc-edit-av" onclick="PC.edit()">✎ ZMIEŃ</button>':'')+'</div>'+
+      '<div class="pc-nick">'+esc(nick)+'</div>'+
+      '<div class="pc-tierline"><b>'+t.name+'</b><span>'+e+'</span><small>ELO</small></div>'+
+      (since?'<div class="pc-since">'+since+'</div>':'')+
+      '<div class="pc-form">'+form.join('')+'</div>'+
+    '</div>'+
+    '<div class="pc-body">'+
+      '<div class="pc-big">'+big(avg,'Średnia','#00e5ff')+big(u.e180||0,'180-tki','#ff3c3c')+big(u.highestCheckout||'—','Max zejście','#ffd700')+'</div>'+
+      '<div class="pc-grid">'+sm(games,'Mecze')+sm(wins,'Wygrane')+sm(pct(wins,games),'% wygr.')+
+        sm(u.first9Avg?(+u.first9Avg).toFixed(1):'—','Śr. 9 lotek')+sm(pct(u.coSuccess||0,u.coAttempts||0),'Zejścia %')+sm(pct(u.doubleHits||0,u.doubleAttempts||0),'Podwójne %')+
+        sm(u.best||'—','Najl. tura')+sm(u.highest140||0,'140+')+sm(u.highest100||0,'100+')+
+        sm(streak,'Seria')+sm(u.bestStreak||0,'Najl. seria')+sm(games&&u.totalDarts?(u.totalDarts/games).toFixed(0):'—','Lotek/mecz')+'</div>'+
+      h2h+
+      '<div class="pc-sec">RANKING ELO</div>'+
+      (hist.length?'<div class="pc-elo"><canvas></canvas><div class="r"><span>start 1000</span><span>szczyt '+(u.eloPeak||e)+'</span><span>mecze '+(u.eloGames||0)+'</span></div></div>'+
+        '<div class="pc-last">'+hist.slice(-5).reverse().map(h=>'<div><b style="color:'+(h.w?'#00ff88':'#ff5a5a')+'">'+(h.w?'W':'P')+'</b><span>vs '+esc(h.vs||'?')+'</span><em style="color:'+(h.d>=0?'#00ff88':'#ff5a5a')+'">'+(h.d>0?'+':'')+h.d+'</em></div>').join('')+'</div>'
+        :'<div class="pc-empty">Brak meczów rankingowych — start z 1000 ELO.<br>Liczą się mecze online 1 na 1.</div>')+
+      (mine?'<button class="pc-btn pri" onclick="PC.edit()">✎ ZMIEŃ AVATAR</button>':'')+
+      '<button class="pc-btn" onclick="PC.close()">ZAMKNIJ</button>'+
+    '</div></div>';
+  o.classList.add('on');
+  const cv=o.querySelector('.pc-elo canvas');if(cv)requestAnimationFrame(()=>spark(cv,hist));
+}
+
+/* ---------- edytor avatara ---------- */
+let ED=null;
+function edit(){
+  const u=me();if(!u)return;const d=CACHE[u.uid]||{};const av=d.avatar||null;
+  ED={tab:av&&av.t==='p'?'p':'e',e:(av&&av.t==='e'&&av.e)||'🎯',c:(av&&av.t==='e'?av.c|0:0),photo:av&&av.t==='p'?av.d:null,img:null,z:1,x:0,y:0,nick:d.nick||u.displayName||'G',had:!!av};
+  drawEd();
+}
+function curAv(){
+  if(ED.tab==='p'){const d=ED.img?cropOut():ED.photo;return d?{t:'p',d}:null;}
+  return{t:'e',e:ED.e,c:ED.c};
+}
+function drawEd(){
+  const o=overlay();
+  const tabs='<div class="pc-tabs"><button class="'+(ED.tab==='e'?'on':'')+'" onclick="PC._tab(\'e\')">😀 EMOJI</button><button class="'+(ED.tab==='p'?'on':'')+'" onclick="PC._tab(\'p\')">📷 ZDJĘCIE</button></div>';
+  let body='';
+  if(ED.tab==='e'){
+    body='<div class="pc-emo">'+EMO.map(x=>'<button class="'+(x===ED.e?'on':'')+'" onclick="PC._emo(\''+x+'\')">'+x+'</button>').join('')+'</div>'+
+      '<div class="pc-cols">'+COL.map((c,i)=>'<button class="'+(i===ED.c?'on':'')+'" style="background:radial-gradient(circle at 30% 25%,'+c[0]+','+c[1]+')" onclick="PC._col('+i+')"></button>').join('')+'</div>';
+  }else if(ED.img){
+    body='<div class="pc-crop" id="pc-crop"><canvas id="pc-cv" width="480" height="480"></canvas><div class="ring"></div></div>'+
+      '<div class="pc-zoom"><span>−</span><input type="range" min="1" max="4" step="0.01" value="'+ED.z+'" oninput="PC._zoom(this.value)"><span>+</span></div>'+
+      '<div class="pc-note">Przesuń zdjęcie palcem, suwakiem przybliż.</div>';
+  }else{
+    body='<div class="pc-pick"><label><i>🖼️</i>Z GALERII<input type="file" accept="image/*" onchange="PC._file(this)"></label>'+
+      '<label><i>🤳</i>ZRÓB ZDJĘCIE<input type="file" accept="image/*" capture="user" onchange="PC._file(this)"></label></div>'+
+      '<div class="pc-note">Zdjęcie zobaczą inni gracze online (w rankingu i w meczu).</div>';
+  }
+  const prevAv=ED.tab==='p'&&ED.img?null:curAv();
+  o.innerHTML='<div class="pc-card" onclick="event.stopPropagation()"><button class="pc-x" onclick="PC.back()" aria-label="Wróć">✕</button><div class="pc-ed">'+
+    '<h3>TWÓJ AVATAR</h3>'+(ED.tab==='p'&&ED.img?'':'<div class="pc-prev">'+avHTML(prevAv,ED.nick)+'</div>')+tabs+body+
+    '<div class="pc-row">'+(ED.had?'<button class="pc-btn" style="flex:0 0 auto;padding:13px 16px" onclick="PC._del()" title="Usuń avatar">🗑</button>':'')+
+    '<button class="pc-btn" onclick="PC.back()">ANULUJ</button><button class="pc-btn pri" id="pc-save" onclick="PC._save()"'+(ED.tab==='p'&&!ED.img&&!ED.photo?' disabled style="opacity:.4"':'')+'>ZAPISZ</button></div>'+
+    '</div></div>';
+  o.classList.add('on');
+  if(ED.tab==='p'&&ED.img)setupCrop();
+}
+function cropDraw(){
+  const cv=document.getElementById('pc-cv');if(!cv||!ED.img)return;const g=cv.getContext('2d'),S=480,im=ED.img;
+  const base=Math.max(S/im.width,S/im.height)*ED.z,w=im.width*base,h=im.height*base;
+  const mx=Math.max(0,(w-S)/2),my=Math.max(0,(h-S)/2);ED.x=Math.max(-mx,Math.min(mx,ED.x));ED.y=Math.max(-my,Math.min(my,ED.y));
+  g.fillStyle='#0c0c13';g.fillRect(0,0,S,S);g.drawImage(im,(S-w)/2+ED.x,(S-h)/2+ED.y,w,h);
+}
+function cropOut(){
+  const O=176,S=480,R=432/S,c=document.createElement('canvas');c.width=O;c.height=O;const g=c.getContext('2d'),im=ED.img;
+  // obszar koła (216 px z 240) w układzie podglądu 480 → wyjście 176×176
+  const k=O/(S*R),base=Math.max(S/im.width,S/im.height)*ED.z,w=im.width*base,h=im.height*base;
+  g.fillStyle='#111';g.fillRect(0,0,O,O);
+  g.setTransform(k,0,0,k,-(S-S*R)/2*k,-(S-S*R)/2*k);g.imageSmoothingQuality='high';
+  g.drawImage(im,(S-w)/2+ED.x,(S-h)/2+ED.y,w,h);
+  let q=.82,d=c.toDataURL('image/jpeg',q);while(d.length>40000&&q>.4){q-=.1;d=c.toDataURL('image/jpeg',q);}
+  return d;
+}
+function setupCrop(){
+  cropDraw();const el=document.getElementById('pc-crop');let pts={},last=null,pinch=0;
+  el.addEventListener('pointerdown',e=>{el.setPointerCapture(e.pointerId);pts[e.pointerId]={x:e.clientX,y:e.clientY};last=null;pinch=0;});
+  el.addEventListener('pointermove',e=>{if(!pts[e.pointerId])return;pts[e.pointerId]={x:e.clientX,y:e.clientY};const p=Object.values(pts);
+    if(p.length>=2){const d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);if(pinch){ED.z=Math.max(1,Math.min(4,ED.z*d/pinch));const r=document.querySelector('.pc-zoom input');if(r)r.value=ED.z;}pinch=d;cropDraw();return;}
+    if(last){ED.x+=(e.clientX-last.x)*2;ED.y+=(e.clientY-last.y)*2;cropDraw();}last={x:e.clientX,y:e.clientY};});
+  const up=e=>{delete pts[e.pointerId];last=null;pinch=0;};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+}
+function loadFile(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const url=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{
+    // duże zdjęcia z telefonu zmniejsz od razu (szybszy podgląd)
+    const M=1400,s=Math.min(1,M/Math.max(im.width,im.height));
+    if(s<1){const c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      const i2=new Image();i2.onload=()=>{ED.img=i2;ED.z=1;ED.x=ED.y=0;drawEd();};i2.src=c.toDataURL('image/jpeg',.9);}
+    else{ED.img=im;ED.z=1;ED.x=ED.y=0;drawEd();}
+    URL.revokeObjectURL(url);
+  };
+  im.onerror=()=>{toast('❌ Nie udało się wczytać zdjęcia');};im.src=url;
+}
+async function save(av){
+  const u=me();if(!u)return;const b=document.getElementById('pc-save');if(b){b.disabled=true;b.textContent='ZAPISUJĘ…';}
+  try{
+    const f=fb(),r=uref(u.uid),s=await f.getDoc(r);
+    if(s.exists())await f.updateDoc(r,{avatar:av});else await f.setDoc(r,{avatar:av,nick:u.displayName||'Gracz'},{merge:true});
+    CACHE[u.uid]=Object.assign(CACHE[u.uid]||{},{avatar:av});
+    toast(av?'✅ Avatar zapisany':'🗑 Avatar usunięty');paintHeader();try{if(typeof renderScoreboard==='function'&&G&&G.active)renderScoreboard();}catch(e){}
+    ED=null;open(u.uid);
+  }catch(e){toast('❌ Nie zapisano: '+(e.code||e.message));if(b){b.disabled=false;b.textContent='ZAPISZ';}}
+}
+
+/* ---------- podpięcie do aplikacji ---------- */
+// nagłówek Online: dotknięcie avatara = moja karta
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('#ol-avatar');if(a&&me()){e.preventDefault();open(me().uid);}},true);
+const _ls=window.olLoadUserStats;
+if(typeof _ls==='function')window.olLoadUserStats=async function(uid){
+  const r=await _ls.apply(this,arguments);
+  try{await getUser(uid,true);paintHeader();}catch(e){}
+  return r;
+};
+// ranking i dawny podgląd gracza → nowa karta
+window.olShowPlayerStats=function(uid){return open(uid);};
+// mecz online: kto jest kim + avatary na kartach graczy
+const _en=window.olEnterOnlineGame;
+if(typeof _en==='function')window.olEnterOnlineGame=function(roomData){
+  const r=_en.apply(this,arguments);
+  try{UIDS=((roomData&&roomData.gameState)||{}).playerUids||[];Promise.all(UIDS.map(u=>getUser(u).catch(()=>null))).then(()=>{try{renderScoreboard();}catch(e){}});}catch(e){}
+  return r;
+};
+const online=()=>{try{return !!(G&&G._onlineRoomId&&UIDS.length);}catch(e){return false;}};
+const _rs=window.renderScoreboard;
+if(typeof _rs==='function')window.renderScoreboard=function(){
+  const r=_rs.apply(this,arguments);
+  try{
+    const on=online();document.body.classList.toggle('pc-ol',on);if(!on)return r;
+    document.querySelectorAll('#scoreboard .player-card').forEach((card,i)=>{
+      const uid=UIDS[i];if(!uid)return;card.dataset.uid=uid;
+      const d=CACHE[uid],a=card.querySelector('.player-avatar');
+      if(a&&d&&d.avatar){a.innerHTML=avHTML(d.avatar,G.players[i]);a.classList.add('pc-has');}
+    });
+  }catch(e){}
+  return r;
+};
+document.addEventListener('click',e=>{
+  if(!online())return;const c=e.target.closest&&e.target.closest('#scoreboard .player-card[data-uid]');
+  if(c)open(c.dataset.uid);
+});
+
+window.PC={open,close,edit,av:avHTML,mini:(u)=>avHTML(u&&u.avatar,u&&u.nick),
+  back(){ED=null;const u=me();if(u)open(u.uid);else close();},
+  _tab(t){ED.tab=t;drawEd();},_emo(x){ED.e=x;drawEd();},_col(i){ED.c=i;drawEd();},
+  _zoom(v){ED.z=+v;cropDraw();},_file:loadFile,
+  _save(){const av=curAv();if(!av)return;save(av);},_del(){if(confirm('Usunąć avatar?'))save(null);},
+  _cache:CACHE};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ov&&ov.classList.contains('on'))close();});
 })();
 </script>
 
