@@ -12065,6 +12065,47 @@ body.gl.gl-ol .gl-undo-turn{display:none!important}
 @media (prefers-reduced-motion:reduce){.btn-primary::after,.btn-cyan::after,.exercise-card button::after{animation:none}}
 </style>
 
+<!-- ================= ZAKŁADKA „MECZ” W DOLNYM MENU =================
+     Dawna zakładka „Wynik” pokazywała pustą tablicę, gdy nie było gry.
+     Teraz pojawia się tylko w trakcie meczu jako „MECZ” (powrót do gry z Treningu/Statsów/Online),
+     a gdy jesteś poza ekranem gry — pulsuje zieloną kropką, że mecz czeka.
+     „GRA” w trakcie meczu pyta, czy przerwać grę (wcześniej kończyła ją bez ostrzeżenia). -->
+<style>
+#nav-game{position:relative}
+#nav-game.nm-hide{display:none!important}
+#nav-game .nm-dot{position:absolute;top:6px;left:calc(50% + 9px);width:8px;height:8px;border-radius:50%;background:#2bff88;box-shadow:0 0 0 0 rgba(43,255,136,.7);opacity:0;transition:opacity .2s}
+#nav-game.nm-wait .nm-dot{opacity:1;animation:nmPulse 1.6s ease-out infinite}
+#nav-game.nm-wait{color:#2bff88}
+@keyframes nmPulse{0%{box-shadow:0 0 0 0 rgba(43,255,136,.7)}70%{box-shadow:0 0 0 9px rgba(43,255,136,0)}100%{box-shadow:0 0 0 0 rgba(43,255,136,0)}}
+@media (prefers-reduced-motion:reduce){#nav-game.nm-wait .nm-dot{animation:none}}
+</style>
+<script>
+(function(){
+  'use strict';
+  const btn=document.getElementById('nav-game'),home=document.getElementById('nav-home');
+  if(!btn)return;
+  const lbl=[...btn.querySelectorAll('span')].find(s=>!s.classList.contains('nav-icon'));
+  if(lbl)lbl.textContent='MECZ';
+  const dot=document.createElement('i');dot.className='nm-dot';btn.appendChild(dot);
+  const live=()=>{try{return !!(G&&G.active&&(G.players||[]).length);}catch(e){return false;}};
+  function sync(){
+    const on=live(),gs=document.getElementById('game-screen');
+    btn.classList.toggle('nm-hide',!on);
+    btn.classList.toggle('nm-wait',on&&!(gs&&gs.classList.contains('active')));
+  }
+  if(home){
+    const go=home.onclick;
+    home.onclick=function(e){
+      if(live()&&!confirm('Przerwać trwający mecz?\n\nŻeby tylko na chwilę wyjść, użyj zakładki MECZ, by do niego wrócić.'))return;
+      return go&&go.call(this,e);
+    };
+  }
+  const _g=window.goto;
+  if(typeof _g==='function')window.goto=function(){const r=_g.apply(this,arguments);try{sync();}catch(e){}return r;};
+  sync();setInterval(sync,500);
+})();
+</script>
+
 </body>
 </html>
 
