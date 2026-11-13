@@ -1,3 +1,7 @@
 # Dodatkowe nicki do nagrania (jeden w linii) — np. znajomi grający lokalnie, bez konta online.
 # Nicki z kont online pobierają się same z Firebase.
 Zeltron
+Specu
+Pyniu
+Sztos
+Admin
