@@ -12211,6 +12211,70 @@ body.pc-ol #scoreboard .player-card:active{transform:scale(.985)}
 .pc-row{display:flex;gap:8px;margin-top:14px}
 .pc-row .pc-btn{margin-top:0}
 @media (max-height:640px){.pc-ring{width:92px;height:92px}.pc-nick{font-size:30px}.pc-big b{font-size:26px}}
+/* ---- rozbudowa: klikalne pola, forma, kamera, szczegóły ---- */
+.pc-tap{cursor:pointer;transition:transform .12s,border-color .2s;-webkit-tap-highlight-color:transparent}
+.pc-tap:active{transform:scale(.96)}
+.pc-big .pc-tap::after,.pc-grid .pc-tap::after{content:'›';position:absolute;right:6px;top:3px;font-size:12px;color:#44445e}
+.pc-grid div{position:relative}
+.pc-hint{text-align:center;font-family:monospace;font-size:10px;color:#5c5c78;margin:8px 0 0}
+.pc-mini{position:relative;border-radius:14px;background:#141420;border:1px solid #22223a;padding:8px;overflow:hidden}
+.pc-mini canvas{width:100%;height:90px;display:block}
+.pc-mini canvas.sq{height:auto;aspect-ratio:1;border-radius:50%}
+.pc-mini .t{font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;color:#c8c8d8;margin-bottom:6px;text-align:center}
+.pc-mini small{display:block;text-align:center;font-family:monospace;font-size:10px;color:#8888aa;margin-top:6px}
+.pc-mini-l{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-family:monospace;font-size:10px;color:#8888aa}
+.pc-mini-l b{font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:.5px;font-weight:normal}
+.pc-two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pc-dh{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;padding:12px 14px;background:linear-gradient(180deg,#191926,#13131d);border-bottom:1px solid #22223a;border-radius:22px 22px 0 0}
+.pc-dh button{width:38px;height:38px;border-radius:12px;border:1px solid #2a2a40;background:#141420;color:#00e5ff;font-size:24px;line-height:1;cursor:pointer}
+.pc-dh small{display:block;font-family:monospace;font-size:10px;color:#8888aa}
+.pc-dh b{display:block;font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:1px;color:#fff;font-weight:normal;line-height:1.1}
+.pc-det>*+*{margin-top:10px}
+.pc-box{border-radius:14px;background:#141420;border:1px solid #22223a;padding:10px}
+.pc-box canvas{width:100%;height:160px;display:block}
+.pc-box canvas.sq{height:auto;aspect-ratio:1;max-width:320px;margin:0 auto;border-radius:50%}
+.pc-bt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;color:#ffd700;margin-bottom:8px}
+.pc-bt span{font-family:monospace;font-size:9px;color:#8888aa;letter-spacing:0}
+.pc-cap{font-family:monospace;font-size:10px;color:#8888aa;text-align:center;margin-top:6px;line-height:1.5}
+.pc-cap b{color:#e8e8f0}
+.pc-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pc-kpis div{border-radius:12px;background:#151520;border:1px solid #22223a;padding:9px 4px;text-align:center}
+.pc-kpis b{display:block;font-family:'Bebas Neue',cursive;font-size:26px;line-height:1;font-weight:normal}
+.pc-kpis small{display:block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#8888aa;margin-top:3px}
+.pc-hero2{text-align:center;padding:6px 0 2px}
+.pc-hero2 b{display:block;font-family:'Bebas Neue',cursive;font-size:64px;line-height:1;color:#00e5ff;font-weight:normal;text-shadow:0 0 24px rgba(0,229,255,.35)}
+.pc-hero2.sm b{font-size:50px}
+.pc-hero2 small{display:block;font-family:monospace;font-size:10px;color:#8888aa;margin-top:2px}
+.pc-hero2 em{display:inline-block;margin-top:6px;font-style:normal;font-family:'Bebas Neue',cursive;font-size:13px;letter-spacing:1px;color:#ffd700;padding:2px 8px;border-radius:8px;border:1px solid rgba(255,215,0,.4)}
+.pc-two2{display:grid;grid-template-columns:1.2fr 1fr;gap:8px;align-items:center}
+.pc-donut{position:relative;width:170px;height:170px;margin:4px auto 6px}
+.pc-donut svg{width:100%;height:100%}
+.pc-donut>div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.pc-donut b{font-family:'Bebas Neue',cursive;font-size:40px;line-height:1;color:#fff;font-weight:normal}
+.pc-donut small{font-family:monospace;font-size:10px;color:#8888aa}
+.pc-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 12px;font-size:12px;color:#c8c8d8}
+.pc-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.pc-legend em{font-style:normal;font-family:monospace;font-size:10px;color:#8888aa}
+.pc-gauge{position:relative;max-width:230px;margin:0 auto}
+.pc-gauge svg{width:100%;display:block}
+.pc-gauge>div{position:absolute;left:0;right:0;bottom:0;text-align:center}
+.pc-gauge b{display:block;font-family:'Bebas Neue',cursive;font-size:38px;line-height:1;font-weight:normal}
+.pc-gauge small{display:block;font-family:'Rajdhani',sans-serif;font-weight:700;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:#8888aa}
+.pc-gauge em{display:block;font-style:normal;font-family:monospace;font-size:10px;color:#6a6a86}
+.pc-hb>div{display:grid;grid-template-columns:78px 1fr 46px;align-items:center;gap:8px;margin:6px 0;font-size:12px;color:#c8c8d8}
+.pc-hb i{height:12px;border-radius:6px;background:#1a1a26;overflow:hidden}
+.pc-hb u{display:block;height:100%;border-radius:6px;text-decoration:none;box-shadow:0 0 10px rgba(255,255,255,.12)}
+.pc-hb b{font-family:'Bebas Neue',cursive;font-size:18px;text-align:right;font-weight:normal}
+.pc-strip{display:flex;flex-wrap:wrap;gap:4px;justify-content:center}
+.pc-strip i{width:24px;height:24px;border-radius:6px;font-style:normal;font-family:'Bebas Neue',cursive;font-size:14px;display:flex;align-items:center;justify-content:center}
+.pc-strip i.w{background:rgba(0,255,136,.15);color:#00ff88;border:1px solid rgba(0,255,136,.4)}
+.pc-strip i.l{background:rgba(255,60,60,.13);color:#ff5a5a;border:1px solid rgba(255,60,60,.35)}
+.pc-seg{display:flex;gap:6px;padding:4px;border-radius:12px;background:#0c0c13;border:1px solid #22223a}
+.pc-seg button{flex:1;padding:8px;border:0;border-radius:9px;background:none;color:#8888aa;font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;cursor:pointer}
+.pc-seg button.on{background:#1f1f30;color:#ffd700;box-shadow:inset 0 0 0 1px rgba(255,215,0,.35)}
+.pc-zc{border-radius:12px;background:linear-gradient(90deg,rgba(255,215,0,.07),transparent);border:1px solid #2a2a3a;border-left:3px solid #ffd700;padding:8px 10px;display:flex;flex-direction:column;gap:2px;font-size:12px;color:#c8c8d8}
+.pc-zc b{font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:1px;color:#ffd700;font-weight:normal}
+.pc-zc em{font-style:normal;font-weight:700;color:#fff}
 </style>
 <script>
 (function(){
@@ -12283,8 +12347,9 @@ function render(uid,u){
   let h2h='';
   if(!mine&&me()){const my=CACHE[me().uid];if(my&&my.eloHist){const vs=my.eloHist.filter(h=>h.vs===nick);if(vs.length){const w=vs.filter(h=>h.w).length,l=vs.length-w;
     h2h='<div class="pc-sec">BILANS Z TOBĄ</div><div class="pc-h2h"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>z ostatnich meczów rankingowych</span><b style="color:#ff5a5a">'+l+'</b></div>';}}}
-  const big=(v,l,c)=>'<div style="--c:'+c+'"><b>'+v+'</b><small>'+l+'</small></div>';
-  const sm=(v,l)=>'<div><b>'+v+'</b><small>'+l+'</small></div>';
+  const big=(v,l,c,k)=>'<div class="pc-tap" style="--c:'+c+'" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
+  const sm=(v,l,k)=>'<div class="pc-tap" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
+  CUR={uid,u,mine,pro:mine?(buildPro(nick)||u.pro):u.pro};
   const streak=(u.streak||0)>=2?'🔥'+u.streak:(u.streak||0);
   o.innerHTML='<div class="pc-card" style="--tc:'+tc[0]+';--tc2:'+tc[1]+'" onclick="event.stopPropagation()">'+
     '<div class="pc-hero"><button class="pc-x" onclick="PC.close()" aria-label="Zamknij">✕</button>'+
@@ -12295,11 +12360,13 @@ function render(uid,u){
       '<div class="pc-form">'+form.join('')+'</div>'+
     '</div>'+
     '<div class="pc-body">'+
-      '<div class="pc-big">'+big(avg,'Średnia','#00e5ff')+big(u.e180||0,'180-tki','#ff3c3c')+big(u.highestCheckout||'—','Max zejście','#ffd700')+'</div>'+
-      '<div class="pc-grid">'+sm(games,'Mecze')+sm(wins,'Wygrane')+sm(pct(wins,games),'% wygr.')+
-        sm(u.first9Avg?(+u.first9Avg).toFixed(1):'—','Śr. 9 lotek')+sm(pct(u.coSuccess||0,u.coAttempts||0),'Zejścia %')+sm(pct(u.doubleHits||0,u.doubleAttempts||0),'Podwójne %')+
-        sm(u.best||'—','Najl. tura')+sm(u.highest140||0,'140+')+sm(u.highest100||0,'100+')+
-        sm(streak,'Seria')+sm(u.bestStreak||0,'Najl. seria')+sm(games&&u.totalDarts?(u.totalDarts/games).toFixed(0):'—','Lotek/mecz')+'</div>'+
+      '<div class="pc-big">'+big(avg,'Średnia','#00e5ff','avg')+big(u.e180||0,'180-tki','#ff3c3c','t180')+big(u.highestCheckout||'—','Max zejście','#ffd700','co')+'</div>'+
+      '<div class="pc-grid">'+sm(games,'Mecze','wins')+sm(wins,'Wygrane','wins')+sm(pct(wins,games),'% wygr.','wins')+
+        sm(u.first9Avg?(+u.first9Avg).toFixed(1):'—','Śr. 9 lotek','f9')+sm(pct(u.coSuccess||0,u.coAttempts||0),'Zejścia %','co')+sm(pct(u.doubleHits||0,u.doubleAttempts||0),'Podwójne %','dbl')+
+        sm(u.best||'—','Najl. tura','score')+sm(u.highest140||0,'140+','score')+sm(u.highest100||0,'100+','score')+
+        sm(streak,'Seria','streak')+sm(u.bestStreak||0,'Najl. seria','streak')+sm(games&&u.totalDarts?(u.totalDarts/games).toFixed(0):'—','Lotek/mecz','dpm')+'</div>'+
+      '<div class="pc-hint">👆 dotknij dowolne pole, żeby zobaczyć szczegóły</div>'+
+      proSections()+
       h2h+
       '<div class="pc-sec">RANKING ELO</div>'+
       (hist.length?'<div class="pc-elo"><canvas></canvas><div class="r"><span>start 1000</span><span>szczyt '+(u.eloPeak||e)+'</span><span>mecze '+(u.eloGames||0)+'</span></div></div>'+
@@ -12310,6 +12377,222 @@ function render(uid,u){
     '</div></div>';
   o.classList.add('on');
   const cv=o.querySelector('.pc-elo canvas');if(cv)requestAnimationFrame(()=>spark(cv,hist));
+  requestAnimationFrame(proMount);
+  if(mine)syncPro(false);
+}
+
+/* =================== ROZBUDOWANA KARTA: forma, mapa trafień, skupienie, szczegóły pól =================== */
+let CUR=null,MAPV='heat';
+const SEG=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5],RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
+const T19=[Math.sin(198*Math.PI/180)*103,Math.cos(198*Math.PI/180)*103];
+const r1=v=>Math.round(v*10)/10;
+function zoneOf(H,cx,cy,R,ok){
+  const p=H.filter(h=>Math.hypot(h.x-cx,h.y-cy)<=R);if(p.length<5)return null;
+  const mx=p.reduce((a,h)=>a+h.x,0)/p.length,my=p.reduce((a,h)=>a+h.y,0)/p.length;
+  const ds=p.map(h=>Math.hypot(h.x-mx,h.y-my)).sort((a,b)=>a-b);
+  return{n:p.length,pct:Math.round(p.filter(h=>ok(h.l)).length/p.length*100),dx:r1(mx-cx),dy:r1(my-cy),r:r1(ds[Math.floor(ds.length/2)])};
+}
+const dkey=t=>{const d=new Date(t);return String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0');};
+// liczone na telefonie zawodnika z jego lokalnych danych (wykres formy + mapa trafień kamery), zapisywane w profilu jako tekst
+function buildPro(nick){
+  try{
+    let F={};try{F=(JSON.parse(localStorage.getItem('dm_form')||'{}').days)||{};}catch(e){}
+    const f=Object.keys(F).sort().map(d=>{const c=(F[d]||{})[nick];return c&&c.d?[d.slice(2).replace(/-/g,''),Math.round(c.p/c.d*30),c.cc||0,c.cs||0,c.d,c.t180||0,c.t140||0,c.t100||0].join(','):null;}).filter(Boolean).slice(-90);
+    let H=[];try{H=JSON.parse(localStorage.getItem('dm_hits')||'[]');}catch(e){}
+    H=H.filter(h=>h&&h.p===nick&&h.t>=Date.now()-180*864e5&&typeof h.x==='number');
+    if(!f.length&&H.length<5)return null;
+    const cnt={};H.forEach(h=>{cnt[h.l]=(cnt[h.l]||0)+1;});
+    const z={};const t20=zoneOf(H,0,103,40,l=>l==='T20'),t19=zoneOf(H,T19[0],T19[1],40,l=>l==='T19'),bu=zoneOf(H,0,0,35,l=>l==='BULL'||l==='25');
+    if(t20)z.t20=t20;if(t19)z.t19=t19;if(bu)z.bull=bu;
+    const db=H.filter(h=>{const r=Math.hypot(h.x,h.y);return r>=148&&r<=190;});
+    const dbl=db.length>=5?{n:db.length,pct:Math.round(db.filter(h=>/^D/.test(h.l)).length/db.length*100),rad:r1(db.reduce((a,h)=>a+(Math.hypot(h.x,h.y)-166),0)/db.length)}:null;
+    const byDay={};H.forEach(h=>{if(Math.hypot(h.x,h.y-103)>40)return;(byDay[dkey(h.t)]=byDay[dkey(h.t)]||[]).push(h);});
+    const sp=Object.keys(byDay).sort().map(d=>{const a=byDay[d];if(a.length<6)return null;const mx=a.reduce((s,h)=>s+h.x,0)/a.length,my=a.reduce((s,h)=>s+h.y,0)/a.length;
+      const ds=a.map(h=>Math.hypot(h.x-mx,h.y-my)).sort((p,q)=>p-q);return d+','+Math.round(ds[Math.floor(ds.length/2)]*10);}).filter(Boolean).slice(-60);
+    const o={v:1,t:Date.now(),f:f.join(';'),h:H.slice(-400).map(h=>Math.round(h.x)+','+Math.round(h.y)+(/^D/.test(h.l)?',d':'')).join(';'),n:H.length,
+      top:Object.entries(cnt).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([l,c])=>({l,c})),z,sp:sp.join(';')};
+    if(dbl)o.dbl=dbl;return o;
+  }catch(e){return null;}
+}
+function dec(p){
+  if(!p)return null;const rows=s=>(s||'').split(';').filter(Boolean).map(r=>r.split(','));
+  const f=rows(p.f).map(r=>({day:r[0],lbl:r[0].slice(4,6)+'.'+r[0].slice(2,4),avg:+r[1]/10,cc:+r[2],cs:+r[3],d:+r[4],t180:+r[5],t140:+r[6],t100:+r[7]}));
+  const h=rows(p.h).map(r=>({x:+r[0],y:+r[1],d:r[2]==='d'}));
+  const sp=rows(p.sp).map(r=>({day:r[0],lbl:r[0].slice(4,6)+'.'+r[0].slice(2,4),v:+r[1]/10}));
+  return{f,h,sp,n:p.n||h.length,top:p.top||[],z:p.z||{},dbl:p.dbl||null,t:p.t||0};
+}
+let syncAt=0,syncKey='';
+async function syncPro(force){
+  const u=me();if(!u||!fb())return;const d=CACHE[u.uid]||{};const p=buildPro(d.nick||u.displayName||'');if(!p)return;
+  const key=JSON.stringify(Object.assign({},p,{t:0}));if(key===syncKey&&!force)return;if(!force&&Date.now()-syncAt<60000)return;
+  syncAt=Date.now();try{await fb().updateDoc(uref(u.uid),{pro:p});syncKey=key;if(CACHE[u.uid])CACHE[u.uid].pro=p;}catch(e){console.log('pro sync',e&&e.code);}
+}
+
+/* ---------- wykresy ---------- */
+function cvs(cv,h){const W=Math.round((cv.clientWidth||320)*2),H=h||Math.round((cv.clientHeight||150)*2);cv.width=W;cv.height=H;return[cv.getContext('2d'),W,H];}
+function line(cv,pts,o){
+  const[g,W,H]=cvs(cv);o=o||{};g.font='20px monospace';g.fillStyle='#6a6a86';
+  if(!pts.length){g.textAlign='center';g.font='22px monospace';(o.empty||'Brak danych').split('|').forEach((t,i,a)=>g.fillText(t,W/2,H/2+(i-(a.length-1)/2)*30));return;}
+  const vals=pts.map(p=>p.v),lo=o.min!==undefined?o.min:Math.floor(Math.min(...vals)*.9),hi=o.max!==undefined?o.max:Math.ceil(Math.max(...vals)*1.1)||1;
+  const L=o.axis===false?10:52,R=12,T=14,B=o.axis===false?10:36,X=i=>pts.length===1?(L+W-R)/2:L+i*(W-L-R)/(pts.length-1),Y=v=>T+(1-(v-lo)/((hi-lo)||1))*(H-T-B);
+  if(o.axis!==false){g.strokeStyle='#1e1e2c';g.lineWidth=2;g.textAlign='right';
+    for(let k=0;k<=3;k++){const v=lo+(hi-lo)*k/3,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.fillText(o.pct?Math.round(v)+'%':(hi-lo>=6?Math.round(v):Math.round(v*10)/10),L-8,y+7);}
+    const st=Math.ceil(pts.length/6),n1=pts.length-1;pts.forEach((p,i)=>{if(i===n1||(i%st===0&&n1-i>=st*.7)){g.textAlign=i===n1&&n1>0?'right':'center';g.fillText(p.lbl,i===n1&&n1>0?Math.min(W-2,X(i)+16):X(i),H-8);}});}
+  if(o.bars){const bw=Math.max(6,Math.min(40,(W-L-R)/pts.length*.6));pts.forEach((p,i)=>{const gr=g.createLinearGradient(0,Y(p.v),0,Y(lo));gr.addColorStop(0,o.color);gr.addColorStop(1,'rgba(0,0,0,.15)');g.fillStyle=gr;
+    g.beginPath();g.roundRect?g.roundRect(X(i)-bw/2,Y(p.v),bw,Math.max(2,Y(lo)-Y(p.v)),[6,6,0,0]):g.rect(X(i)-bw/2,Y(p.v),bw,Y(lo)-Y(p.v));g.fill();});return;}
+  const grd=g.createLinearGradient(0,T,0,H-B);grd.addColorStop(0,o.fill||'rgba(0,229,255,.3)');grd.addColorStop(1,'rgba(0,0,0,0)');
+  g.beginPath();pts.forEach((p,i)=>i?g.lineTo(X(i),Y(p.v)):g.moveTo(X(i),Y(p.v)));g.lineTo(X(pts.length-1),Y(lo));g.lineTo(X(0),Y(lo));g.closePath();g.fillStyle=grd;g.fill();
+  g.beginPath();pts.forEach((p,i)=>i?g.lineTo(X(i),Y(p.v)):g.moveTo(X(i),Y(p.v)));g.strokeStyle=o.color||'#00e5ff';g.lineWidth=4;g.lineJoin='round';g.stroke();
+  if(pts.length<=40)pts.forEach((p,i)=>{g.beginPath();g.arc(X(i),Y(p.v),5,0,7);g.fillStyle=o.color||'#00e5ff';g.fill();});
+  if(pts.length>=3&&o.trend!==false){const n=pts.length,mx=(n-1)/2,my=vals.reduce((a,b)=>a+b,0)/n;let nu=0,de=0;vals.forEach((v,i)=>{nu+=(i-mx)*(v-my);de+=(i-mx)**2;});const k=de?nu/de:0;
+    g.setLineDash([10,8]);g.strokeStyle='rgba(255,215,0,.75)';g.lineWidth=2;g.beginPath();g.moveTo(X(0),Y(my-k*mx));g.lineTo(X(n-1),Y(my+k*mx));g.stroke();g.setLineDash([]);}
+}
+function slope(vals){const n=vals.length;if(n<3)return 0;const mx=(n-1)/2,my=vals.reduce((a,b)=>a+b,0)/n;let nu=0,de=0;vals.forEach((v,i)=>{nu+=(i-mx)*(v-my);de+=(i-mx)**2;});return de?nu/de:0;}
+function board(cv,o){
+  const W=Math.round((cv.clientWidth||300)*2);cv.width=W;cv.height=W;const g=cv.getContext('2d');
+  const R=o.R||215,cx=o.cx||0,cy=o.cy||0,k=W/2/R,P=(x,y)=>[W/2+(x-cx)*k,W/2-(y-cy)*k],[ox,oy]=P(0,0);
+  g.fillStyle='#0b0b12';g.fillRect(0,0,W,W);
+  g.beginPath();g.arc(ox,oy,226*k,0,7);g.fillStyle='#15151c';g.fill();
+  for(let i=0;i<20;i++){const a0=(i*18-9-90)*Math.PI/180,a1=(i*18+9-90)*Math.PI/180,ev=i%2===0;
+    const ring=(q0,q1,col)=>{g.beginPath();g.arc(ox,oy,q1*k,a0,a1);g.arc(ox,oy,q0*k,a1,a0,true);g.closePath();g.fillStyle=col;g.fill();};
+    ring(RB.bo,RB.ti,ev?'#1c1c22':'#36342c');ring(RB.ti,RB.to,ev?'#6e1c1c':'#1c5030');ring(RB.to,RB.di,ev?'#1c1c22':'#36342c');ring(RB.di,RB.dd,ev?'#6e1c1c':'#1c5030');}
+  g.beginPath();g.arc(ox,oy,RB.bo*k,0,7);g.fillStyle='#1c5030';g.fill();g.beginPath();g.arc(ox,oy,RB.bi*k,0,7);g.fillStyle='#6e1c1c';g.fill();
+  g.strokeStyle='rgba(255,255,255,.07)';g.lineWidth=1;for(let i=0;i<20;i++){const a=(i*18-9-90)*Math.PI/180;g.beginPath();g.moveTo(ox+Math.cos(a)*RB.bo*k,oy+Math.sin(a)*RB.bo*k);g.lineTo(ox+Math.cos(a)*RB.dd*k,oy+Math.sin(a)*RB.dd*k);g.stroke();}
+  if(R>120){g.fillStyle='#8a8aa6';g.font=Math.round(15*k*2.2)+'px Bebas Neue, sans-serif';g.textAlign='center';g.textBaseline='middle';
+    for(let i=0;i<20;i++){const a=i*18*Math.PI/180,[x,y]=P(Math.sin(a)*196,Math.cos(a)*196);g.fillText(SEG[i],x,y);}}
+  else{g.fillStyle='rgba(255,255,255,.55)';g.font='bold '+Math.round(W/12)+'px Bebas Neue, sans-serif';g.textAlign='center';g.textBaseline='middle';const[x,y]=P(0,130);if(y>0&&y<W)g.fillText('20',x,y);}
+  const hits=o.hits||[];
+  if(o.mode==='heat'&&hits.length){const G2=80,grid=new Float32Array(G2*G2),cell=2*R/G2,rad=Math.max(3,Math.round(9/cell*2.2));
+    for(const h of hits){const gx=(h.x-cx+R)/cell,gy=(R-(h.y-cy))/cell;if(gx<-rad||gy<-rad||gx>G2+rad||gy>G2+rad)continue;
+      for(let y=Math.max(0,gy-rad|0);y<Math.min(G2,gy+rad+1);y++)for(let x=Math.max(0,gx-rad|0);x<Math.min(G2,gx+rad+1);x++){const d2=(x-gx)**2+(y-gy)**2;grid[y*G2+x]+=Math.exp(-d2/(rad*rad/3));}}
+    let mx=0;for(const v of grid)mx=Math.max(mx,v);const oc=document.createElement('canvas');oc.width=G2;oc.height=G2;const oct=oc.getContext('2d'),id=oct.createImageData(G2,G2);
+    for(let i=0;i<grid.length;i++){const v=mx?grid[i]/mx:0;if(v<.05)continue;id.data[i*4]=255;id.data[i*4+1]=Math.round(255*Math.max(0,1-v*1.3));id.data[i*4+2]=Math.round(90*(1-v));id.data[i*4+3]=Math.round(70+175*v);}
+    oct.putImageData(id,0,0);g.imageSmoothingEnabled=true;g.drawImage(oc,0,0,W,W);}
+  else for(const h of hits){const[x,y]=P(h.x,h.y);if(x<-10||y<-10||x>W+10||y>W+10)continue;g.beginPath();g.arc(x,y,Math.max(4,W/(R>120?110:60)),0,7);
+    g.fillStyle=o.col?o.col(h):'rgba(0,229,255,.8)';g.fill();g.lineWidth=1.5;g.strokeStyle='#0b0b12';g.stroke();}
+  (o.zones||[]).forEach(z=>{if(!z)return;const[x,y]=P(z.cx+z.dx,z.cy+z.dy);g.beginPath();g.arc(x,y,z.r*k,0,7);g.strokeStyle='#ffd700';g.lineWidth=Math.max(2,W/200);g.setLineDash([8,6]);g.stroke();g.setLineDash([]);
+    const s=W/40;g.beginPath();g.moveTo(x-s,y);g.lineTo(x+s,y);g.moveTo(x,y-s);g.lineTo(x,y+s);g.lineWidth=Math.max(2,W/220);g.stroke();
+    if(o.target){const[tx,ty]=P(z.cx,z.cy);g.beginPath();g.arc(tx,ty,W/90,0,7);g.strokeStyle='rgba(255,255,255,.8)';g.lineWidth=2;g.stroke();}});
+}
+function donut(segs,center,sub){
+  const tot=segs.reduce((a,s)=>a+s.v,0)||1,R=52,C=2*Math.PI*R;let off=0;
+  const arcs=segs.map(s=>{const l=s.v/tot*C,a='<circle r="'+R+'" cx="70" cy="70" fill="none" stroke="'+s.c+'" stroke-width="18" stroke-dasharray="'+Math.max(0,l-2)+' '+C+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 70 70)" style="filter:drop-shadow(0 0 6px '+s.c+'66)"/>';off+=l;return a;}).join('');
+  return'<div class="pc-donut"><svg viewBox="0 0 140 140"><circle r="'+R+'" cx="70" cy="70" fill="none" stroke="#1a1a26" stroke-width="18"/>'+arcs+'</svg><div><b>'+center+'</b><small>'+(sub||'')+'</small></div></div>'+
+    '<div class="pc-legend">'+segs.map(s=>'<span><i style="background:'+s.c+'"></i>'+s.l+' <b>'+s.v+'</b> <em>'+Math.round(s.v/tot*100)+'%</em></span>').join('')+'</div>';
+}
+function gauge(p,col,lbl,sub){
+  const R=58,C=Math.PI*R,v=Math.max(0,Math.min(100,p||0));
+  return'<div class="pc-gauge"><svg viewBox="0 0 150 86"><path d="M17 78 A58 58 0 0 1 133 78" fill="none" stroke="#1a1a26" stroke-width="14" stroke-linecap="round"/>'+
+    '<path d="M17 78 A58 58 0 0 1 133 78" fill="none" stroke="'+col+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+(C*v/100)+' '+C+'" style="filter:drop-shadow(0 0 8px '+col+'88)"/></svg>'+
+    '<div><b style="color:'+col+'">'+(p===null||p===undefined?'—':Math.round(v)+'%')+'</b><small>'+lbl+'</small>'+(sub?'<em>'+sub+'</em>':'')+'</div></div>';
+}
+function hbars(rows){const mx=Math.max(...rows.map(r=>r.v),1);return'<div class="pc-hb">'+rows.map(r=>'<div><span>'+r.l+'</span><i><u style="width:'+(r.v/mx*100)+'%;background:'+r.c+'"></u></i><b style="color:'+r.c+'">'+r.t+'</b></div>').join('')+'</div>';}
+const dirTxt=(dx,dy)=>{const p=[];if(Math.abs(dx)>=2)p.push(Math.round(Math.abs(dx))+' mm '+(dx>0?'w prawo':'w lewo'));if(Math.abs(dy)>=2)p.push(Math.round(Math.abs(dy))+' mm '+(dy>0?'w górę':'w dół'));return p.length?p.join(', '):'idealnie w punkt';};
+function periodAvg(f,days){const lim=days?dkey(Date.now()-(days-1)*864e5):'000000';const a=f.filter(r=>r.day>=lim);const d=a.reduce((s,r)=>s+r.d,0);return d?a.reduce((s,r)=>s+r.avg/3*r.d,0)/d*3:null;}
+
+/* ---------- sekcje na karcie ---------- */
+function proSections(){
+  const P=dec(CUR.pro),mine=CUR.mine;
+  const none=mine?'Zagraj mecz 501/301 — wykres pojawi się sam':'Gracz jeszcze nie udostępnił|danych (po jego następnym meczu)';
+  let tr='';if(P&&P.f.length>=3){const s=slope(P.f.slice(-14).map(r=>r.avg));tr=s>0.15?'<b style="color:#00ff88">▲ forma rośnie</b>':s<-0.15?'<b style="color:#ff5a5a">▼ forma spada</b>':'<b style="color:#c8c8d8">● forma stabilna</b>';}
+  const t20=P&&P.z.t20;
+  return'<div class="pc-sec">FORMA</div>'+
+    '<div class="pc-mini pc-tap" onclick="PC.det(\'form\')"><canvas id="pc-m-form" data-empty="'+none+'"></canvas><div class="pc-mini-l"><span>'+(P&&P.f.length?'średnia z ostatnich '+Math.min(30,P.f.length)+' dni gry':'wykres formy')+'</span>'+tr+'</div></div>'+
+    '<div class="pc-sec">KAMERA</div><div class="pc-two">'+
+      '<div class="pc-mini pc-tap" onclick="PC.det(\'map\')"><div class="t">🎯 MAPA TRAFIEŃ</div><canvas class="sq" id="pc-m-map"></canvas><small>'+(P&&P.n?P.n+' lotek':'brak danych z kamery')+'</small></div>'+
+      '<div class="pc-mini pc-tap" onclick="PC.det(\'grp\')"><div class="t">🔬 SKUPIENIE T20</div><canvas class="sq" id="pc-m-grp"></canvas><small>'+(t20?'rozrzut '+Math.round(t20.r)+' mm':'za mało lotek w T20')+'</small></div>'+
+    '</div>';
+}
+function proMount(){
+  if(!CUR)return;const P=dec(CUR.pro);
+  const fc=document.getElementById('pc-m-form');if(fc)line(fc,P?P.f.slice(-30).map(r=>({lbl:r.lbl,v:r.avg})):[],{color:'#00e5ff',fill:'rgba(0,229,255,.32)',axis:false,empty:fc.dataset.empty});
+  const mc=document.getElementById('pc-m-map');if(mc)board(mc,{R:215,hits:P?P.h:[],mode:'heat'});
+  const gc=document.getElementById('pc-m-grp');if(gc){const z=P&&P.z.t20;board(gc,{cx:0,cy:103,R:42,hits:P?P.h.filter(h=>Math.hypot(h.x,h.y-103)<46):[],zones:z?[Object.assign({cx:0,cy:103},z)]:[],target:true});}
+}
+
+/* ---------- szczegóły po dotknięciu pola ---------- */
+function det(k){
+  if(!CUR)return;const u=CUR.u,P=dec(CUR.pro),o=overlay(),nick=u.nick||'Gracz';
+  const games=u.games||0,wins=u.wins||0,loss=Math.max(0,games-wins),hist=u.eloHist||[];
+  const avg=(u.totalDarts||0)>0?(u.totalPoints||0)/u.totalDarts*3:null,f9=u.first9Avg?+u.first9Avg:null;
+  const n180=u.e180||0,n140=Math.max(0,(u.highest140||0)-n180),n100=Math.max(0,(u.highest100||0)-(u.highest140||0));
+  const noF='<div class="pc-empty">'+(CUR.mine?'Wykres pojawi się po rozegraniu meczów 501/301.':'Gracz nie udostępnił jeszcze danych formy.')+'</div>';
+  const noC='<div class="pc-empty">'+(CUR.mine?'Graj z kamerą (tryb auto-liczenia) — mapa wypełnia się sama.':'Brak danych z kamery tego gracza.')+'</div>';
+  const strip=hist.length?'<div class="pc-strip">'+hist.slice(-20).map(h=>'<i class="'+(h.w?'w':'l')+'" title="vs '+esc(h.vs||'')+'">'+(h.w?'W':'P')+'</i>').join('')+'</div><div class="pc-cap">ostatnie mecze rankingowe (od lewej najstarszy)</div>':'';
+  const cv=(id,cls)=>'<canvas id="'+id+'" class="'+(cls||'')+'"></canvas>';
+  let t='',ic='',b='',after=[];
+  const kpi=(v,l,c)=>'<div><b style="color:'+(c||'#e8e8f0')+'">'+v+'</b><small>'+l+'</small></div>';
+  if(k==='avg'||k==='dpm'){
+    t=k==='avg'?'ŚREDNIA (3 LOTKI)':'LOTKI NA MECZ';ic=k==='avg'?'📊':'🎯';
+    const a7=P?periodAvg(P.f,7):null,a30=P?periodAvg(P.f,30):null;
+    b=(k==='dpm'?'<div class="pc-hero2"><b>'+(games&&u.totalDarts?(u.totalDarts/games).toFixed(1):'—')+'</b><small>lotek na mecz · ≈ '+(games&&u.totalDarts?Math.round(u.totalDarts/games/3):'—')+' tur</small></div>':'')+
+      '<div class="pc-kpis">'+kpi(a7===null?'—':a7.toFixed(1),'7 dni','#00e5ff')+kpi(a30===null?'—':a30.toFixed(1),'30 dni','#00e5ff')+kpi(avg===null?'—':avg.toFixed(1),'cała kariera','#ffd700')+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">ŚREDNIA DZIEŃ PO DNIU <span>żółta linia = trend</span></div>'+(P&&P.f.length?cv('pc-d1'):noF)+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">START MECZU VS CAŁY MECZ</div>'+hbars([{l:'Śr. 9 lotek',v:f9||0,t:f9?f9.toFixed(1):'—',c:'#b44dff'},{l:'Średnia',v:avg||0,t:avg?avg.toFixed(1):'—',c:'#00e5ff'}])+'</div>';
+    if(P&&P.f.length)after.push(()=>line(document.getElementById('pc-d1'),P.f.slice(-45).map(r=>({lbl:r.lbl,v:r.avg})),{color:'#00e5ff',fill:'rgba(0,229,255,.3)'}));
+  }else if(k==='f9'){
+    t='ŚREDNIA Z 9 PIERWSZYCH LOTEK';ic='🚀';
+    const dlt=f9!==null&&avg!==null?f9-avg:null;
+    b='<div class="pc-hero2"><b style="color:#b44dff">'+(f9?f9.toFixed(1):'—')+'</b><small>pierwsze 3 tury każdego lega</small></div>'+
+      '<div class="pc-box">'+hbars([{l:'Śr. 9 lotek',v:f9||0,t:f9?f9.toFixed(1):'—',c:'#b44dff'},{l:'Średnia',v:avg||0,t:avg?avg.toFixed(1):'—',c:'#00e5ff'}])+
+      '<div class="pc-cap" style="margin-top:8px">'+(dlt===null?'Brak danych.':dlt>=0?'Start mocniejszy o <b style="color:#00ff88">'+dlt.toFixed(1)+'</b> pkt od średniej — '+esc(nick)+' zaczyna z impetem, traci przy zejściu.':'Start słabszy o <b style="color:#ff5a5a">'+(-dlt).toFixed(1)+'</b> pkt — '+esc(nick)+' rozkręca się w trakcie lega.')+'</div></div>'+
+      '<div class="pc-box"><div class="pc-bt">ŚREDNIA DZIEŃ PO DNIU</div>'+(P&&P.f.length?cv('pc-d1'):noF)+'</div>';
+    if(P&&P.f.length)after.push(()=>line(document.getElementById('pc-d1'),P.f.slice(-45).map(r=>({lbl:r.lbl,v:r.avg})),{color:'#b44dff',fill:'rgba(180,77,255,.28)'}));
+  }else if(k==='t180'||k==='score'){
+    t=k==='t180'?'180-TKI I MOCNE TURY':'NAJLEPSZE TURY';ic='🔥';
+    b='<div class="pc-kpis">'+kpi(u.best||'—','najl. tura','#ffd700')+kpi(n180,'180-tki','#ff3c3c')+kpi(games?(n180/games).toFixed(2):'—','180 / mecz','#ff8c00')+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">ROZKŁAD MOCNYCH TUR</div>'+((n180+n140+n100)?donut([{v:n180,c:'#ff3c3c',l:'180'},{v:n140,c:'#ff8c00',l:'140–179'},{v:n100,c:'#00e5ff',l:'100–139'}],n180+n140+n100,'tur 100+'):'<div class="pc-empty">Brak tur 100+.</div>')+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">180-TKI DZIEŃ PO DNIU</div>'+(P&&P.f.some(r=>r.t180)?cv('pc-d1'):'<div class="pc-empty">Jeszcze bez 180 w zapisanych dniach.</div>')+'</div>';
+    if(P&&P.f.some(r=>r.t180))after.push(()=>line(document.getElementById('pc-d1'),P.f.slice(-30).map(r=>({lbl:r.lbl,v:r.t180})),{color:'#ff3c3c',bars:true,min:0}));
+  }else if(k==='co'){
+    t='ZEJŚCIA';ic='✅';const cp=u.coAttempts?u.coSuccess/u.coAttempts*100:null;
+    b='<div class="pc-two2">'+gauge(cp,'#00ff88','zejścia',(u.coSuccess||0)+' z '+(u.coAttempts||0)+' szans')+
+      '<div class="pc-hero2 sm"><b style="color:#ffd700">'+(u.highestCheckout||'—')+'</b><small>najwyższe zejście</small>'+(u.highestCheckout>=100?'<em>🏆 TON+ CHECKOUT</em>':'')+'</div></div>'+
+      '<div class="pc-box"><div class="pc-bt">ZEJŚCIA % DZIEŃ PO DNIU</div>'+(P&&P.f.some(r=>r.cc)?cv('pc-d1'):noF)+'</div>';
+    if(P&&P.f.some(r=>r.cc))after.push(()=>line(document.getElementById('pc-d1'),P.f.filter(r=>r.cc).slice(-30).map(r=>({lbl:r.lbl,v:r.cs/r.cc*100})),{color:'#00ff88',bars:true,min:0,max:100,pct:true}));
+  }else if(k==='dbl'){
+    t='PODWÓJNE';ic='⚡';const dp=u.doubleAttempts?u.doubleHits/u.doubleAttempts*100:null,D=P&&P.dbl;
+    b=gauge(dp,'#00e5ff','trafione double',(u.doubleHits||0)+' z '+(u.doubleAttempts||0)+' prób')+
+      '<div class="pc-box"><div class="pc-bt">LOTKI PRZY PIERŚCIENIU DOUBLI <span>kamera</span></div>'+(P&&P.h.length?cv('pc-d1','sq'):noC)+
+      (D?'<div class="pc-cap">W double: <b>'+D.pct+'%</b> z '+D.n+' lotek · średnio <b>'+Math.abs(D.rad).toFixed(1)+' mm '+(D.rad<0?'za nisko (do środka)':'za wysoko (poza tarczę)')+'</b></div>':'')+'</div>';
+    if(P&&P.h.length)after.push(()=>board(document.getElementById('pc-d1'),{R:215,hits:P.h.filter(h=>{const r=Math.hypot(h.x,h.y);return r>=148&&r<=192;}),col:h=>h.d?'rgba(0,255,136,.9)':'rgba(255,70,70,.85)'}));
+  }else if(k==='wins'||k==='streak'){
+    t=k==='wins'?'MECZE I WYGRANE':'SERIE';ic='🏆';
+    b=(games?donut([{v:wins,c:'#00ff88',l:'Wygrane'},{v:loss,c:'#ff3c3c',l:'Porażki'}],Math.round(wins/games*100)+'%','wygranych'):'<div class="pc-empty">Brak meczów online.</div>')+
+      '<div class="pc-kpis">'+kpi(games,'mecze')+kpi((u.streak||0)>=2?'🔥'+u.streak:(u.streak||0),'seria teraz','#ff8c00')+kpi(u.bestStreak||0,'najdłuższa','#ffd700')+'</div>'+
+      (strip?'<div class="pc-box"><div class="pc-bt">PRZEBIEG</div>'+strip+'</div>':'');
+  }else if(k==='form'){
+    t='WYKRES FORMY';ic='📈';
+    b=P&&P.f.length?'<div class="pc-box"><div class="pc-bt">ŚREDNIA <span>żółta linia = trend</span></div>'+cv('pc-d1')+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">ZEJŚCIA % <span>zakończone / szanse</span></div>'+cv('pc-d2')+'</div>'+
+      '<div class="pc-box"><div class="pc-bt">SKUPIENIE PRZY T20 <span>mm — mniej = lepiej</span></div>'+(P.sp.length?cv('pc-d3'):'<div class="pc-empty">Graj z kamerą — liczy się z lotek w T20.</div>')+'</div>':noF;
+    if(P&&P.f.length)after.push(()=>{line(document.getElementById('pc-d1'),P.f.slice(-45).map(r=>({lbl:r.lbl,v:r.avg})),{color:'#00e5ff',fill:'rgba(0,229,255,.3)'});
+      line(document.getElementById('pc-d2'),P.f.filter(r=>r.cc).slice(-30).map(r=>({lbl:r.lbl,v:r.cs/r.cc*100})),{color:'#00ff88',bars:true,min:0,max:100,pct:true,empty:'Brak podejść do zejścia'});
+      const c3=document.getElementById('pc-d3');if(c3)line(c3,P.sp.map(r=>({lbl:r.lbl,v:r.v})),{color:'#ffd700',fill:'rgba(255,215,0,.25)',min:0});});
+  }else if(k==='map'){
+    t='MAPA TRAFIEŃ';ic='🎯';
+    if(P&&P.h.length){
+      const Z=P.z,zc=(nm,z,cx,cy)=>z?'<div class="pc-zc"><b>'+nm+'</b><span>trafione <em>'+z.pct+'%</em></span><span>rozrzut <em>'+Math.round(z.r)+' mm</em></span><span>środek: '+dirTxt(z.dx,z.dy)+'</span></div>':'';
+      b='<div class="pc-seg"><button class="'+(MAPV==='heat'?'on':'')+'" onclick="PC._mv(\'heat\')">🔥 CIEPŁO</button><button class="'+(MAPV==='dots'?'on':'')+'" onclick="PC._mv(\'dots\')">• LOTKI</button></div>'+
+        '<div class="pc-box">'+cv('pc-d1','sq')+'<div class="pc-cap">'+P.n+' lotek z kamery (ostatnie 6 miesięcy)</div></div>'+
+        zc('CELOWANIE W T20',Z.t20)+zc('CELOWANIE W T19',Z.t19)+zc('CELOWANIE W BULL',Z.bull)+
+        (P.top.length?'<div class="pc-box"><div class="pc-bt">NAJCZĘSTSZE POLA</div>'+hbars(P.top.slice(0,6).map((x,i)=>({l:x.l,v:x.c,t:Math.round(x.c/P.n*100)+'%',c:['#ffd700','#00e5ff','#00ff88','#ff8c00','#b44dff','#ff4dc4'][i]})))+'</div>':'');
+      after.push(()=>board(document.getElementById('pc-d1'),{R:215,hits:P.h,mode:MAPV,zones:[Z.t20&&Object.assign({cx:0,cy:103},Z.t20),Z.t19&&Object.assign({cx:T19[0],cy:T19[1]},Z.t19),Z.bull&&Object.assign({cx:0,cy:0},Z.bull)]}));
+    }else b=noC;
+  }else if(k==='grp'){
+    t='SKUPIENIE PRZY T20';ic='🔬';const z=P&&P.z.t20;
+    if(z){b='<div class="pc-box">'+cv('pc-d1','sq')+'<div class="pc-cap">Żółte koło = połowa lotek. Biały punkt = środek T20.</div></div>'+
+      '<div class="pc-kpis">'+kpi(Math.round(z.r)+' mm','rozrzut','#ffd700')+kpi(z.pct+'%','w T20','#ff3c3c')+kpi(z.n,'lotek')+'</div>'+
+      '<div class="pc-zc"><b>ŚRODEK GRUPY</b><span>'+dirTxt(z.dx,z.dy)+'</span><span>'+(z.r<=12?'🎯 świetne skupienie':z.r<=20?'👍 dobre skupienie':'💪 jest nad czym pracować')+'</span></div>'+
+      '<div class="pc-box"><div class="pc-bt">ROZRZUT DZIEŃ PO DNIU <span>mniej = lepiej</span></div>'+(P.sp.length?cv('pc-d2'):'<div class="pc-empty">Za mało dni z danymi.</div>')+'</div>';
+      after.push(()=>{board(document.getElementById('pc-d1'),{cx:0,cy:103,R:42,hits:P.h.filter(h=>Math.hypot(h.x,h.y-103)<48),zones:[Object.assign({cx:0,cy:103},z)],target:true});
+        const c2=document.getElementById('pc-d2');if(c2)line(c2,P.sp.map(r=>({lbl:r.lbl,v:r.v})),{color:'#ffd700',fill:'rgba(255,215,0,.25)',min:0});});}
+    else b=CUR.mine?'<div class="pc-empty">Potrzeba min. 5 lotek rzuconych w T20 z kamerą.</div>':noC;
+  }else return;
+  o.innerHTML='<div class="pc-card" onclick="event.stopPropagation()"><div class="pc-dh"><button onclick="PC._back()">‹</button><div><small>'+esc(nick)+'</small><b>'+ic+' '+t+'</b></div></div><div class="pc-body pc-det">'+b+
+    '<button class="pc-btn" onclick="PC._back()">‹ WRÓĆ DO KARTY</button></div></div>';
+  o.classList.add('on');requestAnimationFrame(()=>after.forEach(f=>{try{f();}catch(e){console.log(e);}}));
+  PC._lastDet=k;
 }
 
 /* ---------- edytor avatara ---------- */
@@ -12402,9 +12685,11 @@ document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest
 const _ls=window.olLoadUserStats;
 if(typeof _ls==='function')window.olLoadUserStats=async function(uid){
   const r=await _ls.apply(this,arguments);
-  try{await getUser(uid,true);paintHeader();}catch(e){}
+  try{await getUser(uid,true);paintHeader();setTimeout(()=>syncPro(false),3000);}catch(e){}
   return r;
 };
+const _rw=window.olRecordWin;
+if(typeof _rw==='function')window.olRecordWin=async function(){const r=await _rw.apply(this,arguments);setTimeout(()=>{try{syncPro(true);}catch(e){}},1500);return r;};
 // ranking i dawny podgląd gracza → nowa karta
 window.olShowPlayerStats=function(uid){return open(uid);};
 // mecz online: kto jest kim + avatary na kartach graczy
@@ -12433,7 +12718,7 @@ document.addEventListener('click',e=>{
   if(c)open(c.dataset.uid);
 });
 
-window.PC={open,close,edit,av:avHTML,mini:(u)=>avHTML(u&&u.avatar,u&&u.nick),
+window.PC={open,close,edit,det,_back(){if(CUR)render(CUR.uid,CUR.u);},_mv(v){MAPV=v;det('map');},_sync:syncPro,_build:buildPro,av:avHTML,mini:(u)=>avHTML(u&&u.avatar,u&&u.nick),
   back(){ED=null;const u=me();if(u)open(u.uid);else close();},
   _tab(t){ED.tab=t;drawEd();},_emo(x){ED.e=x;drawEd();},_col(i){ED.c=i;drawEd();},
   _zoom(v){ED.z=+v;cropDraw();},_file:loadFile,
