@@ -13912,6 +13912,8 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
 #x4-vc #x4-spk.talk,#olb-spk.talk{border-color:#00ff88;box-shadow:0 0 14px rgba(0,255,136,.55)}
 #x4-vc #x4-spk.mute,#olb-spk.mute{border-color:rgba(255,140,0,.6);color:#ff8c00;background:rgba(255,140,0,.1)}
 #x4-vc .gap{height:6px}
+#x4-vc.off #x4-mic{opacity:.45}
+#x4-vc.off .gap,#x4-vc.off #x4-spk{display:none}
 #ol-game-bar .olb-acts>#olb-spk{width:38px!important;height:38px!important;border-radius:12px!important;font-size:17px!important}
 </style>
 <div id="x4-vc">
@@ -13956,7 +13958,7 @@ function ensureRoom(){
   return true;
 }
 async function mic(){
-  if(!ensureRoom()){toast('Mikrofon działa w meczu online');return;}
+  if(!inOnline()||!ensureRoom()){toast('🎙 Rozmowa z rywalem działa w meczu online — tu gracie na jednym telefonie');return;}
   await wrcToggleMic();sync();
 }
 function mute(){VM.muted=!VM.muted;VM.room=roomId();toast(VM.muted?'🔇 Rywal wyciszony':'🔊 Słyszysz rywala');sync();}
@@ -13964,7 +13966,7 @@ function sync(){
   const on=inOnline();
   if(VM.room&&VM.room!==roomId()){VM.muted=false;VM.room=null;}
   const talk=Date.now()-VM.talkAt<2500;
-  const box=document.getElementById('x4-vc');box.classList.toggle('on',on&&camView());
+  const box=document.getElementById('x4-vc');box.classList.toggle('on',camView());box.classList.toggle('off',!on);
   const m=document.getElementById('x4-mic'),s=document.getElementById('x4-spk');
   const live=!!(typeof wrcState!=='undefined'&&wrcState.micActive);
   m.classList.toggle('live',live);m.firstChild.textContent=live?'🔴':'🎙';m.querySelector('small').textContent=live?'MÓWISZ':'MÓJ MIC';
