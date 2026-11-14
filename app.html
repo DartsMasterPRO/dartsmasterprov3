@@ -13901,7 +13901,7 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
      • Wyciszenie rywala działa też poza kamerą: przycisk 🔊 pojawia się w górnym pasku, gdy rywal mówi. -->
 <style>
 #x4-vc{position:fixed;right:8px;top:calc(140px + env(safe-area-inset-top));z-index:5200;display:none;flex-direction:column;gap:8px;padding:6px;border-radius:24px;
-  background:rgba(10,10,16,.72);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+  background:rgba(10,10,16,.18);border:1px solid rgba(255,255,255,.08);box-shadow:none}
 #x4-vc.on{display:flex}
 #x4-vc button,#olb-spk{position:relative;width:46px;height:46px;border-radius:50%;border:1px solid #2a2a40;background:#141420;color:#c8c8d8;font-size:20px;cursor:pointer;
   display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;transition:transform .12s,box-shadow .2s,border-color .2s}
@@ -13912,7 +13912,13 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
 #x4-vc #x4-spk.talk,#olb-spk.talk{border-color:#00ff88;box-shadow:0 0 14px rgba(0,255,136,.55)}
 #x4-vc #x4-spk.mute,#olb-spk.mute{border-color:rgba(255,140,0,.6);color:#ff8c00;background:rgba(255,140,0,.1)}
 #x4-vc .gap{height:6px}
-#x4-vc.off #x4-mic{opacity:.45}
+#x4-vc button{background:rgba(20,20,32,.28)!important;border-color:rgba(255,255,255,.18)!important;opacity:.7}
+#x4-vc button.live,#x4-vc button.mute,#x4-vc button.talk{opacity:.9}
+#x4-vc button.live{background:rgba(255,60,60,.28)!important;border-color:rgba(255,60,60,.7)!important}
+#x4-vc button.mute{background:rgba(255,140,0,.18)!important;border-color:rgba(255,140,0,.6)!important}
+#x4-vc button.talk{border-color:rgba(0,255,136,.7)!important}
+#x4-vc button:active{opacity:1}
+#x4-vc.off #x4-mic{opacity:.35}
 #x4-vc.off .gap,#x4-vc.off #x4-spk{display:none}
 #ol-game-bar .olb-acts>#olb-spk{width:38px!important;height:38px!important;border-radius:12px!important;font-size:17px!important}
 </style>
