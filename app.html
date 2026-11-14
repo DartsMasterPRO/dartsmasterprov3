@@ -13894,6 +13894,96 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
 })();
 </script>
 
+<!-- ================= ROZMOWA Z RYWALEM W TRYBIE AUTO-KAMERY =================
+     • W meczu online, gdy włączony jest widok kamery (tarcza / pełny ekran kamery), z prawej strony pojawia się
+       pionowy pasek: 🎙 mój mikrofon (domyślnie WYŁĄCZONY) i 🔊 głos rywala (można wyciszyć).
+     • Korzysta z istniejącego głosu WRC (wrc_audio) — działa też bez udostępniania kamery.
+     • Wyciszenie rywala działa też poza kamerą: przycisk 🔊 pojawia się w górnym pasku, gdy rywal mówi. -->
+<style>
+#x4-vc{position:fixed;right:8px;top:calc(140px + env(safe-area-inset-top));z-index:5200;display:none;flex-direction:column;gap:8px;padding:6px;border-radius:24px;
+  background:rgba(10,10,16,.72);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#x4-vc.on{display:flex}
+#x4-vc button,#olb-spk{position:relative;width:46px;height:46px;border-radius:50%;border:1px solid #2a2a40;background:#141420;color:#c8c8d8;font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;transition:transform .12s,box-shadow .2s,border-color .2s}
+#x4-vc button:active{transform:scale(.9)}
+#x4-vc button small{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-family:monospace;font-size:8px;color:#a8a8c0;white-space:nowrap;text-shadow:0 1px 2px #000}
+#x4-vc #x4-mic.live{border-color:#ff3c3c;background:radial-gradient(circle,rgba(255,60,60,.45),rgba(255,60,60,.1));color:#fff;animation:x4rec 1.4s ease-in-out infinite}
+@keyframes x4rec{0%,100%{box-shadow:0 0 0 0 rgba(255,60,60,.6)}50%{box-shadow:0 0 0 8px rgba(255,60,60,0)}}
+#x4-vc #x4-spk.talk,#olb-spk.talk{border-color:#00ff88;box-shadow:0 0 14px rgba(0,255,136,.55)}
+#x4-vc #x4-spk.mute,#olb-spk.mute{border-color:rgba(255,140,0,.6);color:#ff8c00;background:rgba(255,140,0,.1)}
+#x4-vc .gap{height:6px}
+#ol-game-bar .olb-acts>#olb-spk{width:38px!important;height:38px!important;border-radius:12px!important;font-size:17px!important}
+</style>
+<div id="x4-vc">
+  <button id="x4-mic" type="button" onclick="X4.mic()" aria-label="Mój mikrofon">🎙<small>MÓJ MIC</small></button>
+  <div class="gap"></div>
+  <button id="x4-spk" type="button" onclick="X4.mute()" aria-label="Głos rywala">🔊<small>RYWAL</small></button>
+</div>
+<script>
+(function(){
+'use strict';
+const VM={muted:false,room:null,talkAt:0,hadAudio:false};
+const roomId=()=>{try{return(G&&G._onlineRoomId)||OL.currentRoomId||null;}catch(e){return null;}};
+const inOnline=()=>{try{return !!(G&&G.active&&G._onlineRoomId);}catch(e){return false;}};
+const vis=id=>{const e=document.getElementById(id);if(!e)return false;const s=getComputedStyle(e);return s.display!=='none'&&s.visibility!=='hidden';};
+const camView=()=>vis('dm')||!!document.querySelector('#ac-panel.fs');
+
+// odbiór głosu rywala — jak dotąd, ale z możliwością wyciszenia
+window.wrcStartAudioReceiving=function(){
+  if(!wrcState.roomId||!window._fb)return;
+  if(wrcState.audioUnsub){wrcState.audioUnsub();wrcState.audioUnsub=null;}
+  const {db,doc,onSnapshot}=window._fb;const audioRef=doc(db,'wrc_audio',wrcState.roomId);const myUid0=window._fbUser&&window._fbUser.uid;
+  wrcState.audioUnsub=onSnapshot(audioRef,snap=>{
+    if(!snap.exists())return;const data=snap.data();const myUid=(window._fbUser&&window._fbUser.uid)||myUid0;
+    let rival=null;
+    if(data.active_mic&&data.active_mic!==myUid)rival=data.active_mic;
+    else for(const k of Object.keys(data)){if(k.endsWith('_audio')&&(!myUid||!k.startsWith(myUid))){rival=k.replace('_audio','');break;}}
+    const dot=document.getElementById('wrc-mic-dot');
+    if(!rival||!data[rival+'_audio']){if(dot)dot.style.display='none';VM.hadAudio=false;return;}
+    const seq=data[rival+'_aseq']||0;if(seq===wrcState.lastAudioSeq)return;wrcState.lastAudioSeq=seq;
+    if(dot)dot.style.display='inline';VM.hadAudio=true;VM.talkAt=Date.now();
+    if(VM.muted)return; // 🔇 rywal wyciszony — nie odtwarzamy
+    try{const bin=atob(data[rival+'_audio']),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      const url=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'})),a=document.createElement('audio');a.src=url;
+      a.onended=()=>URL.revokeObjectURL(url);a.onerror=()=>URL.revokeObjectURL(url);a.play().catch(()=>URL.revokeObjectURL(url));}catch(e){}
+  });
+};
+
+function ensureRoom(){
+  const id=roomId();if(!id)return false;
+  if(wrcState.roomId!==id){wrcState.roomId=id;try{wrcStartAudioReceiving();}catch(e){}}
+  else if(!wrcState.audioUnsub){try{wrcStartAudioReceiving();}catch(e){}}
+  return true;
+}
+async function mic(){
+  if(!ensureRoom()){toast('Mikrofon działa w meczu online');return;}
+  await wrcToggleMic();sync();
+}
+function mute(){VM.muted=!VM.muted;VM.room=roomId();toast(VM.muted?'🔇 Rywal wyciszony':'🔊 Słyszysz rywala');sync();}
+function sync(){
+  const on=inOnline();
+  if(VM.room&&VM.room!==roomId()){VM.muted=false;VM.room=null;}
+  const talk=Date.now()-VM.talkAt<2500;
+  const box=document.getElementById('x4-vc');box.classList.toggle('on',on&&camView());
+  const m=document.getElementById('x4-mic'),s=document.getElementById('x4-spk');
+  const live=!!(typeof wrcState!=='undefined'&&wrcState.micActive);
+  m.classList.toggle('live',live);m.firstChild.textContent=live?'🔴':'🎙';m.querySelector('small').textContent=live?'MÓWISZ':'MÓJ MIC';
+  s.classList.toggle('mute',VM.muted);s.classList.toggle('talk',talk&&!VM.muted);s.firstChild.textContent=VM.muted?'🔇':'🔊';
+  s.querySelector('small').textContent=VM.muted?'WYCISZONY':talk?'MÓWI…':'RYWAL';
+  // górny pasek gry online: 🔊/🔇 tylko gdy rywal używa mikrofonu (albo jest wyciszony)
+  const acts=document.querySelector('#ol-game-bar .olb-acts');
+  if(acts){let b=document.getElementById('olb-spk');
+    if(!b){b=document.createElement('button');b.id='olb-spk';b.type='button';b.title='Głos rywala';b.onclick=mute;const mb=document.getElementById('wrc-mic-btn');acts.insertBefore(b,mb?mb.nextSibling:null);}
+    b.style.display=on&&(VM.hadAudio||VM.muted)?'':'none';b.textContent=VM.muted?'🔇':'🔊';b.classList.toggle('mute',VM.muted);b.classList.toggle('talk',talk&&!VM.muted);}
+  if(on)ensureRoom();
+  // koniec meczu online → wyłącz mikrofon
+  if(!on&&live&&!roomId()){try{wrcStopMic();}catch(e){}}
+}
+setInterval(sync,500);
+window.X4={mic,mute,state:()=>Object.assign({},VM)};
+})();
+</script>
+
 </body>
 </html>
 
