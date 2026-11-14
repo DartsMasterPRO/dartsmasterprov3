@@ -13952,9 +13952,44 @@ window.wrcStartAudioReceiving=function(){
     if(dot)dot.style.display='inline';VM.hadAudio=true;VM.talkAt=Date.now();
     if(VM.muted)return; // 🔇 rywal wyciszony — nie odtwarzamy
     try{const bin=atob(data[rival+'_audio']),bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      const dur=Math.max(0.2,(bytes.length-44)/2/16000);VM.playUntil=Math.max(VM.playUntil||0,Date.now())+dur*1000+450;
       const url=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'})),a=document.createElement('audio');a.src=url;
       a.onended=()=>URL.revokeObjectURL(url);a.onerror=()=>URL.revokeObjectURL(url);a.play().catch(()=>URL.revokeObjectURL(url));}catch(e){}
   });
+};
+
+
+// nadawanie: półdupleks (jak krótkofalówka) — gdy słychać rywala, mój mikrofon nic nie wysyła,
+// więc głos rywala z głośnika nie wraca do niego jako echo. Do tego bramka szumu: cisza nie jest wysyłana.
+window.wrcStartMic=async function(){
+  if(!wrcState.roomId||!window._fb)return;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    wrcState.micStream=stream;wrcState.micActive=true;
+    const myUid=window._fbUser&&window._fbUser.uid;const {db,doc,setDoc}=window._fb;const audioRef=doc(db,'wrc_audio',wrcState.roomId);
+    const ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});wrcState.micAudioCtx=ctx;
+    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(2048,1,1);wrcState.micProcessor=proc;
+    let buf=[],voiceAt=0,sending=false;const CH=16000;
+    proc.onaudioprocess=e=>{
+      if(!wrcState.micActive)return;
+      const x=e.inputBuffer.getChannelData(0);
+      if(Date.now()<(VM.playUntil||0)||VM.duck){buf=[];return;} // rywal mówi → nie nagrywamy jego głosu z głośnika
+      let s2=0;for(let i=0;i<x.length;i++)s2+=x[i]*x[i];const rms=Math.sqrt(s2/x.length);
+      if(rms>0.012)voiceAt=Date.now();
+      for(let i=0;i<x.length;i++)buf.push(x[i]);
+      if(buf.length>=CH){
+        const chunk=buf.splice(0,CH);
+        if(Date.now()-voiceAt>900)return; // sama cisza — nie wysyłamy
+        if(sending)return;sending=true;
+        const b64=arrayBufferToBase64(pcmToWav(new Float32Array(chunk),16000));wrcState.audioSeq++;
+        setDoc(audioRef,{[myUid+'_audio']:b64,[myUid+'_aseq']:wrcState.audioSeq,active_mic:myUid,ts:Date.now()},{merge:true}).catch(()=>{}).finally(()=>{sending=false;});
+        VM.sentAt=Date.now();
+      }
+    };
+    const g=ctx.createGain();g.gain.value=0;src.connect(proc);proc.connect(g);g.connect(ctx.destination);
+    const btn=document.getElementById('wrc-mic-btn');if(btn){btn.textContent='🔴';btn.title='Wyłącz mikrofon';btn.style.borderColor='rgba(255,60,60,.6)';btn.style.color='#ff4444';}
+    toast('🎙️ Mikrofon włączony — mów, gdy rywal skończy');
+  }catch(e){wrcState.micActive=false;toast('❌ Brak dostępu do mikrofonu');}
 };
 
 function ensureRoom(){
@@ -13988,7 +14023,7 @@ function sync(){
   if(!on&&live&&!roomId()){try{wrcStopMic();}catch(e){}}
 }
 setInterval(sync,500);
-window.X4={mic,mute,state:()=>Object.assign({},VM)};
+window.X4={mic,mute,state:()=>Object.assign({},VM),_vm:VM};
 })();
 </script>
 
