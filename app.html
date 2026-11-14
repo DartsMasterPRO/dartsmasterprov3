@@ -13925,8 +13925,8 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
 (function(){
 'use strict';
 const VM={muted:false,room:null,talkAt:0,hadAudio:false};
-const roomId=()=>{try{return(G&&G._onlineRoomId)||OL.currentRoomId||null;}catch(e){return null;}};
-const inOnline=()=>{try{return !!(G&&G.active&&G._onlineRoomId);}catch(e){return false;}};
+const roomId=()=>{let r=null;try{r=G&&G._onlineRoomId;}catch(e){}if(!r)try{r=OL&&OL.currentRoomId;}catch(e){}if(!r)try{r=wrcState&&wrcState.roomId;}catch(e){}return r||null;};
+const inOnline=()=>!!roomId();
 const vis=id=>{const e=document.getElementById(id);if(!e)return false;const s=getComputedStyle(e);return s.display!=='none'&&s.visibility!=='hidden';};
 const camView=()=>vis('dm')||!!document.querySelector('#ac-panel.fs');
 
