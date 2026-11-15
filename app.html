@@ -873,6 +873,10 @@ input{outline:none}
         <div><b>🏆 Sezony i turnieje</b><small>miesięczny ranking, drabinka online</small></div>
         <div><b>📺 Na żywo</b><small>oglądaj mecze innych z lektorem</small></div>
         <div><b>☁️ Kopia zapasowa</b><small>statystyki bezpieczne przy zmianie telefonu</small></div>
+        <div><b>🎙 Rozmowa na żywo</b><small>głos prosto między telefonami, bez echa</small></div>
+        <div><b>📺 Tablica na TV</b><small>duży wynik z lektorem na telewizorze</small></div>
+        <div><b>⚔️ Historia z rywalem</b><small>wszystkie wspólne mecze na karcie</small></div>
+        <div><b>📷 Zasłonięte lotki</b><small>kamera widzi lotkę schowaną za inną</small></div>
       </div>
     </div>
 
@@ -8826,6 +8830,7 @@ function analyze(cur){
   }
   lastMask=r.m;lastMaskT=performance.now();
   const blobN=r.px?r.px.length:0;DG.area=blobN;
+  const OCC=excl&&r.px&&r.px.length?occlTouch(r.px,excl)>=3:false;
   if(blobN>=GEO.minA*0.3)lg('zmiana '+blobN+'px (min '+Math.round(GEO.minA)+', max '+Math.round(GEO.maxA)+', wszystkie '+r.total+')');
   if(blobN<GEO.minA){cand=null;if(blobN<GEO.minA*0.3){ref=cur;if(!turn.length)empty=cur;}status(turn.length?'Czekam na kolejną lotkę':'Gotowe — rzucaj 🎯','#00ff88');return;}
   if(blobN>GEO.maxA){lastBigTick=tickN;lg('za duża zmiana → zasłonięte');ref=refAge>25?cur:ref;refAge++;status('Coś zasłania tarczę…','#ff8c00');return;}
@@ -8835,7 +8840,7 @@ function analyze(cur){
   if(r.total>blobN*2.5+GEO.minA){
     // wbicie lotki potrafi zatrząść tarczą/telefonem — wtedy obok lotki widać „szum” w całym obrazie.
     // Jeśli największa plama wygląda jak lotka, NIE wymazuj jej (stare zachowanie gubiło takie rzuty): poczekaj aż drgania ustaną.
-    const dl=!closed&&turn.length<3&&blobN<=GEO.maxA&&looksLikeDart(r.px).ok;
+    const dl=!closed&&turn.length<3&&blobN<=GEO.maxA&&looksLikeDart(r.px,OCC).ok;
     if(dl&&diffWait<6){diffWait++;forceAt=tickN+2;cand=null;lg('rozproszona zmiana, ale widać lotkę — czekam aż drgania ustaną ('+diffWait+')');status('Sprawdzam lotkę…','#00e5ff');return;}
     if(dl&&blobN>=r.total*0.12){lg('drgania nie ustają — liczę lotkę mimo szumu');diffWait=0;}
     else{diffWait=0;lg('rozproszona zmiana (światło/drgnięcie) → nowe tło');bgCalSoon('drgnięcie obrazu');cand=null;ref=cur;if(!turn.length)empty=cur;return;}
@@ -8850,12 +8855,12 @@ function analyze(cur){
   }
   if(closed||turn.length>=3){lg('tura pełna — czekam na wyjęcie');ref=cur;status('Wyjmij lotki z tarczy ✋','#ffd700');return;}
   if(turn.length&&turnKey0!==tkey()){closed=true;ref=cur;status('Tura zatwierdzona — wyjmij lotki ✋','#ffd700');return;}
-  if(sinceMove>45&&!cand&&!looksLikeDart(r.px).ok){lg('zmiana bez ruchu → nowe tło');ref=cur;if(!turn.length)empty=cur;return;}
+  if(sinceMove>45&&!cand&&!looksLikeDart(r.px,OCC).ok){lg('zmiana bez ruchu → nowe tło');ref=cur;if(!turn.length)empty=cur;return;}
   // zmiana głównie w miejscu istniejących lotek = ktoś je wyjmuje / lotka się rusza — to nie nowa lotka
   if(turn.length&&r.exclFrac>0.6){if(lastBigTick>lastDartTick){lg('wyjmowanie lotek…');status('Wyjmowanie lotek…','#ffd700');}cand=null;return;}
   if(turn.length&&lastBigTick>lastDartTick&&!closed){lg('ręka przy tarczy po rzucie — czekam na wyjęcie');cand=null;return;}
   if(tickN-lastBigTick<12){lg('ręka przy tarczy — czekam');cand=null;status('Ruch przy tarczy…','#ff8c00');return;}
-  {const v=looksLikeDart(r.px);
+  {const v=looksLikeDart(r.px,OCC);
   if(!v.ok&&v.hand){ // „ręka”? ręka się rusza; nieruchoma plama przy brzegu (lotka z lotkami poza kadrem) nie może blokować wykrywania w nieskończoność
     const rw=GEO.rw;let sx=0,sy=0;for(const i of r.px){sx+=i%rw;sy+=(i/rw)|0;}const n=r.px.length,cx=sx/n,cy=sy/n,h=handRej;
     const still=h&&Math.abs(n-h.n)<Math.max(n,h.n)*0.12&&Math.hypot(cx-h.cx,cy-h.cy)<GEO.rpx*0.02;
@@ -8879,6 +8884,7 @@ function analyze(cur){
    cand0tries=0;
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
   let tp=tipOf(r.px,r.raw,undefined,r.soft);
+  let OCCF=false;if(OCC){const q=occlTip(r.px,excl);if(q){tp.x=q.x;tp.y=q.y;tp.geo=true;OCCF=true;candTip=null;lg('lotka zasłonięta przez wcześniejszą — widać '+Math.round(q.vis*100)+'%, grot z długości lotki'+(S.debug?' ['+q.dbg+']':''));}}
   // uśrednienie grota z dwóch niezależnych odczytów (mniej szumu → pewniejsze pole przy drucie)
   if(candTip&&Math.hypot(tp.x-candTip[0],tp.y-candTip[1])<GEO.rpx*0.03){tp.x=(tp.x+candTip[0])/2;tp.y=(tp.y+candTip[1])/2;}let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
   if(sc.lbl==='MISS'&&tp.tmax!==undefined&&!tp.geo){ // grot poza tarczą? sprawdź drugi koniec
@@ -8895,14 +8901,78 @@ function analyze(cur){
   const d={px:r.px,before:ref,tip:[nx,ny],rawTip,rawB,sc,unsure:unsureOf(nx,ny,sc)};
   lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%'+(LAST_FIX?', ukryty grot +'+LAST_FIX+' mm':'')+')');LAST_FIX=0;
   CUR_TIP=[nx,ny];if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
+  if(!OCCF&&!OCC&&tp.geo&&tp.elong>3)learnLen(r.px,tp);d.occl=OCCF;
+  if(!OCCF){try{d.axi=axisInfo(r.px,tp.x,tp.y);}catch(e){}}
   hmRec(d);d.after=cur;d.dbg={blob:r.px.length,total:r.total,exclFrac:r.exclFrac,geo:!!tp.geo,elong:tp.elong,ax:tp.ax,thr:effT(),noise:noiseEst,mv:DG.mv,mvThr:DG.mvThr};turn.push(d);ref=cur;refAge=0;lastDartTick=tickN;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');sayDart(sc);
   if(d.unsure){lg('niepewne: '+sc.lbl+' / '+d.unsure.lbl+' (grot przy drucie)');toast('⚠️ '+sc.lbl+' czy '+d.unsure.lbl+'? Stuknij lotkę, żeby poprawić');}
   afterDart();renderDarts();
   if(closed)setTimeout(()=>{if(closed&&turn.length)status('Wyjmij lotki z tarczy ✋','#ffd700');},1200);
 }
+// ===== LOTKI ZASŁONIĘTE PRZEZ WCZEŚNIEJSZE =====
+// Nowa lotka wbita „za” wcześniejszą (z perspektywy kamery) — widać tylko piórka/trzonek, grot jest schowany.
+// 1) ile pikseli plamy styka się z wcześniejszymi lotkami
+function occlTouch(px,excl){if(!excl)return 0;const W=GEO.rw,N=excl.length;let t=0;
+  for(const i of px){if(excl[i]||excl[i-1]||excl[i+1]||excl[i-W]||excl[i+W]||(i-2>=0&&excl[i-2])||(i+2<N&&excl[i+2])||(i-2*W>=0&&excl[i-2*W])||(i+2*W<N&&excl[i+2*W]))t++;}return t;}
+// 2) długość lotki (tył piórek → grot) w jednostkach outDir — uczona z lotek widocznych w całości
+const LEN0=140/120;let LENS=[];
+if(Array.isArray(S.lenR))LENS=S.lenR.slice(-15);
+function lenRatio(){if(!LENS.length)return LEN0;const a=LENS.slice().sort((x,y)=>x-y);return a[a.length>>1];}
+function farEnd(px,od){const rw=GEO.rw;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=px.length;my/=px.length;
+  let t1=-1e9,t0=1e9;for(const i of px){const t=(i%rw-mx)*od[0]+(((i/rw)|0)-my)*od[1];if(t>t1)t1=t;if(t<t0)t0=t;}return{x:mx+od[0]*t1,y:my+od[1]*t1,mx,my,t0,t1};}
+// 3) grot ukryty: tył lotki minus jej długość wzdłuż osi (oś i skala z kalibracji, liczone w miejscu grota)
+// oś i długość widocznej w całości lotki: grot → tył piórek (w pikselach obrazu roboczego)
+function axisInfo(px,tx,ty){const rw=GEO.rw;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=px.length;my/=px.length;
+  let dx=mx-tx,dy=my-ty,n=Math.hypot(dx,dy);if(n<3)return null;dx/=n;dy/=n;let m=-1e9;for(const i of px){const t=(i%rw-tx)*dx+(((i/rw)|0)-ty)*dy;if(t>m)m=t;}
+  let sx=0,sy=0,c=0;for(const i of px){const t=(i%rw-tx)*dx+(((i/rw)|0)-ty)*dy;if(t>m-3){sx+=i%rw;sy+=(i/rw)|0;c++;}}
+  const fx=sx/c,fy=sy/c;let ex=fx-tx,ey=fy-ty;const L=Math.hypot(ex,ey);if(L<5)return null;ex/=L;ey/=L;
+  const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;return{e:[ex,ey],L,s:od?od[2]:0,tx,ty};}
+function occlFromPrev(px,excl){
+  const rw=GEO.rw;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=px.length;my/=px.length;
+  // lotka, za którą schowała się nowa — ta, której piksele stykają się z nową plamą (a z kilku: najbliższa)
+  let best=null,bt=0,bd=1e9;turn.forEach(d=>{if(!d.axi||d.fell||!d.px.length)return;const m=new Uint8Array(GEO.rw*GEO.rh);d.px.forEach(i=>m[i]=1);const t=occlTouch(px,m);
+    const dd=Math.hypot(d.axi.tx-mx,d.axi.ty-my);if(t>bt||(t===bt&&t>0&&dd<bd)){bt=t;bd=dd;best=d.axi;}});
+  if(!best||bt<3)return null;
+  const e=best.e;let m=-1e9;for(const i of px){const t=(i%rw-mx)*e[0]+(((i/rw)|0)-my)*e[1];if(t>m)m=t;}
+  let sx=0,sy=0,c=0;for(const i of px){const t=(i%rw-mx)*e[0]+(((i/rw)|0)-my)*e[1];if(t>m-3){sx+=i%rw;sy+=(i/rw)|0;c++;}}
+  // tył piórek nowej lotki → oś przez środek plamy (piórka są symetryczne wokół osi)
+  let Fx=sx/c,Fy=sy/c;{const q=(Fx-mx)*(-e[1])+(Fy-my)*e[0];Fx-=(-e[1])*q;Fy-=e[0]*q;}
+  let L=best.L,tx=Fx-e[0]*L,ty=Fy-e[1]*L;
+  if(best.s){for(let k=0;k<2;k++){const[qx,qy]=workToNorm(tx,ty),b3=ap(GEO.Hi,qx,qy),o2=b3?outDir(b3[0],b3[1]):null;if(!o2)break;L=best.L*o2[2]/best.s;tx=Fx-e[0]*L;ty=Fy-e[1]*L;}}
+  let t0=1e9;for(const i of px){const t=(i%rw-Fx)*e[0]+(((i/rw)|0)-Fy)*e[1];if(t<t0)t0=t;}const Lvis=-t0;
+  if(Lvis>=L*0.85)return null; // grot widoczny
+  return{x:tx,y:ty,vis:Lvis/L,dbg:'prev '+e[0].toFixed(2)+','+e[1].toFixed(2)+' L'+Math.round(L)+' vis'+Math.round(Lvis)};
+}
+function occlTip(px,excl){
+  {const q=occlFromPrev(px,excl);if(q)return q;}
+  const rw=GEO.rw,n=px.length;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=n;my/=n;
+  const[nx,ny]=workToNorm(mx,my),bb=ap(GEO.Hi,nx,ny);if(!bb)return null;let od=outDir(bb[0],bb[1]);if(!od||od[2]<GEO.rpx*0.1)return null;
+  // oś lotki = linia przez WĄSKIE przekroje (lufka, trzonek), a nie przez środek piórek
+  const pd=[-od[1],od[0]];let t0=1e9,t1=-1e9;const T=new Float32Array(n),Q=new Float32Array(n);
+  px.forEach((i,k)=>{const dx=i%rw-mx,dy=((i/rw)|0)-my;T[k]=dx*od[0]+dy*od[1];Q[k]=dx*pd[0]+dy*pd[1];if(T[k]<t0)t0=T[k];if(T[k]>t1)t1=T[k];});
+  const BW=2,NB=Math.max(1,Math.ceil((t1-t0)/BW)+1),bc=new Float32Array(NB),bq=new Float32Array(NB);
+  for(let k=0;k<n;k++){const j=Math.min(NB-1,Math.floor((T[k]-t0)/BW));bc[j]++;bq[j]+=Q[k];}
+  let mc=0;for(let j=0;j<NB;j++)if(bc[j]>mc)mc=bc[j];
+  let sw=0,st=0,sq=0,stt=0,stq=0;for(let j=0;j<NB;j++){if(!bc[j]||bc[j]>mc*0.45)continue;const t=t0+(j+.5)*BW,q=bq[j]/bc[j],w=bc[j];sw+=w;st+=w*t;sq+=w*q;stt+=w*t*t;stq+=w*t*q;}
+  let qa=0,qb=0,narrow=false;
+  if(sw>=6){const mt=st/sw,mq=sq/sw,vt=stt/sw-mt*mt;qb=vt>4?(stq/sw-mt*mq)/vt:0;qb=Math.max(-0.6,Math.min(0.6,qb));qa=mq-qb*mt;narrow=true;}
+  else{qa=0;qb=0;}
+  const nrm=Math.hypot(1,qb),e=[(od[0]+pd[0]*qb)/nrm,(od[1]+pd[1]*qb)/nrm];
+  const pt=t=>[mx+od[0]*t+pd[0]*(qa+qb*t),my+od[1]*t+pd[1]*(qa+qb*t)];
+  const[P0x,P0y]=pt(t0),Lvis=(t1-t0)*nrm,R=lenRatio();
+  let L=od[2]*R,tx=P0x-e[0]*(L-Lvis),ty=P0y-e[1]*(L-Lvis);
+  for(let k=0;k<3;k++){const[qx,qy]=workToNorm(tx,ty),b3=ap(GEO.Hi,qx,qy);if(!b3)break;const o2=outDir(b3[0],b3[1]);if(!o2)break;L=o2[2]*R;tx=P0x-e[0]*(L-Lvis);ty=P0y-e[1]*(L-Lvis);}
+  const hidden=L-Lvis;if(hidden<L*0.15)return null; // widać prawie całą lotkę — grot jest widoczny
+  // ukryty odcinek musi faktycznie przechodzić przez wcześniejsze lotki (inaczej to nie zasłonięcie)
+  let hid=0,cnt=0;for(let s2=1;s2<=hidden;s2+=1){const x=Math.round(P0x-e[0]*s2),y=Math.round(P0y-e[1]*s2);cnt++;let h=false;
+    for(let w=-3;w<=3&&!h;w++){const xx=x+Math.round(-e[1]*w),yy=y+Math.round(e[0]*w);if(xx>=0&&yy>=0&&xx<rw&&yy<GEO.rh&&excl[yy*rw+xx])h=true;}if(h)hid++;}
+  if(!cnt||hid/cnt<0.25)return null;
+  return{x:tx,y:ty,vis:Lvis/L,hidFrac:hid/cnt,dbg:[narrow?'N':'-',e[0].toFixed(2),e[1].toFixed(2),od[0].toFixed(2),od[1].toFixed(2),Math.round(Lvis),Math.round(L),Math.round(P0x),Math.round(P0y),Math.round(tx),Math.round(ty),R.toFixed(2)].join(' ')};
+}
+function learnLen(px,tip){try{const[nx,ny]=workToNorm(tip.x,tip.y),bb=ap(GEO.Hi,nx,ny);if(!bb)return;const od=outDir(bb[0],bb[1]);if(!od||od[2]<GEO.rpx*0.1)return;
+  const F=farEnd(px,od),r=Math.hypot(F.x-tip.x,F.y-tip.y)/od[2];if(r>0.8&&r<1.8){LENS.push(r);if(LENS.length>15)LENS.shift();S.lenR=LENS.slice();saveCfg();}}catch(e){}}
 // czy plama wygląda jak lotka? (kształt wzdłuż osi lotki z kalibracji)
-function looksLikeDart(px){
+function looksLikeDart(px,occl){
   const rw=GEO.rw,n=px.length;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=n;my/=n;
   const[nx,ny]=workToNorm(mx,my),bb=ap(GEO.Hi,nx,ny);
   if(!bb)return{ok:false,why:'poza tarczą'};
@@ -8920,14 +8990,14 @@ function looksLikeDart(px){
   const fill=n/Math.max(1,(x1-x0+1)*(y1-y0+1));
   if(od&&od[2]>GEO.rpx*0.1){
     const Lexp=od[2]*140/120,Lpar=t1-t0,Lper=q1-q0;
-    if(Lpar<Lexp*0.25)return{ok:false,why:'za krótka wzdłuż osi lotki ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
+    if(Lpar<Lexp*(occl?0.1:0.25))return{ok:false,why:'za krótka wzdłuż osi lotki ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
     if(Lpar>Lexp*2.2+12)return{ok:false,why:'za długa ('+Math.round(Lpar)+'/'+Math.round(Lexp)+'px)'};
-    if(Lper>Math.max(Lpar*1.3,GEO.rpx*0.35))return{ok:false,why:'zła orientacja (w poprzek osi lotki)'};
+    if(Lper>Math.max(Lpar*(occl?2.2:1.3),GEO.rpx*0.35))return{ok:false,why:'zła orientacja (w poprzek osi lotki)'};
     if(n/Math.max(1,Lpar)>GEO.rpx*0.38+6)return{ok:false,why:'za gruba jak na lotkę (cień/ręka?)'};
   }else{
     if(ext>GEO.rpx*0.6)return{ok:false,why:'za duża plama ('+ext+'px)'};
   }
-  if(fill>0.6&&n>GEO.minA*3)return{ok:false,why:'pełna plama (cień/ręka?)'};
+  if(fill>0.6&&n>GEO.minA*3&&!(occl&&n<GEO.maxA*0.5))return{ok:false,why:'pełna plama (cień/ręka?)'}; // same piórka lotki schowanej za inną też są „pełne”
   return{ok:true};
 }
 // przesunięcie całego obrazu (wstrząs tarczy/statywu przy wbiciu lotki) — szukamy w zakresie ±3 px
@@ -13015,6 +13085,18 @@ body.pc-ol #scoreboard .player-card:active{transform:scale(.985)}
 .pc-achl b{display:block;font-family:'Bebas Neue',cursive;font-size:17px;letter-spacing:.5px;color:#e8e8f0;font-weight:normal}
 .pc-achl span{display:block;font-size:11px;color:#8888aa}
 .pc-achl em{margin-left:auto;font-style:normal;font-family:monospace;font-size:10px;color:#ffd700;white-space:nowrap}
+.pc-mh{display:flex;flex-direction:column;gap:5px}
+.pc-mh.pc-tap{padding:2px 0}
+.pc-mhr{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:10px;background:#141420;border:1px solid #1f1f30}
+.pc-mhr i{width:24px;height:24px;flex-shrink:0;border-radius:6px;font-style:normal;font-family:'Bebas Neue',cursive;font-size:14px;display:flex;align-items:center;justify-content:center}
+.pc-mhr i.w{background:rgba(0,255,136,.15);color:#00ff88;border:1px solid rgba(0,255,136,.4)}
+.pc-mhr i.l{background:rgba(255,60,60,.13);color:#ff5a5a;border:1px solid rgba(255,60,60,.35)}
+.pc-mhr span{flex:1;min-width:0;font-size:13px;color:#c8c8d8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pc-mhr span b{color:#fff}
+.pc-mhr span small{display:block;font-family:monospace;font-size:9px;color:#6a6a86}
+.pc-mhr em{font-style:normal;font-family:'Bebas Neue',cursive;font-size:18px;color:#e8e8f0;min-width:30px;text-align:center}
+.pc-mhr u{text-decoration:none;font-family:'Bebas Neue',cursive;font-size:18px;color:#00e5ff;text-align:right;min-width:40px;line-height:1}
+.pc-mhr u small{display:block;font-size:12px;color:#ff8c00}
 </style>
 <script>
 (function(){
@@ -13049,6 +13131,13 @@ function paintHeader(){
   el.innerHTML=avHTML(d.avatar,nick);el.classList.add('pc-has');el.title='Twoja karta zawodnika';
 }
 
+
+/* ---------- historia meczów online (users.mh: "czas|uidRywala|nick|w|legiMoje|legiRywala|śrMoja|śrRywala|tryb|graczy") ---------- */
+function parseMH(a){return(a||[]).map(x=>{const p=String(x).split('|');return{t:+p[0],ou:p[1],on:p[2],w:p[3]==='1',ml:+p[4]||0,ol:+p[5]||0,ma:+p[6]||0,oa:+p[7]||0,md:p[8]||'501',n:+p[9]||2};}).filter(m=>m.t);}
+const avgOf=a=>{a=a.filter(x=>x>0);return a.length?a.reduce((s,x)=>s+x,0)/a.length:0;};
+const dts=t=>new Date(t).toLocaleDateString('pl-PL',{day:'2-digit',month:'2-digit'});
+function mhRow(m){return'<div class="pc-mhr"><i class="'+(m.w?'w':'l')+'">'+(m.w?'W':'P')+'</i><span>vs <b>'+esc(m.on)+'</b><small>'+dts(m.t)+' · '+esc(m.md)+(m.n>2?' · '+m.n+' graczy':'')+'</small></span><em>'+(m.ml||m.ol?m.ml+':'+m.ol:'')+'</em><u>'+(m.ma?m.ma.toFixed(1):'—')+'<small>'+(m.oa?m.oa.toFixed(1):'—')+'</small></u></div>';}
+
 /* ---------- karta zawodnika ---------- */
 let ov=null;
 function overlay(){
@@ -13071,6 +13160,7 @@ function spark(cv,hist){
 async function open(uid){
   if(!uid||!fb())return;
   const o=overlay();o.innerHTML='<div class="pc-card"><div class="pc-load">🎯 Ładowanie karty…</div></div>';o.classList.add('on');
+  try{const m=me();if(m&&m.uid!==uid)await getUser(m.uid,true);}catch(e){}
   let u;try{u=await getUser(uid,true);}catch(e){o.innerHTML='<div class="pc-card"><div class="pc-load" style="color:#ff5a5a">❌ Nie udało się wczytać profilu<br><small>'+esc(e.message)+'</small></div></div>';return;}
   if(!u){o.innerHTML='<div class="pc-card"><div class="pc-load">Ten gracz nie ma jeszcze profilu.</div></div>';return;}
   render(uid,u);
@@ -13085,8 +13175,13 @@ function render(uid,u){
   const form=hist.slice(-5).map(h=>'<i class="'+(h.w?'w':'l')+'">'+(h.w?'W':'P')+'</i>');while(form.length<5)form.unshift('<i class="n">·</i>');
   // bilans z zalogowanym graczem (z mojej historii ELO)
   let h2h='';
-  if(!mine&&me()){const my=CACHE[me().uid];if(my&&my.eloHist){const vs=my.eloHist.filter(h=>h.vs===nick);if(vs.length){const w=vs.filter(h=>h.w).length,l=vs.length-w;
-    h2h='<div class="pc-sec">BILANS Z TOBĄ</div><div class="pc-h2h"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>z ostatnich meczów rankingowych</span><b style="color:#ff5a5a">'+l+'</b></div>';}}}
+  const MH=parseMH(u.mh);
+  if(!mine&&me()){const my=CACHE[me().uid]||{};const L=parseMH(my.mh).filter(m=>m.ou===uid);
+    if(L.length){const w=L.filter(m=>m.w).length,l=L.length-w,am=avgOf(L.map(m=>m.ma)),ao=avgOf(L.map(m=>m.oa));
+      h2h='<div class="pc-sec">HISTORIA Z TOBĄ</div><div class="pc-h2h pc-tap" onclick="PC.det(\'h2h\')"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>'+L.length+' meczów online · śr. Ty '+(am?am.toFixed(1):'—')+' / '+esc(nick)+' '+(ao?ao.toFixed(1):'—')+'<br><u style="color:#00e5ff;text-decoration:none">pełna historia ›</u></span><b style="color:#ff5a5a">'+l+'</b></div>';}
+    else if(my.eloHist){const vs=my.eloHist.filter(h=>h.vs===nick);if(vs.length){const w=vs.filter(h=>h.w).length,l=vs.length-w;
+      h2h='<div class="pc-sec">BILANS Z TOBĄ</div><div class="pc-h2h"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>z ostatnich meczów rankingowych</span><b style="color:#ff5a5a">'+l+'</b></div>';}}}
+  if(MH.length)h2h+='<div class="pc-sec">OSTATNIE MECZE ONLINE</div><div class="pc-mh pc-tap" onclick="PC.det(\'mh\')">'+MH.slice(-4).reverse().map(mhRow).join('')+'<div class="pc-cap" style="margin:4px 0 0">wszystkie mecze ('+MH.length+') ›</div></div>';
   const big=(v,l,c,k)=>'<div class="pc-tap" style="--c:'+c+'" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
   const sm=(v,l,k)=>'<div class="pc-tap" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
   CUR={uid,u,mine,pro:mine?(buildPro(nick)||u.pro):u.pro};
@@ -13195,6 +13290,16 @@ function line(cv,pts,o){
   if(pts.length<=40)pts.forEach((p,i)=>{g.beginPath();g.arc(X(i),Y(p.v),5,0,7);g.fillStyle=o.color||'#00e5ff';g.fill();});
   if(pts.length>=3&&o.trend!==false){const n=pts.length,mx=(n-1)/2,my=vals.reduce((a,b)=>a+b,0)/n;let nu=0,de=0;vals.forEach((v,i)=>{nu+=(i-mx)*(v-my);de+=(i-mx)**2;});const k=de?nu/de:0;
     g.setLineDash([10,8]);g.strokeStyle='rgba(255,215,0,.75)';g.lineWidth=2;g.beginPath();g.moveTo(X(0),Y(my-k*mx));g.lineTo(X(n-1),Y(my+k*mx));g.stroke();g.setLineDash([]);}
+}
+function line2(cv,L){
+  if(!cv)return;const[g,W,H]=cvs(cv);const a=L.map(m=>m.ma),b=L.map(m=>m.oa),all=a.concat(b).filter(x=>x>0);if(!all.length)return;
+  const lo=Math.floor(Math.min(...all)*.9),hi=Math.ceil(Math.max(...all)*1.1),Lm=52,R=12,T=14,B=36,X=i=>L.length===1?(Lm+W-R)/2:Lm+i*(W-Lm-R)/(L.length-1),Y=v=>T+(1-(v-lo)/((hi-lo)||1))*(H-T-B);
+  g.font='20px monospace';g.fillStyle='#6a6a86';g.strokeStyle='#1e1e2c';g.lineWidth=2;g.textAlign='right';
+  for(let k=0;k<=3;k++){const v=lo+(hi-lo)*k/3,y=Y(v);g.beginPath();g.moveTo(Lm,y);g.lineTo(W-R,y);g.stroke();g.fillText(Math.round(v),Lm-8,y+7);}
+  L.forEach((m,i)=>{g.fillStyle=m.w?'rgba(0,255,136,.13)':'rgba(255,60,60,.1)';const bw=Math.max(6,(W-Lm-R)/L.length*.7);g.fillRect(X(i)-bw/2,T,bw,H-T-B);});
+  [[a,'#00e5ff'],[b,'#ff8c00']].forEach(([v,c])=>{g.beginPath();let st=false;v.forEach((x,i)=>{if(!(x>0))return;st?g.lineTo(X(i),Y(x)):g.moveTo(X(i),Y(x));st=true;});g.strokeStyle=c;g.lineWidth=4;g.stroke();
+    v.forEach((x,i)=>{if(x>0){g.beginPath();g.arc(X(i),Y(x),5,0,7);g.fillStyle=c;g.fill();}});});
+  g.fillStyle='#6a6a86';const st=Math.ceil(L.length/6),n1=L.length-1;L.forEach((m,i)=>{if(i===n1||(i%st===0&&n1-i>=st*.7)){g.textAlign=i===n1&&n1>0?'right':'center';g.fillText(dts(m.t),i===n1&&n1>0?Math.min(W-2,X(i)+16):X(i),H-8);}});
 }
 function slope(vals){const n=vals.length;if(n<3)return 0;const mx=(n-1)/2,my=vals.reduce((a,b)=>a+b,0)/n;let nu=0,de=0;vals.forEach((v,i)=>{nu+=(i-mx)*(v-my);de+=(i-mx)**2;});return de?nu/de:0;}
 function board(cv,o){
@@ -13366,6 +13471,19 @@ function det(k){
         (a.length>=2?'<canvas id="pc-tr-'+x+'" style="margin-top:8px"></canvas>':'')+'<div class="pc-cap">'+m[1]+(m[2]==='min'?' — mniej = lepiej':'')+'</div></div>';}).join('')
       :'<div class="pc-empty">'+(CUR.mine?'Zagraj w Bob\'s 27, 121 Checkout, Halve-It, Shanghai albo Around the Clock — wyniki zapiszą się tutaj.':'Ten gracz nie ma jeszcze zapisanych treningów.')+'</div>';
     ks.forEach(x=>{if(TR[x].length>=2)after.push(()=>line(document.getElementById('pc-tr-'+x),TR[x].slice(-30).map(e=>({lbl:e.lbl,v:e.v})),{color:meta[x][0],fill:'rgba(255,255,255,.08)',min:0}));});
+  }else if(k==='h2h'||k==='mh'){
+    const my=me()&&CACHE[me().uid]||{};const L=k==='h2h'?parseMH(my.mh).filter(m=>m.ou===CUR.uid):parseMH(u.mh);
+    t=k==='h2h'?'HISTORIA: TY vs '+nick.toUpperCase():'MECZE ONLINE';ic=k==='h2h'?'⚔️':'📜';
+    if(!L.length)b='<div class="pc-empty">Brak zapisanych meczów online (zapisują się od tej wersji aplikacji).</div>';
+    else{const w=L.filter(m=>m.w).length,l=L.length-w,am=avgOf(L.map(m=>m.ma)),ao=avgOf(L.map(m=>m.oa));
+      const lf=L.reduce((s,m)=>s+m.ml,0),la=L.reduce((s,m)=>s+m.ol,0),best=L.reduce((a,m)=>m.ma>(a?a.ma:0)?m:a,null);
+      const me1=k==='h2h'?'Ty':nick,op1=k==='h2h'?nick:'rywale';
+      b=donut([{v:w,c:'#00ff88',l:k==='h2h'?'Twoje wygrane':'Wygrane'},{v:l,c:'#ff3c3c',l:k==='h2h'?'Wygrane '+nick:'Porażki'}],w+':'+l,L.length+' meczów')+
+        '<div class="pc-kpis">'+'<div><b style="color:#00e5ff">'+(am?am.toFixed(1):'—')+'</b><small>śr. '+esc(me1)+'</small></div><div><b style="color:#ff8c00">'+(ao?ao.toFixed(1):'—')+'</b><small>śr. '+esc(op1)+'</small></div><div><b>'+lf+':'+la+'</b><small>legi</small></div></div>'+
+        '<div class="pc-box"><div class="pc-bt">ŚREDNIA MECZ PO MECZU <span>niebieska = '+esc(me1)+' · pomarańczowa = '+esc(op1)+'</span></div><canvas id="pc-d1"></canvas></div>'+
+        (best&&best.ma?'<div class="pc-zc"><b>NAJLEPSZY MECZ</b><span>'+dts(best.t)+' vs '+esc(best.on)+' — średnia <em>'+best.ma.toFixed(1)+'</em>, '+(best.w?'wygrana':'porażka')+(best.ml||best.ol?' '+best.ml+':'+best.ol:'')+'</span></div>':'')+
+        '<div class="pc-box"><div class="pc-bt">WSZYSTKIE MECZE <span>'+(k==='h2h'?'Twoja / jego średnia':'jego / rywala średnia')+'</span></div><div class="pc-mh">'+L.slice().reverse().map(mhRow).join('')+'</div></div>';
+      after.push(()=>line2(document.getElementById('pc-d1'),L.slice(-30)));}
   }else if(k==='backup'){
     t='KOPIA ZAPASOWA';ic='☁️';
     b='<div class="pc-hero2"><b style="font-size:54px">☁️</b><small>statystyki, wykres formy, mapa trafień, odznaki i treningi z tego telefonu</small></div>'+
@@ -13818,9 +13936,27 @@ async function tAfterGame(winnerIdx){
       m.w=wu;m.sa=lw[uids.indexOf(m.a.uid)]??null;m.sb=lw[uids.indexOf(m.b.uid)]??null;adv(t);});
   }catch(e){}}
 }
+
+/* ======================= HISTORIA MECZÓW (users.mh) ======================= */
+async function mhRecord(winnerIdx){
+  const u=me();if(!u)return;
+  try{
+    const s=await fb().getDoc(fb().doc(fb().db,'rooms',OL.currentRoomId));if(!s.exists())return;const r=s.data(),gs=r.gameState||{};
+    const uids=gs.playerUids||[],names=gs.players||G.players||[],my=uids.indexOf(u.uid);if(my<0)return;
+    const PS=gs.playerStats||{},av=i=>{const p=PS[i]||{};return p.totalDarts?p.totalPoints/p.totalDarts*3:0;};
+    let ma=av(my);try{const T=matchTurns(my);const d=T.reduce((a,h)=>a+(h.dartsUsed||3),0);if(d>0)ma=T.filter(h=>!h.bust).reduce((a,h)=>a+h.sc,0)/d*3;}catch(e){}
+    const lw=gs.legWins||G.legWins||[],t=Date.now(),cl=x=>String(x||'').replace(/\|/g,'/').slice(0,24);
+    const add=uids.map((ou,i)=>i===my||!ou?null:[t,ou,cl(names[i]),winnerIdx===my?1:0,(lw[my]||0),(lw[i]||0),ma.toFixed(1),av(i).toFixed(1),cl(gs.mode||G.mode),uids.length].join('|')).filter(Boolean);
+    if(!add.length)return;
+    const ds=await fb().getDoc(uref(u.uid));const old=(ds.exists()&&ds.data().mh)||[];
+    const key=OL.currentRoomId+'@'+(gs.round||'')+'@'+winnerIdx;if(mhRecord.last===key)return;mhRecord.last=key;
+    const mh=old.concat(add).slice(-120);await fb().updateDoc(uref(u.uid),{mh});if(MYDOC)MYDOC.mh=mh;
+    try{if(window.PC&&PC._cache&&PC._cache[u.uid])PC._cache[u.uid].mh=mh;}catch(e){}
+  }catch(e){console.log('mh',e);}
+}
 const _rw=window.olRecordWin;
 if(typeof _rw==='function')window.olRecordWin=async function(winnerIdx){const r=await _rw.apply(this,arguments);
-  setTimeout(()=>{seasonApply();tAfterGame(winnerIdx);},3000);return r;};
+  setTimeout(()=>{seasonApply();tAfterGame(winnerIdx);mhRecord(winnerIdx);},3000);return r;};
 
 /* ======================= NA ŻYWO ======================= */
 async function liveRooms(){
@@ -13890,7 +14026,7 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
   _tgo:tGo,_tplay:tPlay,
   async _tset(id,mid,w){if(!confirm('Wpisać zwycięzcę ręcznie?'))return;try{await tUpdate(id,t=>{const m=t.m[mid];if(!m||m.w)return false;m.w=w;adv(t);});}catch(e){toast('❌ '+(e.code||e.message));}},
   async _tdel(id){if(!confirm('Usunąć turniej?'))return;try{await fb().deleteDoc(tref(id));tours();}catch(e){toast('❌ '+(e.code||e.message));}},
-  _watch:watch,_myDoc:myDoc,_tAfter:tAfterGame,_season:{apply:seasonApply,init:seasonInit,standings},_adv:adv};
+  _watch:watch,_myDoc:myDoc,_tAfter:tAfterGame,_mh:mhRecord,_season:{apply:seasonApply,init:seasonInit,standings},_adv:adv};
 })();
 </script>
 
@@ -13996,21 +14132,110 @@ function ensureRoom(){
   const id=roomId();if(!id)return false;
   if(wrcState.roomId!==id){wrcState.roomId=id;try{wrcStartAudioReceiving();}catch(e){}}
   else if(!wrcState.audioUnsub){try{wrcStartAudioReceiving();}catch(e){}}
+  rtcStart(id);
   return true;
+}
+
+/* ================= POŁĄCZENIE BEZPOŚREDNIE (WebRTC) =================
+   Głos leci prosto między telefonami: bez opóźnienia, z prawdziwą redukcją echa, można mówić jednocześnie.
+   Baza służy tylko do „przedstawienia się” telefonów (wrc_audio/<pokój>_rtc). Gdy połączenie się nie uda
+   (np. bardzo restrykcyjna sieć), mikrofon sam przechodzi na stary tryb krótkofalówki. Tylko mecze 1 na 1. */
+const ICE=[{urls:['stun:stun.l.google.com:19302','stun:stun1.l.google.com:19302','stun:stun.cloudflare.com:3478']},
+  {urls:['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turn:openrelay.metered.ca:443?transport=tcp'],username:'openrelayproject',credential:'openrelayproject'}];
+const RTC={pc:null,tr:null,room:null,role:null,ses:0,gotSes:0,lastWant:0,unsub:null,state:'idle',track:null,stream:null,audio:null,an:null,anBuf:null,retry:null,starting:false};
+const myUid=()=>{try{return window._fbUser&&window._fbUser.uid;}catch(e){return null;}};
+const sigRef=()=>window._fb.doc(window._fb.db,'wrc_audio',RTC.room+'_rtc');
+function audioEl(){
+  if(!RTC.audio){const a=document.createElement('audio');a.autoplay=true;a.playsInline=true;a.setAttribute('playsinline','');a.style.display='none';document.body.appendChild(a);RTC.audio=a;
+    const kick=()=>{if(a.srcObject&&a.paused)a.play().catch(()=>{});};document.addEventListener('pointerdown',kick,true);}
+  return RTC.audio;
+}
+function gather(pc){return new Promise(res=>{if(pc.iceGatheringState==='complete')return res();const t=setTimeout(res,2500);
+  pc.addEventListener('icegatheringstatechange',()=>{if(pc.iceGatheringState==='complete'){clearTimeout(t);res();}});});}
+function newPc(){
+  if(RTC.pc){try{RTC.pc.close();}catch(e){}}
+  const pc=new RTCPeerConnection({iceServers:ICE});RTC.pc=pc;RTC.state='connecting';
+  RTC.tr=pc.addTransceiver('audio',{direction:'sendrecv'});
+  if(RTC.track)RTC.tr.sender.replaceTrack(RTC.track).catch(()=>{});
+  pc.ontrack=e=>{const st=e.streams&&e.streams[0]?e.streams[0]:new MediaStream([e.track]);const a=audioEl();a.srcObject=st;a.muted=VM.muted;a.play().catch(()=>{});
+  };
+  pc.onconnectionstatechange=()=>{RTC.state=pc.connectionState;
+    if(pc.connectionState==='connected'){VM.hadAudio=true;if(wrcState.micActive&&RTC.track){try{wrcStopMic();}catch(e){}VM.fallback=false;}}
+    if(pc.connectionState==='failed'||pc.connectionState==='disconnected'){clearTimeout(RTC.retry);RTC.retry=setTimeout(()=>{if(RTC.pc===pc&&pc.connectionState!=='connected')rtcKick();},pc.connectionState==='failed'?1500:5000);}};
+  return pc;
+}
+async function rtcOffer(){
+  const pc=newPc();RTC.ses=Date.now();const ses=RTC.ses;
+  const o=await pc.createOffer();await pc.setLocalDescription(o);await gather(pc);if(RTC.pc!==pc)return;
+  await window._fb.setDoc(sigRef(),{offer:{sdp:pc.localDescription.sdp,type:'offer'},ses,from:myUid(),answer:null},{merge:true});
+}
+async function rtcAnswer(d){
+  RTC.gotSes=d.ses;const pc=newPc();
+  await pc.setRemoteDescription(d.offer);const a=await pc.createAnswer();await pc.setLocalDescription(a);await gather(pc);if(RTC.pc!==pc)return;
+  await window._fb.setDoc(sigRef(),{answer:{sdp:pc.localDescription.sdp,type:'answer',ses:d.ses,from:myUid()}},{merge:true});
+}
+function rtcKick(){ // ponów połączenie
+  if(!RTC.room)return;
+  if(RTC.role==='caller')rtcOffer().catch(()=>{});
+  else window._fb.setDoc(sigRef(),{want:Date.now(),wantBy:myUid()},{merge:true}).catch(()=>{});
+}
+async function rtcStart(room){
+  if(typeof RTCPeerConnection==='undefined'||!window._fb||!myUid())return;
+  if(RTC.room===room||RTC.starting)return;RTC.starting=true;
+  try{
+    rtcStop();RTC.room=room;
+    let uids=[];try{const s=await window._fb.getDoc(window._fb.doc(window._fb.db,'rooms',room));const r=s.exists()?s.data():{};uids=((r.gameState||{}).playerUids)||(r.players||[]).map(p=>p.uid).filter(Boolean);}catch(e){}
+    if(uids.length!==2||!uids.includes(myUid())){RTC.role=null;return;} // 3–4 graczy → tryb krótkofalówki
+    const rival=uids.find(u=>u!==myUid());RTC.role=myUid()<rival?'caller':'callee';
+    RTC.unsub=window._fb.onSnapshot(sigRef(),snap=>{
+      if(!snap.exists())return;const d=snap.data();
+      if(RTC.role==='caller'){
+        if(d.want&&d.wantBy!==myUid()&&d.want>RTC.lastWant&&d.want>RTC.ses){RTC.lastWant=d.want;rtcOffer().catch(()=>{});return;}
+        if(d.answer&&d.answer.ses===RTC.ses&&d.answer.from!==myUid()&&RTC.pc&&!RTC.pc.currentRemoteDescription){RTC.pc.setRemoteDescription({type:'answer',sdp:d.answer.sdp}).catch(()=>{});}
+      }else{
+        if(d.offer&&d.from!==myUid()&&d.ses&&d.ses!==RTC.gotSes&&Date.now()-d.ses<10*60e3)rtcAnswer(d).catch(()=>{});
+      }
+    });
+    if(RTC.role==='caller')await rtcOffer();else await window._fb.setDoc(sigRef(),{want:Date.now(),wantBy:myUid()},{merge:true});
+  }catch(e){console.log('rtc',e);}finally{RTC.starting=false;}
+}
+function rtcStop(){
+  clearTimeout(RTC.retry);if(RTC.unsub){try{RTC.unsub();}catch(e){}RTC.unsub=null;}
+  if(RTC.pc){try{RTC.pc.close();}catch(e){}RTC.pc=null;}RTC.tr=null;RTC.room=null;RTC.role=null;RTC.state='idle';RTC.gotSes=0;RTC.ses=0;RTC.lastWant=0;
+  if(RTC.audio)RTC.audio.srcObject=null;if(RTC.anCtx){try{RTC.anCtx.close();}catch(e){}RTC.anCtx=null;}RTC.an=null;
+}
+const rtcLive=()=>RTC.state==='connected';
+async function micOn(){
+  try{RTC.stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});}
+  catch(e){toast('❌ Brak dostępu do mikrofonu');return;}
+  RTC.track=RTC.stream.getAudioTracks()[0];VM.rtcMic=true;
+  if(RTC.tr)RTC.tr.sender.replaceTrack(RTC.track).catch(()=>{});
+  if(rtcLive()){toast('🎙️ Mikrofon włączony — rozmowa na żywo');return;}
+  if(!RTC.role){VM.fallback=true;await wrcStartMic();return;} // 3–4 graczy
+  toast('🎙️ Łączę z rywalem…');
+  setTimeout(async()=>{if(VM.rtcMic&&!rtcLive()&&!wrcState.micActive){VM.fallback=true;await wrcStartMic();toast('📻 Brak połączenia bezpośredniego — tryb krótkofalówki');}},7000);
+}
+function micOff(){
+  VM.rtcMic=false;if(RTC.tr)RTC.tr.sender.replaceTrack(null).catch(()=>{});
+  if(RTC.stream){RTC.stream.getTracks().forEach(t=>t.stop());RTC.stream=null;}RTC.track=null;
+  if(wrcState.micActive){try{wrcStopMic();}catch(e){}}VM.fallback=false;toast('🎙️ Mikrofon wyłączony');
 }
 async function mic(){
   if(!inOnline()||!ensureRoom()){toast('🎙 Rozmowa z rywalem działa w meczu online — tu gracie na jednym telefonie');return;}
-  await wrcToggleMic();sync();
+  if(VM.rtcMic||wrcState.micActive)micOff();else await micOn();sync();
 }
-function mute(){VM.muted=!VM.muted;VM.room=roomId();toast(VM.muted?'🔇 Rywal wyciszony':'🔊 Słyszysz rywala');sync();}
+window.wrcToggleMic=mic; // przycisk 🎙 w górnym pasku gry też korzysta z nowego połączenia
+function mute(){VM.muted=!VM.muted;VM.room=roomId();if(RTC.audio)RTC.audio.muted=VM.muted;toast(VM.muted?'🔇 Rywal wyciszony':'🔊 Słyszysz rywala');sync();}
 function sync(){
   const on=inOnline();
   if(VM.room&&VM.room!==roomId()){VM.muted=false;VM.room=null;}
-  const talk=Date.now()-VM.talkAt<2500;
+  if(RTC.pc&&rtcLive()){RTC.pc.getStats().then(r=>r.forEach(x=>{if(x.type==='inbound-rtp'&&x.kind==='audio'&&(x.audioLevel||0)>0.012)VM.talkAt=Date.now();})).catch(()=>{});}
+  const talk=Date.now()-VM.talkAt<(rtcLive()?900:2500);
   const box=document.getElementById('x4-vc');box.classList.toggle('on',camView());box.classList.toggle('off',!on);
   const m=document.getElementById('x4-mic'),s=document.getElementById('x4-spk');
-  const live=!!(typeof wrcState!=='undefined'&&wrcState.micActive);
-  m.classList.toggle('live',live);m.firstChild.textContent=live?'🔴':'🎙';m.querySelector('small').textContent=live?'MÓWISZ':'MÓJ MIC';
+  const live=!!(VM.rtcMic||(typeof wrcState!=='undefined'&&wrcState.micActive));
+  {const mb=document.getElementById('wrc-mic-btn');if(mb){mb.textContent=live?'🔴':'🎙️';mb.classList.toggle('live',live);}}
+  m.classList.toggle('live',live);m.firstChild.textContent=live?'🔴':'🎙';m.querySelector('small').textContent=live?(rtcLive()&&!VM.fallback?'NA ŻYWO':'MÓWISZ'):'MÓJ MIC';
   s.classList.toggle('mute',VM.muted);s.classList.toggle('talk',talk&&!VM.muted);s.firstChild.textContent=VM.muted?'🔇':'🔊';
   s.querySelector('small').textContent=VM.muted?'WYCISZONY':talk?'MÓWI…':'RYWAL';
   // górny pasek gry online: 🔊/🔇 tylko gdy rywal używa mikrofonu (albo jest wyciszony)
@@ -14019,11 +14244,217 @@ function sync(){
     if(!b){b=document.createElement('button');b.id='olb-spk';b.type='button';b.title='Głos rywala';b.onclick=mute;const mb=document.getElementById('wrc-mic-btn');acts.insertBefore(b,mb?mb.nextSibling:null);}
     b.style.display=on&&(VM.hadAudio||VM.muted)?'':'none';b.textContent=VM.muted?'🔇':'🔊';b.classList.toggle('mute',VM.muted);b.classList.toggle('talk',talk&&!VM.muted);}
   if(on)ensureRoom();
-  // koniec meczu online → wyłącz mikrofon
-  if(!on&&live&&!roomId()){try{wrcStopMic();}catch(e){}}
+  // koniec meczu online → wyłącz mikrofon i połączenie
+  if(!on){if(live)micOff();if(RTC.room)rtcStop();}
 }
 setInterval(sync,500);
-window.X4={mic,mute,state:()=>Object.assign({},VM),_vm:VM};
+window.X4={mic,mute,state:()=>Object.assign({},VM,{rtc:RTC.state,role:RTC.role}),_vm:VM,_rtc:RTC};
+})();
+</script>
+
+<!-- ================= TABLICA WYNIKÓW NA TELEWIZORZE =================
+     Telefon (zalogowany w Online) nadaje stan gry do wrc_cams/tv_<KOD> co ~0,4 s.
+     Telewizor / laptop otwiera  <adres>/app?tv=KOD  → pełnoekranowa tablica z lektorem.
+     TV loguje się anonimowo (Firebase Authentication → „Anonimowy” musi być włączony) albo
+     korzysta z konta, jeśli ktoś jest zalogowany w tej przeglądarce. Działa dla gier lokalnych i online. -->
+<style>
+/* --- telefon: arkusz parowania --- */
+#tvp-ov{position:fixed;inset:0;z-index:10060;background:rgba(4,4,8,.86);display:none;align-items:center;justify-content:center;padding:14px}
+#tvp-ov.on{display:flex}
+#tvp-ov .bx{width:100%;max-width:380px;background:#101018;border:1px solid #2a2a40;border-radius:22px;padding:18px 16px;text-align:center}
+#tvp-ov h3{font-family:'Bebas Neue',cursive;font-size:26px;letter-spacing:2px;color:#00e5ff;font-weight:normal;margin-bottom:6px}
+#tvp-ov .code{font-family:'Bebas Neue',cursive;font-size:64px;letter-spacing:12px;color:#fff;line-height:1;margin:6px 0 2px;text-shadow:0 0 24px rgba(0,229,255,.4)}
+#tvp-ov .url{font-family:monospace;font-size:12px;color:#ffd700;word-break:break-all;margin:6px 0 10px}
+#tvp-ov .qr{display:inline-block;background:#fff;padding:10px;border-radius:12px;margin:4px 0 10px}
+#tvp-ov .qr canvas{display:block;width:170px;height:170px;image-rendering:pixelated}
+#tvp-ov small{display:block;font-size:11px;color:#8888aa;line-height:1.5}
+#tvp-ov button{display:block;width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid #2a2a40;background:#141420;color:#c8c8d8;font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:1.5px;cursor:pointer}
+#tvp-ov button.pri{border:0;color:#06121a;background:linear-gradient(135deg,#00e5ff,#00b3ff)}
+#tvp-ov button.red{color:#ff5a5a}
+#tvp-ov .st{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;font-family:monospace;font-size:11px;margin-bottom:6px}
+#tvp-ov .st.on{background:rgba(0,255,136,.12);color:#00ff88;border:1px solid rgba(0,255,136,.4)}
+#tvp-ov .st.off{background:#1a1a26;color:#8888aa;border:1px solid #2a2a40}
+#tvp-dot{position:fixed;left:50%;top:calc(4px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9800;padding:2px 9px;border-radius:10px;background:rgba(255,60,60,.85);color:#fff;font-family:'Bebas Neue',cursive;font-size:12px;letter-spacing:1px;display:none;pointer-events:none}
+#tvp-dot.on{display:block}
+/* --- telewizor --- */
+body.tvmode{overflow:hidden}
+#tv{position:fixed;inset:0;z-index:200000;background:#07070c;color:#fff;display:none;flex-direction:column;font-family:'Rajdhani',sans-serif;overflow:hidden}
+body.tvmode #tv{display:flex}
+#tv::before{content:'';position:absolute;inset:0;pointer-events:none;background:radial-gradient(70% 60% at 50% -10%,rgba(255,60,60,.18),transparent 70%),radial-gradient(60% 50% at 100% 110%,rgba(0,229,255,.12),transparent 70%)}
+#tv .hd{position:relative;display:flex;align-items:center;justify-content:space-between;padding:1.6vh 3vw;border-bottom:1px solid rgba(255,255,255,.07)}
+#tv .hd .lg{font-family:'Bebas Neue',cursive;font-size:4.2vh;letter-spacing:.3vw;color:#ff3c3c;text-shadow:0 0 2vh rgba(255,60,60,.5)}
+#tv .hd .md{font-family:'Bebas Neue',cursive;font-size:4.2vh;letter-spacing:.2vw;color:#c8c8d8}
+#tv .hd .ck{font-family:'Bebas Neue',cursive;font-size:4.2vh;color:#8888aa}
+#tv .pl{position:relative;flex:1;display:grid;gap:2vw;padding:3vh 3vw 2vh}
+#tv .pc{position:relative;border-radius:3vh;background:linear-gradient(180deg,#14141f,#0d0d15);border:.35vh solid #22223a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2vh 1vw;overflow:hidden;transition:border-color .3s,box-shadow .3s,transform .3s}
+#tv .pc.cp{border-color:#00e5ff;box-shadow:0 0 6vh rgba(0,229,255,.35),inset 0 0 6vh rgba(0,229,255,.08);transform:scale(1.015)}
+#tv .pc .tag{position:absolute;top:1.6vh;left:50%;transform:translateX(-50%);font-family:'Bebas Neue',cursive;font-size:3vh;letter-spacing:.3vw;color:#00e5ff;opacity:0}
+#tv .pc.cp .tag{opacity:1;animation:tvBlink 1.4s ease-in-out infinite}
+@keyframes tvBlink{50%{opacity:.35}}
+#tv .pc .nm{font-family:'Bebas Neue',cursive;font-size:7vh;letter-spacing:.2vw;line-height:1;margin-top:3vh;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#tv .pc .sc{font-family:'Bebas Neue',cursive;font-size:27vh;line-height:.9;letter-spacing:-.2vw;margin:1vh 0}
+#tv .pc.cp .sc{color:#fff;text-shadow:0 0 4vh rgba(0,229,255,.45)}
+#tv .pc .lg2{display:flex;gap:1vh;margin-bottom:1.4vh}
+#tv .pc .lg2 i{width:2.6vh;height:2.6vh;border-radius:50%;border:.3vh solid #ffd700;opacity:.35}
+#tv .pc .lg2 i.on{background:#ffd700;opacity:1;box-shadow:0 0 1.5vh rgba(255,215,0,.6)}
+#tv .pc .ft{display:flex;gap:3vw;font-family:'Bebas Neue',cursive;font-size:3.6vh;color:#8888aa}
+#tv .pc .ft b{color:#e8e8f0;font-weight:normal}
+#tv .pc .dr{display:flex;gap:1vw;margin-top:1.6vh;min-height:6.5vh}
+#tv .pc .dr span{min-width:8vw;padding:.8vh 1vw;border-radius:1.4vh;background:#1a1a28;border:.25vh solid #2a2a40;font-family:'Bebas Neue',cursive;font-size:4.6vh;text-align:center;color:#c8c8d8}
+#tv .pc .dr span.e{opacity:.35}
+#tv .pc .hint{font-family:'Bebas Neue',cursive;font-size:3.4vh;color:#ffd700;letter-spacing:.15vw;min-height:4vh}
+#tv .tk{position:relative;display:flex;gap:1.2vw;align-items:center;padding:1.4vh 3vw 2.2vh;overflow:hidden;white-space:nowrap}
+#tv .tk em{font-style:normal;font-family:'Bebas Neue',cursive;font-size:3vh;color:#55556e;letter-spacing:.2vw}
+#tv .tk span{padding:.6vh 1.2vw;border-radius:1.2vh;background:#12121c;border:.2vh solid #22223a;font-family:'Bebas Neue',cursive;font-size:3.2vh;color:#a8a8c0}
+#tv .tk span.h{color:#00ff88;border-color:rgba(0,255,136,.35)}#tv .tk span.x{color:#ff5a5a}
+#tv .fl{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5}
+#tv .fl b{font-family:'Bebas Neue',cursive;font-size:42vh;line-height:1;color:#fff;text-shadow:0 0 8vh rgba(255,60,60,.8);animation:tvPop 1.6s cubic-bezier(.2,1.4,.4,1) forwards}
+#tv .fl b.max{color:#ffd700;text-shadow:0 0 10vh rgba(255,215,0,.9)}
+@keyframes tvPop{0%{transform:scale(.3);opacity:0}25%{transform:scale(1.08);opacity:1}75%{transform:scale(1);opacity:1}100%{transform:scale(1.15);opacity:0}}
+#tv .win{position:absolute;inset:0;z-index:6;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(circle,rgba(255,215,0,.22),rgba(7,7,12,.92) 65%)}
+#tv .win.on{display:flex}
+#tv .win small{font-family:'Bebas Neue',cursive;font-size:6vh;letter-spacing:.6vw;color:#ffd700}
+#tv .win b{font-family:'Bebas Neue',cursive;font-size:18vh;line-height:1;color:#fff;text-shadow:0 0 6vh rgba(255,215,0,.7)}
+#tv .msg{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;background:#07070c;text-align:center;padding:4vw}
+#tv .msg h1{font-family:'Bebas Neue',cursive;font-size:9vh;letter-spacing:.4vw;color:#ff3c3c;font-weight:normal}
+#tv .msg p{font-size:3vh;color:#a8a8c0;max-width:70vw;line-height:1.4}
+#tv .msg input{font-family:'Bebas Neue',cursive;font-size:12vh;letter-spacing:2vw;text-align:center;width:40vw;background:#12121c;border:.4vh solid #2a2a40;border-radius:2vh;color:#fff;text-transform:uppercase;padding:1vh}
+#tv .msg button{font-family:'Bebas Neue',cursive;font-size:4.5vh;letter-spacing:.3vw;padding:1.6vh 4vw;border-radius:2vh;border:0;background:linear-gradient(135deg,#00e5ff,#00b3ff);color:#06121a;cursor:pointer}
+#tv .snd{position:absolute;right:2vw;bottom:2vh;z-index:8;font-family:'Bebas Neue',cursive;font-size:2.6vh;letter-spacing:.2vw;padding:1vh 1.6vw;border-radius:1.4vh;background:rgba(255,215,0,.12);border:.2vh solid rgba(255,215,0,.5);color:#ffd700;cursor:pointer}
+@media (max-aspect-ratio:1/1){#tv .pc .sc{font-size:16vh}#tv .pc .nm{font-size:5vh}#tv .fl b{font-size:26vh}}
+</style>
+<div id="tvp-dot">📺 NA TV</div>
+<div id="tv"><div class="hd"><div class="lg">DARTSMASTER PRO</div><div class="md" id="tv-md"></div><div class="ck" id="tv-ck"></div></div>
+  <div class="pl" id="tv-pl"></div><div class="tk" id="tv-tk"></div><div class="fl" id="tv-fl"></div>
+  <div class="win" id="tv-win"><small>GAME SHOT AND THE MATCH</small><b id="tv-wn"></b></div>
+  <div class="msg" id="tv-msg"></div><div class="snd" id="tv-snd" onclick="TVX.unlock()">🔈 KLIKNIJ — WŁĄCZ LEKTORA</div></div>
+<script>
+(function(){
+'use strict';
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const ABC='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:JSON.parse(v);}catch(e){return d;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}};
+const ref=code=>window._fb.doc(window._fb.db,'wrc_cams','tv_'+code);
+const params=new URLSearchParams(location.search);
+const TVMODE=params.has('tv');
+
+/* ===================== TELEFON: NADAWANIE ===================== */
+function myCode(){let c=LS.get('dm_tv_code',null);if(!c){c='';for(let i=0;i<4;i++)c+=ABC[Math.floor(Math.random()*ABC.length)];LS.set('dm_tv_code',c);}return c;}
+const tvUrl=()=>location.origin+location.pathname.replace(/\.html$/,'')+'?tv='+myCode();
+let ON=false,last='',lastAt=0;
+const lbl=(v,m)=>{if(v===null||v===undefined)return'';if(v===0)return'MISS';if(v===50&&m===1)return'BULL';if(v===25&&m===1)return'25';return(m===3?'T':m===2?'D':'')+(m>1?Math.round(v/m):v);};
+function snap(){
+  const g=G;if(!g||!g.players||!g.players.length)return{idle:1};
+  const x01=g.mode==='501'||g.mode==='301';
+  const H=(g._allHistory&&g._allHistory.length?g._allHistory:g.history)||[];
+  const avg=g.players.map((_,i)=>{let p=0,d=0;H.forEach(h=>{if(h.p===i){d+=h.dartsUsed||3;if(!h.bust)p+=h.sc||0;}});return d?Math.round(p/d*30)/10:null;});
+  const mv=(g.history||[]).slice(-10).map(h=>({p:h.p,sc:h.bust?0:(h.sc||0),b:h.bust?1:0}));
+  const thr=(g.throws||[]).map((t,i)=>t===null||t===undefined?null:lbl(t,(g.throwMults||[])[i]||1));
+  let win=null;const wo=document.querySelector('#win-overlay.show,#lose-overlay.show');if(wo){const n=document.getElementById('win-name');win=(n&&n.textContent.trim())||'';}
+  return{a:g.active?1:0,mode:g.mode,pl:g.players,cp:g.cp,sc:x01?g.scores:(g.mode==='cricket'?(g.cScores||[]):g.players.map((_,i)=>g.mode==='atc'?((g.atcT||[])[i]||0):'')),
+    x01:x01?1:0,leg:g.currentLeg||1,legs:g.legs||1,lw:g.legWins||[],avg,mv,thr,win,dOut:g.dOut?1:0,ol:g._onlineRoomId?1:0};
+}
+async function push(force){
+  if(!ON)return;const u=window._fbUser;if(!u||!window._fb)return;
+  let s;try{s=JSON.stringify(snap());}catch(e){return;}
+  if(!force&&s===last&&Date.now()-lastAt<20000)return;last=s;lastAt=Date.now();
+  try{await window._fb.setDoc(ref(myCode()),{t:Date.now(),s,by:u.uid});}catch(e){console.log('tv push',e&&e.code);}
+}
+setInterval(()=>push(false),400);
+function setOn(v){ON=v;LS.set('dm_tv_on',v);document.getElementById('tvp-dot').classList.toggle('on',v);if(v)push(true);}
+if(!TVMODE&&LS.get('dm_tv_on',false))setTimeout(()=>{if(window._fbUser)setOn(true);},4000);
+async function qr(cv,text){
+  if(typeof qrcode==='undefined'){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='/lib/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+  const q=qrcode(0,'M');q.addData(text);q.make();const n=q.getModuleCount(),k=6;cv.width=cv.height=n*k;const g=cv.getContext('2d');g.fillStyle='#fff';g.fillRect(0,0,n*k,n*k);g.fillStyle='#000';
+  for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))g.fillRect(c*k,r*k,k,k);
+}
+function sheet(){
+  let o=document.getElementById('tvp-ov');if(!o){o=document.createElement('div');o.id='tvp-ov';o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on');});document.body.appendChild(o);}
+  const logged=!!window._fbUser,url=tvUrl();
+  o.innerHTML='<div class="bx"><h3>📺 TABLICA NA TV</h3><div class="st '+(ON?'on':'off')+'">'+(ON?'● NADAJĘ NA TV':'○ WYŁĄCZONE')+'</div>'+
+    '<small>Na telewizorze lub laptopie otwórz:</small><div class="url">'+esc(url)+'</div>'+
+    '<div class="qr"><canvas id="tvp-qr"></canvas></div><small>albo wejdź na <b style="color:#e8e8f0">'+esc(location.host+location.pathname.replace(/\.html$/,''))+'?tv</b> i wpisz kod</small><div class="code">'+myCode()+'</div>'+
+    (logged?'<button class="'+(ON?'red':'pri')+'" onclick="TVX.toggle()">'+(ON?'⏹ ZATRZYMAJ NADAWANIE':'▶ NADAWAJ NA TV')+'</button>':'<small style="color:#ff8c00;margin-top:10px">Zaloguj się w zakładce Online — telefon musi być zalogowany, żeby nadawać.</small>')+
+    '<button onclick="document.getElementById(\'tvp-ov\').classList.remove(\'on\')">ZAMKNIJ</button>'+
+    '<small style="margin-top:10px">Lektor mówi też na TV — telefon możesz wyciszyć (☰ → Wycisz dźwięki). Kod zostaje ten sam, więc link na TV możesz zapisać w zakładkach.</small></div>';
+  o.classList.add('on');qr(document.getElementById('tvp-qr'),url).catch(()=>{});
+}
+// wejścia: menu boczne + przycisk na ekranie głównym
+function addEntries(){
+  const about=document.getElementById('about-label');
+  if(about&&!document.getElementById('menu-tv')){const it=document.createElement('div');it.className='menu-item';it.id='menu-tv';it.onclick=()=>{try{closeMenu();}catch(e){}sheet();};
+    it.innerHTML='<span class="menu-item-icon">📺</span><span>Tablica na TV</span>';const sec=about.closest('.menu-item');sec.parentNode.insertBefore(it,sec);}
+  const row=document.getElementById('x2-row');
+  if(row&&!row.querySelector('.tvb')){row.style.gridTemplateColumns='repeat(4,1fr)';const b=document.createElement('button');b.type='button';b.className='tvb';b.textContent='📺 TV';b.onclick=sheet;row.appendChild(b);}
+}
+if(!TVMODE)setInterval(addEntries,1500);
+
+/* ===================== TELEWIZOR: ODBIÓR ===================== */
+let S=null,unsub=null,prevMv=null,prevCp=-1,prevKey='',reqKey='',winShown='',sound=false;
+function msg(html){const m=document.getElementById('tv-msg');if(html===null){m.style.display='none';return;}m.innerHTML=html;m.style.display='flex';}
+function askCode(err){
+  msg('<h1>📺 TABLICA NA TV</h1><p>'+(err||'Wpisz kod z telefonu (☰ → Tablica na TV)')+'</p><input id="tv-in" maxlength="4" autofocus onkeydown="if(event.key===\'Enter\')TVX.go()"><button onclick="TVX.go()">POŁĄCZ</button>');
+  setTimeout(()=>{const i=document.getElementById('tv-in');if(i)i.focus();},100);
+}
+async function auth(){
+  for(let i=0;i<60&&!window._fb;i++)await new Promise(r=>setTimeout(r,100));
+  if(!window._fb)throw new Error('Brak połączenia z serwerem');
+  for(let i=0;i<25&&!window._fbUser;i++)await new Promise(r=>setTimeout(r,100));
+  if(window._fbUser)return;
+  const m=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+  const c=await m.signInAnonymously(window._fb.auth);window._fbUser=c.user;
+}
+async function connect(code){
+  code=(code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);if(code.length!==4){askCode();return;}
+  msg('<h1>📺 ŁĄCZĘ…</h1><p>Kod '+esc(code)+'</p>');
+  try{await auth();}catch(e){msg('<h1>⚠️ BRAK DOSTĘPU</h1><p>Telewizor nie może się zalogować.<br><br>W Firebase Console → Authentication → Sign-in method włącz dostawcę <b style="color:#ffd700">„Anonimowy” (Anonymous)</b>,<br>albo zaloguj się w aplikacji w tej przeglądarce.</p><p style="font-size:2vh;color:#55556e">'+esc(e.code||e.message)+'</p>');return;}
+  try{history.replaceState(null,'',location.pathname+'?tv='+code);}catch(e){}
+  if(unsub)unsub();
+  unsub=window._fb.onSnapshot(ref(code),sn=>{
+    if(!sn.exists()){msg('<h1>📺 '+esc(code)+'</h1><p>Czekam na telefon… Na telefonie: ☰ → Tablica na TV → „Nadawaj na TV”.</p>');return;}
+    const d=sn.data();let st;try{st=JSON.parse(d.s);}catch(e){return;}
+    if(Date.now()-d.t>15*60e3&&!S){msg('<h1>📺 '+esc(code)+'</h1><p>Czekam na telefon… (ostatnio nadawał '+new Date(d.t).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'})+')</p>');return;}
+    if(st.idle){msg('<h1>📺 '+esc(code)+'</h1><p>Połączono ✓ — zacznij grę na telefonie.</p>');S=null;return;}
+    msg(null);render(st);
+  },e=>msg('<h1>⚠️ BŁĄD</h1><p>'+esc(e.code||e.message)+'</p>'));
+}
+const say=(t)=>{if(!sound)return;try{TTS.say(t,0.7,0.95);}catch(e){}};
+function flash(sc){const f=document.getElementById('tv-fl');f.innerHTML='<b class="'+(sc===180?'max':'')+'">'+(sc===0?'NO SCORE':sc)+'</b>';clearTimeout(flash.t);flash.t=setTimeout(()=>{f.innerHTML='';},1700);}
+function render(st){
+  const n=st.pl.length,pl=document.getElementById('tv-pl');
+  pl.style.gridTemplateColumns='repeat('+Math.min(n,4)+',1fr)';
+  const need=st.legs>1?Math.ceil(st.legs/2):0;
+  document.getElementById('tv-md').textContent=String(st.mode).toUpperCase()+(st.dOut&&st.x01?' · DOUBLE OUT':'')+(st.legs>1?' · LEG '+st.leg+' · DO '+need:'')+(st.ol?' · ONLINE':'');
+  pl.innerHTML=st.pl.map((name,i)=>{
+    const cp=i===st.cp&&!st.win;const rem=st.sc[i];
+    return'<div class="pc'+(cp?' cp':'')+'"><div class="tag">▶ RZUCA</div><div class="nm">'+esc(name)+'</div><div class="sc">'+(rem===undefined?'':rem)+'</div>'+
+      (need?'<div class="lg2">'+Array.from({length:need},(_,k)=>'<i class="'+(k<(st.lw[i]||0)?'on':'')+'"></i>').join('')+'</div>':'')+
+      '<div class="ft"><span>ŚR. <b>'+(st.avg[i]===null||st.avg[i]===undefined?'—':st.avg[i].toFixed(1))+'</b></span>'+(st.x01&&rem<=170&&rem>1?'<span style="color:#ffd700">ZOSTAŁO <b style="color:#ffd700">'+rem+'</b></span>':'')+'</div>'+
+      (cp?'<div class="dr">'+[0,1,2].map(k=>{const v=(st.thr||[])[k];return'<span class="'+(v===null||v===undefined?'e':'')+'">'+(v===null||v===undefined?'·':esc(v))+'</span>';}).join('')+'</div>':'<div class="dr"></div>')+'</div>';}).join('');
+  document.getElementById('tv-tk').innerHTML='<em>OSTATNIE TURY</em>'+(st.mv||[]).slice().reverse().map(m=>'<span class="'+(m.b?'x':m.sc>=100?'h':'')+'">'+esc(String(st.pl[m.p]||'').slice(0,10))+' '+(m.b?'✕':m.sc)+'</span>').join('');
+  // nowa tura → efekt + lektor
+  const key=(st.mv||[]).map(m=>m.p+':'+m.sc+':'+m.b).join('|');
+  if(prevMv!==null&&key!==prevMv&&(st.mv||[]).length){const m=st.mv[st.mv.length-1];if(!(st.win&&st.x01)){flash(m.b?0:m.sc);say(m.b?'No score':String(m.sc));}}
+  prevMv=key;
+  if(st.x01&&!st.win){const rem=st.sc[st.cp],k=st.leg+'|'+st.cp+'|'+rem+'|'+(st.mv||[]).length;
+    if(rem<=170&&rem>1&&k!==reqKey&&!(st.dOut&&[169,168,166,165,163,162,159].includes(rem))){reqKey=k;setTimeout(()=>{if(sound)try{Caller.require(st.pl[st.cp],rem);}catch(e){}},1700);}}
+  const w=document.getElementById('tv-win');
+  if(st.win!==null&&st.win!==undefined){const wn=st.win||st.pl[st.cp];if(winShown!==wn){winShown=wn;document.getElementById('tv-wn').textContent=wn;w.classList.add('on');say('Game shot, and the match!');try{confetti();}catch(e){}}}
+  else{winShown='';w.classList.remove('on');}
+  S=st;
+}
+function clock(){const c=document.getElementById('tv-ck');if(c)c.textContent=new Date().toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});}
+function unlock(){sound=true;try{const C=window.AudioContext||window.webkitAudioContext;const c=new C();c.resume();}catch(e){}try{Caller.play('gameon');}catch(e){try{TTS.say('Game on!');}catch(x){}}
+  const b=document.getElementById('tv-snd');b.textContent='🔊 LEKTOR WŁĄCZONY';setTimeout(()=>{b.style.display='none';},1500);
+  try{document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen().catch(()=>{});}catch(e){}}
+if(TVMODE){
+  document.body.classList.add('tvmode');
+  window.onFbAuthChange=function(){}; // TV nie uruchamia logiki konta
+  try{document.getElementById('intro-overlay')&&document.getElementById('intro-overlay').remove();}catch(e){}
+  clock();setInterval(clock,10000);
+  const c=params.get('tv');if(c)connect(c);else askCode();
+}
+window.TVX={sheet,toggle(){setOn(!ON);sheet();},go(){const i=document.getElementById('tv-in');connect(i&&i.value);},unlock,_snap:snap,_render:render,_code:myCode};
 })();
 </script>
 
