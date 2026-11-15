@@ -1,0 +1,51 @@
+# Co godzinę nagrywa nicki nowych graczy (głos George) i wrzuca je do repozytorium → Vercel sam wdraża.
+# Wymaga sekretu repozytorium FIREBASE_SERVICE_ACCOUNT (ten sam JSON co w Vercelu).
+name: Lektor — nicki graczy
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+  push:
+    paths: ['tools/nicki.txt']
+permissions:
+  contents: write
+concurrency: lektor-nicki
+jobs:
+  nicki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/kokoro-v1.0.int8.onnx
+          key: kokoro-v1
+      - name: Sprawdź, czy są nowe nicki
+        id: chk
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          pip install -q firebase-admin
+          python tools/lektor_nicki.py --check
+      - name: Nagraj brakujące nicki
+        if: steps.chk.outputs.nowe != '0'
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          KOKORO_MODEL: /home/runner/kokoro-v1.0.int8.onnx
+        run: |
+          sudo apt-get install -y -qq ffmpeg >/dev/null || true
+          pip install -q kokoro-onnx==0.6.1
+          python tools/lektor_nicki.py
+      - name: Zapisz nagrania
+        if: steps.chk.outputs.nowe != '0'
+        run: |
+          git add media/voice/names voice-names.json
+          if git diff --cached --quiet; then echo "brak nowych nicków"; exit 0; fi
+          git config user.name "DartsMaster Lektor"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "Lektor: nowe nicki graczy"
+          git push
