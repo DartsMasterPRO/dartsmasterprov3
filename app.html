@@ -14415,7 +14415,7 @@ function sheet(){
   const logged=!!window._fbUser,url=tvUrl();
   o.innerHTML='<div class="bx"><h3>📺 TABLICA NA TV</h3><div class="st '+(ON?'on':'off')+'">'+(ON?'● NADAJĘ NA TV':'○ WYŁĄCZONE')+'</div>'+
     '<small>Na telewizorze lub laptopie otwórz:</small><div class="url">'+esc(url)+'</div>'+
-    '<div class="qr"><canvas id="tvp-qr"></canvas></div><small>albo wejdź na <b style="color:#e8e8f0">'+esc(location.host+location.pathname.replace(/\.html$/,''))+'?tv</b> i wpisz kod</small><div class="code">'+myCode()+'</div>'+
+    '<div class="qr"><canvas id="tvp-qr"></canvas></div><small style="color:#a8a8c0;margin:-4px 0 8px">📺 Google TV / Android TV: zainstaluj z Google Play przeglądarkę <b style="color:#e8e8f0">TV Bro</b>, otwórz w niej ten link i dodaj do zakładek.</small><small>albo wejdź na <b style="color:#e8e8f0">'+esc(location.host+location.pathname.replace(/\.html$/,''))+'?tv</b> i wpisz kod</small><div class="code">'+myCode()+'</div>'+
     (PREQ?'<button class="'+(casting()?'red':'pri')+'" onclick="TVX.cast()" style="margin-bottom:4px">'+(casting()?'⏹ ZAKOŃCZ NA TV (GOOGLE TV)':'📡 WYŚLIJ NA GOOGLE TV / ANDROID TV')+'</button><small>'+(casting()?'Tablica jest na telewizorze ✓':CAST_AV?'Telewizor w sieci wykryty ✓ — wybierz go z listy':'Telefon i TV w tej samej sieci Wi-Fi')+'</small><div style="height:8px"></div><small style="color:#55556e">— albo przez link (każdy TV z przeglądarką) —</small>':'')+
     (logged?'<button class="'+(ON?'red':(PREQ?'':'pri'))+'" onclick="TVX.toggle()">'+(ON?'⏹ ZATRZYMAJ NADAWANIE':'▶ NADAWAJ PRZEZ LINK')+'</button>'+
       '<label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;font-size:12px;color:#c8c8d8"><input type="checkbox" '+(LS.get('dm_tv_auto',false)?'checked':'')+' onchange="TVX.auto(this.checked)" style="accent-color:#00e5ff;width:18px;height:18px">Nadawaj automatycznie przy każdej grze</label>'
@@ -14432,7 +14432,7 @@ function addEntries(){
   const row=document.getElementById('x2-row');
   if(row&&!row.querySelector('.tvb')){row.style.gridTemplateColumns='repeat(4,1fr)';const b=document.createElement('button');b.type='button';b.className='tvb';b.textContent='📺 TV';b.onclick=sheet;row.appendChild(b);}
 }
-if(!TVMODE){setInterval(addEntries,1500);castInit();}
+if(!TVMODE){setInterval(addEntries,1500);} // przesyłanie przez Presentation API wyłączone — Chrome nie wykrywa nim Google TV
 
 /* ===================== TELEWIZOR: ODBIÓR ===================== */
 let S=null,unsub=null,prevMv=null,prevCp=-1,prevKey='',reqKey='',winShown='',sound=false;
