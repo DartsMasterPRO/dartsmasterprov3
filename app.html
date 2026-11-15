@@ -14325,6 +14325,27 @@ body.tvmode #tv{display:flex}
 #tv .msg input{font-family:'Bebas Neue',cursive;font-size:12vh;letter-spacing:2vw;text-align:center;width:40vw;background:#12121c;border:.4vh solid #2a2a40;border-radius:2vh;color:#fff;text-transform:uppercase;padding:1vh}
 #tv .msg button{font-family:'Bebas Neue',cursive;font-size:4.5vh;letter-spacing:.3vw;padding:1.6vh 4vw;border-radius:2vh;border:0;background:linear-gradient(135deg,#00e5ff,#00b3ff);color:#06121a;cursor:pointer}
 #tv .snd{position:absolute;right:2vw;bottom:2vh;z-index:8;font-family:'Bebas Neue',cursive;font-size:2.6vh;letter-spacing:.2vw;padding:1vh 1.6vw;border-radius:1.4vh;background:rgba(255,215,0,.12);border:.2vh solid rgba(255,215,0,.5);color:#ffd700;cursor:pointer}
+#tv.cam .pc{justify-content:flex-start;padding:0;gap:0;overflow:hidden}
+#tv.cam .pc .cimg{flex:1 1 0;height:0;min-height:0;width:100%;object-fit:contain;background:#000;display:block}
+#tv.cam .pc .noimg{flex:1 1 0;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:4vh;color:#44445a;background:#000;width:100%}
+#tv.cam .pc .tag{position:absolute;top:1.4vh;left:1.4vh;transform:none;z-index:2;background:rgba(0,0,0,.65);padding:.4vh 1vw;border-radius:1vh}
+#tv.cam .pc .nm{font-size:3.6vh;margin:.8vh 0 0;line-height:1}
+#tv.cam .pc .sc{font-size:10vh;line-height:.95;margin:0}
+#tv.cam .pc .lg2{margin:.3vh 0}
+#tv.cam .pc .ft{margin:0 0 .6vh;font-size:2.4vh}
+#tv.cam .pc .dr{margin:0 0 1vh;min-height:0}
+#tv.cam .pc .dr span{font-size:3.2vh;padding:.4vh 1.4vw;min-width:0}
+#tv.cam .pc .dr:empty{display:none}
+#tv.cam .pc.cp{transform:none}
+#tv.cam .pl{grid-template-rows:minmax(0,1fr);min-height:0}
+#tv.cam1 .pl{grid-template-columns:1.5fr 1fr}
+#tv.cam1 .camL{min-height:0;border-radius:3vh;overflow:hidden;background:#000;border:.35vh solid #22223a;position:relative}
+#tv.cam1 .camL .cimg{width:100%;height:100%;object-fit:contain;display:block}
+#tv.cam1 .side{display:flex;flex-direction:column;gap:2vh;min-height:0}
+#tv.cam1 .side .pc{flex:1 1 0;min-height:0;justify-content:center;padding:1vh}
+#tv.cam1 .side .pc .sc{font-size:10vh}
+#tv.cam1 .side .pc .nm{font-size:3.4vh}
+#tv.cam1 .side .pc .tag{left:50%;transform:translateX(-50%);background:none}
 @media (max-aspect-ratio:1/1){#tv .pc .sc{font-size:16vh}#tv .pc .nm{font-size:5vh}#tv .fl b{font-size:26vh}}
 </style>
 <div id="tvp-dot">📺 NA TV</div>
@@ -14356,7 +14377,8 @@ function snap(){
   const thr=(g.throws||[]).map((t,i)=>t===null||t===undefined?null:lbl(t,(g.throwMults||[])[i]||1));
   let win=null;const wo=document.querySelector('#win-overlay.show,#lose-overlay.show');if(wo){const n=document.getElementById('win-name');win=(n&&n.textContent.trim())||'';}
   return{a:g.active?1:0,mode:g.mode,pl:g.players,cp:g.cp,sc:x01?g.scores:(g.mode==='cricket'?(g.cScores||[]):g.players.map((_,i)=>g.mode==='atc'?((g.atcT||[])[i]||0):'')),
-    x01:x01?1:0,leg:g.currentLeg||1,legs:g.legs||1,lw:g.legWins||[],avg,mv,thr,win,dOut:g.dOut?1:0,ol:g._onlineRoomId?1:0};
+    x01:x01?1:0,leg:g.currentLeg||1,legs:g.legs||1,lw:g.legWins||[],avg,mv,thr,win,dOut:g.dOut?1:0,ol:g._onlineRoomId?1:0,
+    room:g._onlineRoomId||null,uids:g._onlineRoomId?(FR.uids||[]):[],me:(window._fbUser&&window._fbUser.uid)||null,cam:FR.sending?1:0};
 }
 let PCONN=null,lastP='';
 function pushCast(s){if(!PCONN||PCONN.state!=='connected')return;if(s===lastP&&Date.now()-pAt<5000)return;lastP=s;pAt=Date.now();try{PCONN.send(s);}catch(e){}}
@@ -14369,6 +14391,41 @@ async function push(force){
   try{await window._fb.setDoc(ref(myCode()),{t:Date.now(),s,by:u.uid});}catch(e){console.log('tv push',e&&e.code);}
 }
 setInterval(()=>push(false),400);
+
+/* ---- obraz tarczy z kamery (auto-liczenie) na TV ----
+   Online: gdy ktoś ma tablicę na TV, jego telefon co 20 s odświeża wrc_cams/<pokój>_tv.watch — wtedy telefony obu graczy
+   z włączonym auto-liczeniem wysyłają kadr tarczy (~2,5 kl./s) do wrc_cams/<pokój> (te same pola co WRC).
+   Gra lokalna: telefon z włączoną tablicą wysyła kadr do wrc_cams/tvl_<KOD>. */
+const FR={room:null,unsub:null,watch:0,lastWatch:0,seq:0,cv:null,busy:false,uids:[],uidRoom:null,sending:false,sentAt:0};
+function camCrop(v){
+  let x=0,y=0,w=v.videoWidth,h=v.videoHeight;
+  try{const P=AutoCam._t.cal();if(P&&P.length===4){let a=1,b=1,c=0,d=0;P.forEach(p=>{a=Math.min(a,p[0]);b=Math.min(b,p[1]);c=Math.max(c,p[0]);d=Math.max(d,p[1]);});
+    const cx=(a+c)/2*w,cy=(b+d)/2*h,sz=Math.max((c-a)*w,(d-b)*h)*1.4;x=Math.max(0,cx-sz/2);y=Math.max(0,cy-sz/2);w=Math.min(v.videoWidth-x,sz);h=Math.min(v.videoHeight-y,sz);}}catch(e){}
+  return[x,y,w,h];
+}
+async function frameTick(){
+  try{
+    const u=window._fbUser;if(!u||!window._fb||FR.busy)return;
+    const room=G&&G._onlineRoomId,code=myCode();
+    if(room&&FR.uidRoom!==room){FR.uidRoom=room;FR.uids=[];window._fb.getDoc(window._fb.doc(window._fb.db,'rooms',room)).then(s2=>{const r=s2.exists()?s2.data():{};FR.uids=((r.gameState||{}).playerUids)||[];}).catch(()=>{});}
+    // obserwuj, czy ktoś w pokoju ma włączony TV
+    const wroom=room?room+'_tv':null;
+    if(wroom!==FR.room){if(FR.unsub){FR.unsub();FR.unsub=null;}FR.room=wroom;FR.watch=0;
+      if(wroom)FR.unsub=window._fb.onSnapshot(window._fb.doc(window._fb.db,'wrc_cams',wroom),sn=>{FR.watch=sn.exists()?(sn.data().watch||0):0;},()=>{});}
+    if(room&&ON&&Date.now()-FR.lastWatch>20000){FR.lastWatch=Date.now();window._fb.setDoc(window._fb.doc(window._fb.db,'wrc_cams',wroom),{watch:Date.now()},{merge:true}).catch(()=>{});}
+    const need=room?(Date.now()-FR.watch<45000):ON;
+    const v=document.getElementById('ac-video');
+    FR.sending=!!(need&&v&&v.videoWidth&&!v.paused&&!(room&&typeof wrcState!=='undefined'&&wrcState.sharing));
+    if(!FR.sending||Date.now()-FR.sentAt<380)return;
+    FR.busy=true;FR.sentAt=Date.now();
+    if(!FR.cv){FR.cv=document.createElement('canvas');FR.cv.width=FR.cv.height=480;}
+    const c=FR.cv.getContext('2d'),[x,y,w,h]=camCrop(v);c.fillStyle='#000';c.fillRect(0,0,480,480);
+    const k=Math.min(480/w,480/h);c.drawImage(v,x,y,w,h,(480-w*k)/2,(480-h*k)/2,w*k,h*k);
+    const b64=FR.cv.toDataURL('image/jpeg',0.6).split(',')[1];FR.seq++;
+    await window._fb.setDoc(window._fb.doc(window._fb.db,'wrc_cams',room||('tvl_'+code)),{[u.uid+'_frame']:b64,[u.uid+'_seq']:FR.seq,ts:Date.now()},{merge:true});
+  }catch(e){}finally{FR.busy=false;}
+}
+if(!TVMODE)setInterval(frameTick,200);
 function setOn(v){ON=v;LS.set('dm_tv_on',v);document.getElementById('tvp-dot').classList.toggle('on',v);if(v)push(true);}
 if(!TVMODE&&LS.get('dm_tv_on',false))setTimeout(()=>{if(window._fbUser)setOn(true);},4000);
 async function qr(cv,text){
@@ -14463,11 +14520,28 @@ async function connect(code){
     msg(null);render(st);
   },e=>msg('<h1>⚠️ BŁĄD</h1><p>'+esc(e.code||e.message)+'</p>'));
 }
+
+let CAMDOC=null,CAMUN=null;const FRAMES={},IMG={};
+function camSub(id){
+  if(CAMDOC===id)return;if(CAMUN){CAMUN();CAMUN=null;}CAMDOC=id;if(!id)return;
+  CAMUN=window._fb.onSnapshot(window._fb.doc(window._fb.db,'wrc_cams',id),sn=>{if(!sn.exists())return;const d=sn.data();
+    Object.keys(d).forEach(k=>{if(!k.endsWith('_frame')||!d[k])return;const uid=k.slice(0,-6),seq=d[uid+'_seq']||0;const F=FRAMES[uid]||(FRAMES[uid]={seq:-1,t:0});
+      if(seq!==F.seq){F.seq=seq;F.t=Date.now();const im=IMG[uid]||(IMG[uid]=Object.assign(document.createElement('img'),{className:'cimg',alt:''}));im.src='data:image/jpeg;base64,'+d[k];}});
+    if(S)render(S,true);},()=>{});
+}
+const fresh=uid=>uid&&FRAMES[uid]&&Date.now()-FRAMES[uid].t<15000;
 const say=(t)=>{if(!sound)return;try{TTS.say(t,0.7,0.95);}catch(e){}};
 function flash(sc){const f=document.getElementById('tv-fl');f.innerHTML='<b class="'+(sc===180?'max':'')+'">'+(sc===0?'NO SCORE':sc)+'</b>';clearTimeout(flash.t);flash.t=setTimeout(()=>{f.innerHTML='';},1700);}
-function render(st){
+function render(st,camOnly){
+  try{if(window._fb)camSub(st.room||(st.me&&!st.ol?'tvl_'+(params.get('tv')||''):null));}catch(e){}
   const n=st.pl.length,pl=document.getElementById('tv-pl');
-  pl.style.gridTemplateColumns='repeat('+Math.min(n,4)+',1fr)';
+  // kamera: online — kadr każdego gracza (uid), lokalnie — jeden kadr z telefonu
+  const camOf=i=>st.ol?(st.uids||[])[i]:(st.me||null);
+  const camMode=st.ol?(st.uids||[]).some(fresh):fresh(st.me);
+  const tvEl=document.getElementById('tv');tvEl.classList.toggle('cam',camMode);tvEl.classList.toggle('cam1',camMode&&!st.ol);
+  const camKey=camMode+'|'+(st.ol?(st.uids||[]).map(u=>fresh(u)?1:0).join(''):'');
+  if(camOnly&&S&&camKey===S._cam)return;st._cam=camKey;
+  pl.style.gridTemplateColumns=camMode&&!st.ol?'1.5fr 1fr':'repeat('+Math.min(n,4)+',1fr)';
   const need=st.legs>1?Math.ceil(st.legs/2):0;
   document.getElementById('tv-md').textContent=String(st.mode).toUpperCase()+(st.dOut&&st.x01?' · DOUBLE OUT':'')+(st.legs>1?' · LEG '+st.leg+' · DO '+need:'')+(st.ol?' · ONLINE':'');
   pl.innerHTML=st.pl.map((name,i)=>{
@@ -14476,6 +14550,11 @@ function render(st){
       (need?'<div class="lg2">'+Array.from({length:need},(_,k)=>'<i class="'+(k<(st.lw[i]||0)?'on':'')+'"></i>').join('')+'</div>':'')+
       '<div class="ft"><span>ŚR. <b>'+(st.avg[i]===null||st.avg[i]===undefined?'—':st.avg[i].toFixed(1))+'</b></span>'+(st.x01&&rem<=170&&rem>1?'<span style="color:#ffd700">ZOSTAŁO <b style="color:#ffd700">'+rem+'</b></span>':'')+'</div>'+
       (cp?'<div class="dr">'+[0,1,2].map(k=>{const v=(st.thr||[])[k];return'<span class="'+(v===null||v===undefined?'e':'')+'">'+(v===null||v===undefined?'·':esc(v))+'</span>';}).join('')+'</div>':'<div class="dr"></div>')+'</div>';}).join('');
+  if(camMode){
+    if(st.ol){[...pl.children].forEach((card,i)=>{const u=camOf(i);if(fresh(u)){card.classList.add('hasimg');card.insertBefore(IMG[u],card.firstChild);}else card.insertAdjacentHTML('afterbegin','<div class="noimg">📷 brak obrazu z kamery</div>');});}
+    else{const box=document.createElement('div');box.className='camL';box.appendChild(IMG[st.me]);pl.insertBefore(box,pl.firstChild);
+      const side=document.createElement('div');side.className='side';[...pl.querySelectorAll('.pc')].forEach(c=>side.appendChild(c));pl.appendChild(side);}
+  }
   document.getElementById('tv-tk').innerHTML='<em>OSTATNIE TURY</em>'+(st.mv||[]).slice().reverse().map(m=>'<span class="'+(m.b?'x':m.sc>=100?'h':'')+'">'+esc(String(st.pl[m.p]||'').slice(0,10))+' '+(m.b?'✕':m.sc)+'</span>').join('');
   // nowa tura → efekt + lektor
   const key=(st.mv||[]).map(m=>m.p+':'+m.sc+':'+m.b).join('|');
@@ -14496,7 +14575,7 @@ if(TVMODE){
   document.body.classList.add('tvmode');
   window.onFbAuthChange=function(){}; // TV nie uruchamia logiki konta
   try{document.getElementById('intro-overlay')&&document.getElementById('intro-overlay').remove();}catch(e){}
-  clock();setInterval(clock,10000);
+  clock();setInterval(clock,10000);setInterval(()=>{if(S)render(S,true);},3000);
   const c=params.get('tv');
   if(c==='cast'){ // ekran telewizora otwarty przez „Przesyłaj” — dane przychodzą prosto z telefonu
     sound=true;document.getElementById('tv-snd').style.display='none';msg('<h1>📺 DARTSMASTER PRO</h1><p>Połączono z telefonem — zacznij grę.</p>');
@@ -14504,7 +14583,7 @@ if(TVMODE){
     try{navigator.presentation.receiver.connectionList.then(l=>{l.connections.forEach(add);l.onconnectionavailable=e=>add(e.connection);});}catch(e){}
   }else if(c)connect(c);else askCode();
 }
-window.TVX={sheet,cast,auto(v){LS.set('dm_tv_auto',!!v);if(v&&window._fbUser&&!ON)setOn(true);},_recv:(st)=>{msg(null);render(st);},toggle(){setOn(!ON);sheet();},go(){const i=document.getElementById('tv-in');connect(i&&i.value);},unlock,_snap:snap,_render:render,_code:myCode};
+window.TVX={sheet,cast,auto(v){LS.set('dm_tv_auto',!!v);if(v&&window._fbUser&&!ON)setOn(true);},_recv:(st)=>{msg(null);render(st);},toggle(){setOn(!ON);sheet();},go(){const i=document.getElementById('tv-in');connect(i&&i.value);},unlock,_snap:snap,_render:render,_code:myCode,_fr:()=>FR};
 })();
 </script>
 
