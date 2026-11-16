@@ -8298,7 +8298,7 @@ const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
-const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
+const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
 let CAL=null;
 function loadCfg(){try{const o=JSON.parse(localStorage.getItem(LS)||'{}');if(o.s){if(!(o.v>=3))delete o.s.thr;Object.assign(S,o.s);}if(o.cal&&o.cal.pts&&o.cal.pts.length===4)CAL=o.cal;}catch(e){}}
 function saveCfg(){try{localStorage.setItem(LS,JSON.stringify({v:3,s:S,cal:CAL}));}catch(e){}}
@@ -8830,7 +8830,7 @@ function analyze(cur){
   }
   lastMask=r.m;lastMaskT=performance.now();
   const blobN=r.px?r.px.length:0;DG.area=blobN;
-  const OCC=excl&&r.px&&r.px.length?occlTouch(r.px,excl)>=3:false;
+  const OCCT=S.occl===true&&excl&&r.px&&r.px.length?occlTouch(r.px,excl):0,OCC=OCCT>=8;if(S.debug&&OCCT)lg('styk z wcześniejszą lotką: '+OCCT+'px / '+r.px.length);
   if(blobN>=GEO.minA*0.3)lg('zmiana '+blobN+'px (min '+Math.round(GEO.minA)+', max '+Math.round(GEO.maxA)+', wszystkie '+r.total+')');
   if(blobN<GEO.minA){cand=null;if(blobN<GEO.minA*0.3){ref=cur;if(!turn.length)empty=cur;}status(turn.length?'Czekam na kolejną lotkę':'Gotowe — rzucaj 🎯','#00ff88');return;}
   if(blobN>GEO.maxA){lastBigTick=tickN;lg('za duża zmiana → zasłonięte');ref=refAge>25?cur:ref;refAge++;status('Coś zasłania tarczę…','#ff8c00');return;}
@@ -8884,7 +8884,7 @@ function analyze(cur){
    cand0tries=0;
    if(ov<r.px.length*0.4){lg('nie potwierdzono (pokrycie '+Math.round(ov/r.px.length*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return;}}
   let tp=tipOf(r.px,r.raw,undefined,r.soft);
-  let OCCF=false;if(OCC){const q=occlTip(r.px,excl);if(q){tp.x=q.x;tp.y=q.y;tp.geo=true;OCCF=true;candTip=null;lg('lotka zasłonięta przez wcześniejszą — widać '+Math.round(q.vis*100)+'%, grot z długości lotki'+(S.debug?' ['+q.dbg+']':''));}}
+  let OCCF=false;if(OCC&&tipBlocked(tp,excl)){const q=occlTip(r.px,excl);if(q&&q.vis>0.6)lg('styk z lotką, ale widać '+Math.round(q.vis*100)+'% — zostawiam zwykły grot');if(q&&q.vis<=0.6){tp.x=q.x;tp.y=q.y;tp.geo=true;OCCF=true;candTip=null;lg('lotka zasłonięta przez wcześniejszą — widać '+Math.round(q.vis*100)+'%, grot z długości lotki'+(S.debug?' ['+q.dbg+']':''));}}
   // uśrednienie grota z dwóch niezależnych odczytów (mniej szumu → pewniejsze pole przy drucie)
   if(candTip&&Math.hypot(tp.x-candTip[0],tp.y-candTip[1])<GEO.rpx*0.03){tp.x=(tp.x+candTip[0])/2;tp.y=(tp.y+candTip[1])/2;}let[nx,ny]=workToNorm(tp.x,tp.y);let sc=normToScore(nx,ny);
   if(sc.lbl==='MISS'&&tp.tmax!==undefined&&!tp.geo){ // grot poza tarczą? sprawdź drugi koniec
@@ -8910,6 +8910,9 @@ function analyze(cur){
   if(closed)setTimeout(()=>{if(closed&&turn.length)status('Wyjmij lotki z tarczy ✋','#ffd700');},1200);
 }
 // ===== LOTKI ZASŁONIĘTE PRZEZ WCZEŚNIEJSZE =====
+// grot schowany = koniec plamy od strony grota styka się z wcześniejszą lotką (widoczny grot ma wokół wolną tarczę)
+function tipBlocked(tp,excl){if(!tp||!excl)return false;const rw=GEO.rw,rh=GEO.rh,x0=Math.round(tp.x),y0=Math.round(tp.y),R=4;let c=0;
+  for(let y=y0-R;y<=y0+R;y++)for(let x=x0-R;x<=x0+R;x++){if(x<0||y<0||x>=rw||y>=rh)continue;if((x-x0)*(x-x0)+(y-y0)*(y-y0)>R*R)continue;if(excl[y*rw+x])c++;}return c>=3;}
 // Nowa lotka wbita „za” wcześniejszą (z perspektywy kamery) — widać tylko piórka/trzonek, grot jest schowany.
 // 1) ile pikseli plamy styka się z wcześniejszymi lotkami
 function occlTouch(px,excl){if(!excl)return 0;const W=GEO.rw,N=excl.length;let t=0;
@@ -10032,6 +10035,7 @@ function mount(){
        '<option value="auto">Auto (z kalibracji)</option><option value="narrow">Węższy koniec</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
      '<label>Kalibracja w tle (co 3 min) <input type="checkbox" id="ac-bgc" onchange="AutoCam.set(\'bgCal\',this.checked)"></label>'+
      '<label>Wykrywanie wypadniętych lotek <input type="checkbox" id="ac-fall" onchange="AutoCam.set(\'fallDetect\',this.checked)"></label>'+
+     '<label>Lotki schowane za innymi (test) <input type="checkbox" id="ac-occl" onchange="AutoCam.set(\'occl\',this.checked)"></label>'+
      '<label>Lektor po każdej lotce <input type="checkbox" id="ac-say" onchange="AutoCam.set(\'sayDarts\',this.checked)"></label>'+
      '<label>Lektor: nick + ile zostało (≤170) <input type="checkbox" id="ac-req" onchange="window.Caller&&Caller.setReq(this.checked)"></label>'+
      '<label>Głos lektora <select id="ac-voice" onchange="AutoCam.setVoice(this.value)"></select></label>'+
@@ -10089,7 +10093,7 @@ function mount(){
     const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
     addManual(nx,ny);
   });
-  const thr=$('ac-thr');thr.value=135-S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;if($('ac-req'))$('ac-req').checked=!window.Caller||Caller.reqOn;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
+  const thr=$('ac-thr');thr.value=135-S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;if($('ac-req'))$('ac-req').checked=!window.Caller||Caller.reqOn;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;if($('ac-occl'))$('ac-occl').checked=S.occl===true;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
