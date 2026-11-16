@@ -8897,8 +8897,10 @@ function analyze(cur){
   if(S._bias){const b=ap(GEO.Hi,nx,ny),p=b?ap(GEO.H,b[0]+S._bias[0],b[1]+S._bias[1]):null;if(p){nx=p[0];ny=p[1];}} // tylko do testów
   const rawTip=[nx,ny];let rawB=null;
   {const q=lrnApply(nx,ny);rawB=q[2];if(q[0]!==nx||q[1]!==ny){const sc2=normToScore(q[0],q[1]);if(sc2.lbl!==sc.lbl)lg('nauka: '+sc.lbl+' → '+sc2.lbl);nx=q[0];ny=q[1];sc=sc2;}}
+  const fineB=GEO?ap(GEO.Hi,nx,ny):null;
+  {const q=fineApply(nx,ny);if(q[0]!==nx||q[1]!==ny){const sc2=normToScore(q[0],q[1]);if(sc2.lbl!==sc.lbl)lg('dostrojenie: '+sc.lbl+' → '+sc2.lbl);nx=q[0];ny=q[1];sc=sc2;}}
   if(!turn.length)turnKey0=tkey();
-  const d={px:r.px,before:ref,tip:[nx,ny],rawTip,rawB,sc,unsure:unsureOf(nx,ny,sc)};
+  const d={px:r.px,before:ref,tip:[nx,ny],rawTip,rawB,fineB,sc,unsure:unsureOf(nx,ny,sc)};
   lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%'+(LAST_FIX?', ukryty grot +'+LAST_FIX+' mm':'')+')');LAST_FIX=0;
   CUR_TIP=[nx,ny];if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
   if(!OCCF&&!OCC&&tp.geo&&tp.elong>3)learnLen(r.px,tp);d.occl=OCCF;
@@ -9169,8 +9171,39 @@ function lrnApply(nx,ny){
 }
 function lrnUI(){const e=$('ac-lrn');if(!e)return;const n=LRN.samples.length;
   if(!n){e.textContent='Brak próbek — aplikacja uczy się z Twoich poprawek. Najdokładniej uczy stuknięcie w obraz dokładnie w miejscu grota.';return;}
-  const m=LRN.samples.reduce((a,q)=>a+Math.hypot(q.ex,q.ey),0)/n;e.textContent=n+' próbek · średni błąd przed korektą '+m.toFixed(1)+' mm';}
+  const m=LRN.samples.reduce((a,q)=>a+Math.hypot(q.ex,q.ey),0)/n;e.textContent=n+' próbek · średni błąd przed korektą '+m.toFixed(1)+' mm'+(FINE.h.length?' · dostrojenie z '+FINE.h.length+' rzutów'+((FINE.off[0]||FINE.off[1])?' ('+Math.hypot(FINE.off[0],FINE.off[1]).toFixed(1)+' mm)':''):'');}
 
+
+/* ===== DOSTROJENIE Z WSZYSTKICH RZUTÓW =====
+   Stara nauka widzi tylko pomyłki, więc przy rzutach „na drucie” często przestrzela.
+   Tu zapamiętujemy KAŻDY zatwierdzony rzut (miejsce grota + ostateczne pole, także te dobre)
+   i szukamy jednego wspólnego przesunięcia (±4 mm), przy którym najwięcej rzutów trafia w swoje pole.
+   Stosujemy je tylko, gdy wyraźnie poprawia wynik na historii (≥3 rzuty i ≥1,5%). */
+const FKEY='dm_ac_fine';let FINE={cal:null,h:[],off:[0,0],gain:0};
+try{const o=JSON.parse(localStorage.getItem(FKEY)||'null');if(o&&Array.isArray(o.h))FINE=Object.assign(FINE,o);}catch(e){}
+function fineSave(){try{localStorage.setItem(FKEY,JSON.stringify(FINE));}catch(e){}}
+function fineOnCal(){if(!CAL)return;if(FINE.cal&&calDiff(FINE.cal,CAL.pts)>0.02&&FINE.h.length){FINE.h=[];FINE.off=[0,0];FINE.gain=0;}FINE.cal=CAL.pts.map(p=>p.slice());fineSave();}
+function fineEstimate(){
+  const H=FINE.h.slice(-200);if(H.length<15){FINE.off=[0,0];FINE.gain=0;return;}
+  const hit=(x,y,l)=>{try{return scoreAt(x,y).lbl===l;}catch(e){return false;}};
+  let base=0;for(const q of H)if(hit(q[0],q[1],q[2]))base++;
+  let best=[base,0,0];
+  for(let dx=-4;dx<=4.001;dx+=0.5)for(let dy=-4;dy<=4.001;dy+=0.5){if(!dx&&!dy)continue;
+    let c=0;for(const q of H)if(hit(q[0]+dx,q[1]+dy,q[2]))c++;const sc=c-0.01*Math.hypot(dx,dy);if(sc>best[0])best=[sc,dx,dy];}
+  const g=best[0]-base;FINE.gain=Math.round(g);
+  FINE.off=g>=Math.max(3,H.length*0.015)?[best[1],best[2]]:[0,0];
+}
+function fineRecord(darts){
+  let n=0;for(const d of darts){if(!d||d.fell||d.occl||!d.fineB||!d.sc||d.sc.lbl==='MISS')continue;
+    FINE.h.push([+d.fineB[0].toFixed(1),+d.fineB[1].toFixed(1),d.sc.lbl]);n++;}
+  if(!n)return;if(FINE.h.length>300)FINE.h=FINE.h.slice(-300);if(!FINE.cal&&CAL)FINE.cal=CAL.pts.map(p=>p.slice());
+  const old=FINE.off.join();fineEstimate();fineSave();
+  if(FINE.off.join()!==old)lg('dostrojenie: przesunięcie '+FINE.off.map(v=>v.toFixed(1)).join(', ')+' mm (lepiej o '+FINE.gain+' z '+Math.min(FINE.h.length,200)+' rzutów)');lrnUI();
+}
+function fineApply(nx,ny){
+  if(S.learn===false||(!FINE.off[0]&&!FINE.off[1]))return[nx,ny];const b=ap(GEO.Hi,nx,ny);if(!b)return[nx,ny];
+  const p=ap(GEO.H,b[0]+FINE.off[0],b[1]+FINE.off[1]);return p?[p[0],p[1]]:[nx,ny];
+}
 /* ================= ZGŁOSZENIA POMYŁEK ================= */
 const RPT={mem:[],db:null,cnt:0,toastShown:false};
 function idb(){return new Promise(res=>{if(RPT.db)return res(RPT.db);try{const q=indexedDB.open('dartsmaster_reports',1);
@@ -9213,6 +9246,7 @@ async function rptExport(){
 }
 function confirmClear(){return RPT.cnt?window.confirm('Usunąć '+RPT.cnt+' zgłoszeń?'):true;}
 function takeout(cur){
+  try{fineRecord(turn);}catch(e){}
   if(S.autoConfirm&&turn.length)confirmTurn();
   bgCalSoon('po wyjęciu lotek',45000);
   turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;
@@ -9733,7 +9767,7 @@ function setDart(i,n,m){
   $('dm-pick').classList.remove('on');
   if(!(turn[i]&&turnKey0===tkey()))return;const sc=scFrom(n,m),mode=gm(),old=turn[i].sc;
   if(mode==='bull'){toast('📍 Przy rzucie do bulla stuknij w obraz dokładnie w miejscu grota');return;}
-  if(sc.lbl!==old.lbl){report(turn[i].fell?'fall':'correction',turn[i],sc,null);if(!turn[i].fell&&turn[i].rawB)lrnAdd(turn[i].rawB,nearestInField(turn[i].rawB,sc,1.5),0.6);}
+  if(sc.lbl!==old.lbl){report(turn[i].fell?'fall':'correction',turn[i],sc,null);if(!turn[i].fell&&turn[i].rawB&&!turn[i].occl){const t=nearestInField(turn[i].rawB,sc,1.5);if(Math.hypot(turn[i].rawB[0]-t[0],turn[i].rawB[1]-t[1])<=8)lrnAdd(turn[i].rawB,t,0.6);}}
   if(mode==='atc'||mode==='train'||mode==='xg'){if(!redoFrom(i,sc))return;}
   else if(mode==='x01'){G.throws[i]=sc.val;G.throwMults[i]=(n===25||n===50)?1:m;refreshThrows();}
   else if(mode==='sum'){sumDarts[i]=sc.val;setSumUI();}
@@ -9873,7 +9907,7 @@ function autoCalibrate(init){
 async function runAutoCal(fromStart){
   status('🤖 Autokalibracja…','#00e5ff');await sleep(30);
   let r=null;try{r=autoCalibrate(null);}catch(e){console.log('[AutoCam] autocal',e);}
-  if(r&&r.q>=0.55&&ptsOk(r.pts)){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();lrnOnCal();toast('🤖 Autokalibracja OK ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return true;}
+  if(r&&r.q>=0.55&&ptsOk(r.pts)){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();lrnOnCal();fineOnCal();toast('🤖 Autokalibracja OK ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');return true;}
   if(fromStart){
     if(CAL){toast('⚠️ Autokalibracja nieudana — używam zapisanej');}
     else{toast('⚠️ Autokalibracja nieudana — ustaw ręcznie');if(r&&ptsOk(r.pts))CAL={pts:r.pts};openCal();}
@@ -10118,7 +10152,7 @@ document.addEventListener('visibilitychange',async()=>{if(running&&document.visi
 window.AutoCam={
   openSetup(){$('dm-sheet').classList.remove('on');openSetup();},
   async setupDone(){S.setupSeen=true;saveCfg();const r=suRes;closeSetup();
-    if(r&&r.q>=0.55){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();lrnOnCal();toast('✅ Ustawione i skalibrowane ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');}
+    if(r&&r.q>=0.55){CAL={pts:r.pts};saveCfg();buildGeo();resetRefs();lrnOnCal();fineOnCal();toast('✅ Ustawione i skalibrowane ('+Math.round(r.q*100)+'%)');status('Gotowe — rzucaj 🎯','#00ff88');}
     else await runAutoCal(true);},
   async setupSkip(){S.setupSeen=true;saveCfg();closeSetup();await runAutoCal(true);},
   start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,pickTab,addMissed,addMissedTab,refocus(){refocus(true);},
@@ -10135,7 +10169,7 @@ window.AutoCam={
   bullEnd(keep){const was=BULL.active;BULL.active=false;BULL.cb={};turn=[];turnKey0=null;closed=false;if(!was)return;if(!keep)dmClose();else{resetRefs();dmRender();}},
   bullActive(){return BULL.active;},
   testApplause(l){applause(l||1);},
-  learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;lrnSave();toast('🧠 Zapomniano nauczone korekty');},
+  learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;FINE.h=[];FINE.off=[0,0];FINE.gain=0;fineSave();lrnSave();toast('🧠 Zapomniano nauczone korekty');},
   async clearReports(){if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
   reportDart(i){$('dm-pick').classList.remove('on');if(turn[i])report('manual',turn[i],null,null);},
   setVoice(v){if(v==='__pack'){try{Caller.set(true);}catch(e){}}else{try{Caller.set(false);}catch(e){}S.voice=v;saveCfg();applyVoice();}try{TTS.say('Treble twenty',0.7,0.95);}catch(e){}},
@@ -10156,6 +10190,7 @@ window.AutoCam={
   toggleSet(){$('ac-set').classList.toggle('on');},
   set(k,v){S[k]=v;saveCfg();if(k==='lockExp'&&v)lockExposure();},
   async setCam(id){S.deviceId=id;saveCfg();stop();await start();},
+  _fine:()=>FINE,_fineEst:()=>{fineEstimate();return FINE.off;},
   _t:{bgSoon:(w)=>bgCalSoon(w),autoCalibrate:(i)=>autoCalibrate(i),bgCal:()=>bgCalRun(true),cal:(v)=>{if(v){CAL={pts:v};buildGeo();resetRefs();}return CAL&&CAL.pts;},solveH,ap,scoreAt,learn:()=>LRN,turn:()=>turn.map(d=>({tip:d.tip,lbl:d.sc.lbl,un:d.unsure?d.unsure.lbl:null})),log:()=>LOGALL.slice(-120)}
 };
 })();
