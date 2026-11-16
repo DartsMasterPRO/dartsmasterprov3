@@ -14313,8 +14313,9 @@ window.X4={mic,mute,state:()=>Object.assign({},VM,{rtc:RTC.state,role:RTC.role})
 #tvp-ov .st{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;font-family:monospace;font-size:11px;margin-bottom:6px}
 #tvp-ov .st.on{background:rgba(0,255,136,.12);color:#00ff88;border:1px solid rgba(0,255,136,.4)}
 #tvp-ov .st.off{background:#1a1a26;color:#8888aa;border:1px solid #2a2a40}
-#tvp-dot{position:fixed;left:50%;top:calc(4px + env(safe-area-inset-top));transform:translateX(-50%);z-index:9800;padding:2px 9px;border-radius:10px;background:rgba(255,60,60,.85);color:#fff;font-family:'Bebas Neue',cursive;font-size:12px;letter-spacing:1px;display:none;pointer-events:none}
+#tvp-dot{position:absolute;right:-7px;bottom:-7px;width:18px;height:18px;border-radius:50%;background:#ff3c3c;border:2px solid #0a0a0f;font-size:9px;line-height:14px;text-align:center;display:none;pointer-events:none;box-shadow:0 0 8px rgba(255,60,60,.7)}
 #tvp-dot.on{display:block}
+#menu-tv .tvon{color:#ff3c3c;font-size:11px;margin-left:6px}
 #tvp-hint{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translate(-50%,400%);opacity:0;pointer-events:none;z-index:9900;padding:12px 18px;border-radius:24px;border:1px solid rgba(0,229,255,.6);background:rgba(10,10,16,.94);color:#e8e8f0;font-family:'Rajdhani',sans-serif;font-size:15px;box-shadow:0 10px 30px rgba(0,0,0,.6),0 0 20px rgba(0,229,255,.3);transition:transform .4s cubic-bezier(.2,1.3,.4,1);cursor:pointer;white-space:nowrap}
 #tvp-hint.on{transform:translate(-50%,0);opacity:1;pointer-events:auto}
 #tvp-hint b{color:#00e5ff}
@@ -14387,7 +14388,6 @@ body.tvmode #tv{display:flex}
 #tv.cam1 .side .pc .tag{left:50%;transform:translateX(-50%);background:none}
 @media (max-aspect-ratio:1/1){#tv .pc .sc{font-size:16vh}#tv .pc .nm{font-size:5vh}#tv .fl b{font-size:26vh}}
 </style>
-<div id="tvp-dot">📺 NA TV</div>
 <div id="tv"><div class="hd"><div class="lg">DARTSMASTER PRO</div><div class="md" id="tv-md"></div><div class="ck" id="tv-ck"></div></div>
   <div class="pl" id="tv-pl"></div><div class="tk" id="tv-tk"></div><div class="fl" id="tv-fl"></div>
   <div class="win" id="tv-win"><small>GAME SHOT AND THE MATCH</small><b id="tv-wn"></b></div>
@@ -14465,7 +14465,13 @@ async function frameTick(){
   }catch(e){}finally{FR.busy=false;}
 }
 if(!TVMODE)setInterval(frameTick,200);
-function setOn(v){ON=v;LS.set('dm_tv_on',v);document.getElementById('tvp-dot').classList.toggle('on',v);if(v)push(true);}
+function tvDot(){ // mała kropka 📺 w rogu przycisku ☰ — nie zasłania nicku ani innych pól
+  const mt=document.getElementById('menu-toggle');if(!mt)return;let d=document.getElementById('tvp-dot');
+  if(!d){d=document.createElement('div');d.id='tvp-dot';d.textContent='📺';d.title='Nadaję na TV';mt.appendChild(d);}
+  d.classList.toggle('on',!!ON);const mi=document.getElementById('menu-tv');
+  if(mi){let t=mi.querySelector('.tvon');if(ON&&!t){t=document.createElement('span');t.className='tvon';t.textContent='● NADAJĘ';mi.appendChild(t);}else if(!ON&&t)t.remove();}
+}
+function setOn(v){ON=v;LS.set('dm_tv_on',v);tvDot();if(v)push(true);}
 if(!TVMODE&&LS.get('dm_tv_on',false))setTimeout(()=>{if(window._fbUser)setOn(true);},4000);
 async function qr(cv,text){
   if(typeof qrcode==='undefined'){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='/lib/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
@@ -14525,6 +14531,7 @@ function addEntries(){
   const about=document.getElementById('about-label');
   if(about&&!document.getElementById('menu-tv')){const it=document.createElement('div');it.className='menu-item';it.id='menu-tv';it.onclick=()=>{try{closeMenu();}catch(e){}sheet();};
     it.innerHTML='<span class="menu-item-icon">📺</span><span>Tablica na TV</span>';const sec=about.closest('.menu-item');sec.parentNode.insertBefore(it,sec);}
+  tvDot();
   const row=document.getElementById('x2-row');
   if(row&&!row.querySelector('.tvb')){row.style.gridTemplateColumns='repeat(4,1fr)';const b=document.createElement('button');b.type='button';b.className='tvb';b.textContent='📺 TV';b.onclick=sheet;row.appendChild(b);}
 }
