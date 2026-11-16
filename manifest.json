@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "DartsMaster Pro",
-  "short_name": "DartsMaster",
+  "name": "Darts Master Arena",
+  "short_name": "DM Arena",
   "description": "Profesjonalna aplikacja do gry w darta",
   "start_url": "/app",
   "scope": "/",

@@ -1,8 +1,8 @@
-// DartsMaster Pro — Service Worker v2
+// Darts Master Arena — Service Worker v2
 // • strony (/, /app): najpierw sieć (zawsze najnowsza wersja), bez sieci — kopia z cache
 // • /media/* (intro, dźwięki, grafiki): z cache (pobierane raz)
 // • nic spoza domeny (Firebase, Google Fonts) nie jest dotykane
-const VERSION = 'dm-v33';
+const VERSION = 'dm-v34';
 const PAGES = VERSION + '-pages';
 const MEDIA = VERSION + '-media';
 const PRECACHE_MEDIA = ['/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.png', '/media/intro.mp4'];
@@ -80,9 +80,9 @@ self.addEventListener('fetch', event => {
 // ── Powiadomienia push (zaproszenia do gry) ──
 self.addEventListener('push', event => {
   let d = {};
-  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { notification: { title: 'DartsMaster Pro', body: event.data ? event.data.text() : '' } }; }
+  try { d = event.data ? event.data.json() : {}; } catch (e) { d = { notification: { title: 'Darts Master Arena', body: event.data ? event.data.text() : '' } }; }
   const n = d.notification || {}, data = d.data || {};
-  const title = n.title || data.title || 'DartsMaster Pro';
+  const title = n.title || data.title || 'Darts Master Arena';
   const link = (d.fcmOptions && d.fcmOptions.link) || data.link || '/app';
   event.waitUntil(self.registration.showNotification(title, {
     body: n.body || data.body || '', icon: n.icon || '/icon-192x192.png', badge: '/icon-192x192.png',
