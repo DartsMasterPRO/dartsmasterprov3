@@ -2,7 +2,7 @@
 // • strony (/, /app): najpierw sieć (zawsze najnowsza wersja), bez sieci — kopia z cache
 // • /media/* (intro, dźwięki, grafiki): z cache (pobierane raz)
 // • nic spoza domeny (Firebase, Google Fonts) nie jest dotykane
-const VERSION = 'dm-v40';
+const VERSION = 'dm-v41';
 const PAGES = VERSION + '-pages';
 const MEDIA = VERSION + '-media';
 const PRECACHE_MEDIA = ['/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.png', '/media/intro.mp4'];
@@ -10,7 +10,7 @@ const PRECACHE_MEDIA = ['/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.p
 self.addEventListener('install', event => {
   self.skipWaiting();
   event.waitUntil(
-    caches.open(MEDIA).then(c => Promise.all(PRECACHE_MEDIA.map(u => c.add(u).catch(() => {}))))
+    caches.open(MEDIA).then(c => Promise.all(PRECACHE_MEDIA.map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {}))))  // reload = z pominięciem starej kopii przeglądarki
   );
 });
 
