@@ -2,10 +2,10 @@
 // • strony (/, /app): najpierw sieć (zawsze najnowsza wersja), bez sieci — kopia z cache
 // • /media/* (intro, dźwięki, grafiki): z cache (pobierane raz)
 // • nic spoza domeny (Firebase, Google Fonts) nie jest dotykane
-const VERSION = 'dm-v48';
+const VERSION = 'dm-v50';
 const PAGES = VERSION + '-pages';
 const MEDIA = VERSION + '-media';
-const PRECACHE_MEDIA = ['/media/logo-anim.mp4','/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.png', '/media/intro.mp4'];
+const PRECACHE_MEDIA = ['/media/logo-anim.mp4','/media/start-anim.mp4','/media/wygrana.mp3', '/media/180.mp3', '/media/rzutka.png', '/media/intro.mp4'];
 
 self.addEventListener('install', event => {
   self.skipWaiting();
