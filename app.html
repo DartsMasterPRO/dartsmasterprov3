@@ -12483,7 +12483,7 @@ if(window.MatchStats){const _o=MatchStats.open;MatchStats.open=async function(){
   const mb=document.getElementById('ms-body');if(mb&&!mb.querySelector('.dx-rep-btn')){const b=document.createElement('button');b.className='dx-rep-btn';b.type='button';b.textContent='📤 UDOSTĘPNIJ RAPORT MECZU';b.onclick=report;mb.appendChild(b);}}catch(e){}return r;};}
 
 /* =================== KOPIA ZAPASOWA =================== */
-const BK_KEYS=['dm3','dm_form','dm_hits','dm_ach','dm_train','dm_match_stats','dm_owner','dm_plan','dm_pub','dm_bot','dm_autocam_learn','dm_caller','dm_caller_req'];
+const BK_KEYS=['dm3','dm_form','dm_hits','dm_ach','dm_train','dm_match_stats','dm_owner','dm_plan','dm_pub','dm_bot','dm_autocam_learn','dm_caller','dm_caller_req','dm_my_fighters','dm_pl_pics'];
 const b64=buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s);};
 const unb64=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;};
 async function gz(str){if(typeof CompressionStream==='undefined')return{z:0,d:str};const cs=new Blob([str]).stream().pipeThrough(new CompressionStream('gzip'));return{z:1,d:b64(await new Response(cs).arrayBuffer())};}
@@ -14697,16 +14697,58 @@ window.TVX={sheet,cast,auto(v){LS.set('dm_tv_auto',!!v);if(v&&window._fbUser&&!O
 #fx-card .bt button{flex:1;border-radius:12px;padding:12px;font:700 16px 'Rajdhani',sans-serif;cursor:pointer;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0}
 #fx-card .bt .ok{background:linear-gradient(135deg,#ff3c3c,#c81e1e);border-color:#ff3c3c;color:#fff}
 #fx-card .xx{position:absolute;top:10px;right:10px;z-index:2;width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:17px;cursor:pointer}
+#fx-ov .it.add{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px dashed #00e5ff;background:rgba(0,229,255,.05);min-height:118px}
+#fx-ov .it.add .pl{width:56px;height:56px;border-radius:50%;border:2px dashed #00e5ff;color:#00e5ff;font:300 34px/52px system-ui;margin-bottom:6px}
+#fx-ov .it .me{position:absolute;top:5px;right:5px;font-size:9px;font-weight:700;background:#00e5ff;color:#000;border-radius:5px;padding:1px 5px}
+#fx-ov .sec{grid-column:1/-1;font-family:'Bebas Neue',cursive;letter-spacing:1.5px;font-size:16px;color:#8888a8;margin:4px 0 -2px}
+#fx-ed{position:fixed;inset:0;z-index:3002;display:none;flex-direction:column;background:#0a0a0f;font-family:'Rajdhani',sans-serif;color:#e8e8f0}
+#fx-ed.on{display:flex}
+#fx-ed .hd{display:flex;align-items:center;gap:10px;padding:14px}
+#fx-ed .hd b{flex:1;font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:1.5px}
+#fx-ed .bd{flex:1;overflow-y:auto;padding:0 16px 10px}
+#fx-ed .phw{display:flex;flex-direction:column;align-items:center;gap:8px;margin:4px 0 12px}
+#fx-ed canvas{width:180px;height:180px;border-radius:50%;background:#14141e;border:3px solid var(--c,#00e5ff);touch-action:none;cursor:grab}
+#fx-ed .phb{display:flex;gap:8px}
+#fx-ed .phb button,#fx-ed .phb label{border:1px solid #2a2a40;background:#14141e;color:#e8e8f0;border-radius:10px;padding:8px 12px;font:700 14px 'Rajdhani',sans-serif;cursor:pointer}
+#fx-ed input[type=range]{width:180px;accent-color:#00e5ff}
+#fx-ed .hint{font-size:12px;color:#8888a8;text-align:center}
+#fx-ed .f{margin-bottom:10px}
+#fx-ed .f label.l{display:block;font-size:12px;letter-spacing:1px;color:#8888a8;font-weight:700;margin-bottom:4px;text-transform:uppercase}
+#fx-ed .f input,#fx-ed .f select,#fx-ed .f textarea{width:100%;box-sizing:border-box;background:#14141e;border:1px solid #2a2a40;border-radius:10px;padding:10px 12px;color:#e8e8f0;font:600 16px 'Rajdhani',sans-serif}
+#fx-ed .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#fx-ed .cols{display:flex;gap:10px}
+#fx-ed .cols span{width:34px;height:34px;border-radius:50%;cursor:pointer;border:3px solid transparent}
+#fx-ed .cols span.on{border-color:#fff}
+#fx-ed .ft{display:flex;gap:8px;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid #1d1d28}
+#fx-ed .ft button{flex:1;border-radius:12px;padding:12px;font:700 16px 'Rajdhani',sans-serif;cursor:pointer;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0}
+#fx-ed .ft .ok{background:linear-gradient(135deg,#ff3c3c,#c81e1e);border-color:#ff3c3c;color:#fff}
+#fx-card .bt .del{flex:0 0 52px;color:#ff6b6b}
 </style>
 <div id="fx-ov"><div class="hd"><b id="fx-t">Wybierz zawodnika<small></small></b><button class="x" onclick="FX.close()">✕</button></div>
   <div class="tabs" id="fx-tabs"></div><div class="grid" id="fx-grid"></div>
   <div class="ft"><button id="fx-clear" onclick="FX.clear()">Usuń zdjęcie (litera)</button></div></div>
 <div id="fx-card" onclick="if(event.target===this)FX.back()"><div class="cd" id="fx-cd"></div></div>
+<div id="fx-ed"><div class="hd"><b id="fx-ed-t">Nowy zawodnik</b><button class="x" style="width:38px;height:38px;border-radius:10px;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0;font-size:18px" onclick="FX.edClose()">✕</button></div>
+ <div class="bd">
+  <div class="phw"><canvas id="fx-cv" width="360" height="360"></canvas>
+   <input type="range" id="fx-zoom" min="1" max="3" step="0.01" value="1">
+   <div class="hint" id="fx-hint">Dodaj zdjęcie — potem przesuń palcem i przybliż suwakiem</div>
+   <div class="phb"><label>📷 Zrób zdjęcie<input type="file" accept="image/*" capture="user" style="display:none" onchange="FX._file(this)"></label><label>🖼 Z galerii<input type="file" accept="image/*" style="display:none" onchange="FX._file(this)"></label></div></div>
+  <div class="f"><label class="l">Pseudonim *</label><input id="fx-k" maxlength="20" placeholder="np. Snajper"></div>
+  <div class="f"><label class="l">Imię i nazwisko</label><input id="fx-n" maxlength="30" placeholder="np. Jan Kowalski"></div>
+  <div class="two"><div class="f"><label class="l">Kraj</label><select id="fx-co"></select></div><div class="f"><label class="l">Wiek</label><input id="fx-a" type="number" min="5" max="99" inputmode="numeric"></div></div>
+  <div class="two"><div class="f"><label class="l">Ulubione pole</label><select id="fx-fp"><option>T20</option><option>T19</option><option>T18</option><option>T17</option><option>BULL</option><option>D16</option><option>D20</option><option>D8</option></select></div><div class="f"><label class="l">Waga lotek (g)</label><input id="fx-w" type="number" min="12" max="50" inputmode="numeric"></div></div>
+  <div class="two"><div class="f"><label class="l">Średnia (deklarowana)</label><input id="fx-avg" type="number" min="0" max="180" step="0.1" inputmode="decimal"></div><div class="f"><label class="l">Najlepsze zejście</label><input id="fx-bco" type="number" min="2" max="170" inputmode="numeric"></div></div>
+  <div class="f"><label class="l">Kolor koszulki</label><div class="cols" id="fx-cols"></div></div>
+  <div class="f"><label class="l">Motto</label><input id="fx-m" maxlength="60" placeholder="np. Trzy lotki, jedno marzenie"></div>
+  <div class="f"><label class="l">Kilka słów o sobie</label><textarea id="fx-b" rows="2" maxlength="160"></textarea></div>
+ </div>
+ <div class="ft"><button onclick="FX.edClose()">Anuluj</button><button class="ok" onclick="FX.edSave()">💾 Zapisz zawodnika</button></div></div>
 <script>
 (function(){
 // Zdjęcia leżą w aplikacji (media/players). Wersja z pliku/strony www bierze je z serwera aplikacji.
 const BASE=/(^|\.)dartsmasterarena\.vercel\.app$|^localhost$|^127\./.test(location.hostname)?'':'https://dartsmasterarena.vercel.app/';
-const IMG=(id,big)=>BASE+'media/players/'+id+(big?'-big':'')+'.webp';
+const IMG=(id,big)=>{if(id&&id[0]==='u'){const r=mine().find(x=>x.id===id);return r&&r.img?r.img:'';}return BASE+'media/players/'+id+(big?'-big':'')+'.webp';};
 const COL={r:'#ff3c3c',p:'#a855f7',b:'#3b82f6',g:'#22c55e',y:'#facc15'};
 const COLN={r:'Czerwoni',p:'Fioletowi',b:'Niebiescy',g:'Zieloni',y:'Żółci'};
 // Wymyśleni zawodnicy — wszystko fikcja, dla zabawy
@@ -14732,14 +14774,19 @@ const R=[
  {id:'p19',c:'y',n:'Mateus Silva',k:'Canarinho',fl:'🇧🇷',co:'Brazylia',a:33,avg:92.0,co_:155,f:'T19',w:24,s:2010,m:'Samba na tarczy!',b:'Były piłkarz z Rio. Tańczy po każdej 180-tce — publiczność to uwielbia, sędziowie mniej.'},
  {id:'p20',c:'y',n:'Erik Svensson',k:'Thunder',fl:'🇸🇪',co:'Szwecja',a:37,avg:94.7,co_:164,f:'T20',w:25,s:2004,m:'Najpierw grzmot, potem błysk.',b:'Kowal z Göteborga z najmocniejszym uściskiem dłoni w lidze. Lotki kuje sobie sam.'}
 ];
-const BY={};R.forEach(r=>BY[r.id]=r);
+// własni zawodnicy — zapisani w telefonie (i w kopii zapasowej), zdjęcie jako mały JPEG
+const MKEY='dm_my_fighters';
+const mine=()=>{try{const a=JSON.parse(localStorage.getItem(MKEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}};
+const saveMine=a=>{try{localStorage.setItem(MKEY,JSON.stringify(a));return true;}catch(e){toast&&toast('❌ Brak miejsca w pamięci telefonu na zdjęcie');return false;}};
+const ALL=()=>mine().concat(R);
+const find=id=>ALL().find(r=>r.id===id);
 const KEY='dm_pl_pics';
 const get=()=>{try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}};
 const set=a=>{try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}};
 let slot=0,tab='all';
 
 function paint(el,id){ // zdjęcie w kółku gracza (zostaje rozmiar i kształt z CSS)
-  if(!el)return;const r=id&&BY[id];
+  if(!el)return;const r=id&&find(id);
   if(r){el.style.backgroundImage='url('+IMG(id)+')';el.classList.add('fx-pic');el.style.borderColor=COL[r.c];}
   else if(el.classList.contains('fx-pic')){el.style.backgroundImage='';el.classList.remove('fx-pic');} // bez zdjęcia — zostaje kolorowe kółko z literą
 }
@@ -14776,32 +14823,34 @@ function open(i){
 }
 function close(){document.getElementById('fx-ov').classList.remove('on');document.getElementById('fx-card').classList.remove('on');}
 function tabs(){
-  const t=[['all','Wszyscy']].concat(Object.keys(COLN).map(k=>[k,COLN[k]]));
-  document.getElementById('fx-tabs').innerHTML=t.map(([k,l])=>'<button class="'+(tab===k?'on':'')+'" onclick="FX._tab(\''+k+'\')">'+(k==='all'?'':'<span style="color:'+COL[k]+'">●</span> ')+l+'</button>').join('');
+  const t=[['all','Wszyscy'],['me','⭐ Moi']].concat(Object.keys(COLN).map(k=>[k,COLN[k]]));
+  document.getElementById('fx-tabs').innerHTML=t.map(([k,l])=>'<button class="'+(tab===k?'on':'')+'" onclick="FX._tab(\''+k+'\')">'+(k==='all'||k==='me'?'':'<span style="color:'+COL[k]+'">●</span> ')+l+'</button>').join('');
 }
 function grid(){
-  const pics=get(),mine=pics[slot];
-  document.getElementById('fx-grid').innerHTML=R.filter(r=>tab==='all'||r.c===tab).map(r=>{
+  const pics=get(),minePick=pics[slot];
+  const my=mine();
+  const tile=r=>{
     const owner=pics.findIndex((x,j)=>x===r.id&&j!==slot&&j<G.players.length);
-    return '<div class="it'+(r.id===mine?' sel':'')+(owner>=0?' tk':'')+'" style="--c:'+COL[r.c]+'" onclick="FX.card(\''+r.id+'\')">'+
+    return '<div class="it'+(r.id===minePick?' sel':'')+(owner>=0?' tk':'')+'" style="--c:'+COL[r.c]+'" onclick="FX.card(\''+r.id+'\')">'+
       (owner>=0?'<span class="tg">'+(G.players[owner]||'').slice(0,8).replace(/[<&]/g,'')+'</span>':'')+
-      '<img src="'+IMG(r.id)+'" alt="" loading="lazy"><div class="n">'+r.k+'</div><div class="f">'+r.fl+' '+r.co+'</div></div>';
-  }).join('');
+      (r.id[0]==='u'?'<span class="me">MÓJ</span>':'')+
+      '<img src="'+IMG(r.id)+'" alt="" loading="lazy"><div class="n">'+esc(r.k)+'</div><div class="f">'+(r.fl||'')+' '+esc(r.co||'')+'</div></div>';
+  };
+  let h='<div class="it add" onclick="FX.ed()"><div class="pl">+</div><div class="n">Stwórz<br>własnego</div></div>';
+  if(tab==='all'||tab==='me'){if(my.length)h+='<div class="sec">⭐ Moi zawodnicy</div>'+my.map(tile).join('');}
+  if(tab!=='me'){h+=(my.length&&tab==='all'?'<div class="sec">Zawodnicy Arena</div>':'')+R.filter(r=>tab==='all'||r.c===tab).map(tile).join('');}
+  else if(!my.length)h+='<div class="sec" style="font-family:Rajdhani;letter-spacing:0;font-size:14px">Nie masz jeszcze własnych zawodników — stwórz pierwszego 👆</div>';
+  document.getElementById('fx-grid').innerHTML=h;
 }
 function card(id){
-  const r=BY[id];if(!r)return;const c=COL[r.c];
+  const r=find(id);if(!r)return;const c=COL[r.c]||'#00e5ff';const own=id[0]==='u';
+  const tiles=[[r.avg!=null&&r.avg!==''?(+r.avg).toFixed(1):'','ŚREDNIA'],[r.co_||'','NAJL. ZEJŚCIE'],[r.f||'','ULUBIONE POLE'],[r.w?r.w+'g':'','LOTKI'],[r.s||'','RZUCA OD'],[r.a||'','WIEK']].filter(t=>t[0]!=='');
   document.getElementById('fx-cd').innerHTML=
     '<button class="xx" onclick="FX.back()">✕</button>'+
-    '<div class="ph"><img src="'+IMG(id,1)+'" alt=""><div class="nm"><div class="nk">„'+r.k+'”</div><div class="fl">'+r.fl+' '+r.n+' · '+r.co+' · '+r.a+' lat</div></div></div>'+
-    '<div class="rows" style="--c:'+c+'">'+
-      '<div class="st"><b>'+r.avg.toFixed(1)+'</b><span>ŚREDNIA</span></div>'+
-      '<div class="st"><b>'+r.co_+'</b><span>NAJL. ZEJŚCIE</span></div>'+
-      '<div class="st"><b>'+r.f+'</b><span>ULUBIONE POLE</span></div>'+
-      '<div class="st"><b>'+r.w+'g</b><span>LOTKI</span></div>'+
-      '<div class="st"><b>'+r.s+'</b><span>RZUCA OD</span></div>'+
-      '<div class="st"><b>'+r.a+'</b><span>WIEK</span></div>'+
-    '</div><div class="bio">'+r.b+'</div><div class="mt" style="--c:'+c+'">„'+r.m+'”</div>'+
-    '<div class="bt"><button onclick="FX.back()">← Wróć</button><button class="ok" onclick="FX.pick(\''+id+'\')">✓ Wybieram</button></div>';
+    '<div class="ph"><img src="'+IMG(id,1)+'" alt=""><div class="nm"><div class="nk">„'+esc(r.k)+'”</div><div class="fl">'+[(r.fl||'')+' '+esc(r.n||''),esc(r.co||''),r.a?r.a+' lat':''].filter(x=>x.trim()).join(' · ')+'</div></div></div>'+
+    (tiles.length?'<div class="rows" style="--c:'+c+'">'+tiles.map(t=>'<div class="st"><b>'+esc(String(t[0]))+'</b><span>'+t[1]+'</span></div>').join('')+'</div>':'')+
+    (r.b?'<div class="bio">'+esc(r.b)+'</div>':'')+(r.m?'<div class="mt" style="--c:'+c+'">„'+esc(r.m)+'”</div>':'')+
+    '<div class="bt">'+(own?'<button class="del" title="Usuń" onclick="FX.del(\''+id+'\')">🗑</button><button onclick="FX.ed(\''+id+'\')">✏️ Edytuj</button>':'<button onclick="FX.back()">← Wróć</button>')+'<button class="ok" onclick="FX.pick(\''+id+'\')">✓ Wybieram</button></div>';
   document.getElementById('fx-card').classList.add('on');
 }
 function back(){document.getElementById('fx-card').classList.remove('on');}
@@ -14810,15 +14859,84 @@ function pick(id){
   // jeden zawodnik = jeden gracz: zabierz zdjęcie innemu graczowi
   for(let j=0;j<a.length;j++)if(a[j]===id&&j!==slot)a[j]=null;
   a[slot]=id;set(a);
-  const r=BY[id],cur=G.players[slot]||'';
+  const r=find(id),cur=G.players[slot]||'';
   // domyślna nazwa „Gracz N” → wpisz pseudonim zawodnika (własnej nazwy nie ruszamy)
   if(!cur||/^Gracz \d+$/.test(cur)){G.players[slot]=r.k;}
   close();try{renderPlayers();}catch(e){decorSetup();}
   try{toast('🎯 '+(G.players[slot])+' — '+r.fl+' '+r.n);}catch(e){}
 }
 function clear(){const a=get();a[slot]=null;set(a);close();try{renderPlayers();}catch(e){decorSetup();}}
-window.FX={open,close,card,back,pick,clear,_tab(k){tab=k;tabs();grid();},roster:R,pics:get};
-setTimeout(()=>{try{decorSetup();}catch(e){}},0);
+const esc=t=>String(t==null?'':t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CO=[['🇵🇱','Polska'],['🇩🇪','Niemcy'],['🇦🇹','Austria'],['🇨🇭','Szwajcaria'],['🇨🇿','Czechy'],['🇸🇰','Słowacja'],['🇺🇦','Ukraina'],['🇱🇹','Litwa'],['🇳🇱','Holandia'],['🇧🇪','Belgia'],['🇬🇧','Wielka Brytania'],['🏴󠁧󠁢󠁥󠁮󠁧󠁿','Anglia'],['🏴󠁧󠁢󠁳󠁣󠁴󠁿','Szkocja'],['🏴󠁧󠁢󠁷󠁬󠁳󠁿','Walia'],['🇮🇪','Irlandia'],['🇫🇷','Francja'],['🇪🇸','Hiszpania'],['🇵🇹','Portugalia'],['🇮🇹','Włochy'],['🇸🇪','Szwecja'],['🇳🇴','Norwegia'],['🇩🇰','Dania'],['🇫🇮','Finlandia'],['🇭🇷','Chorwacja'],['🇭🇺','Węgry'],['🇷🇴','Rumunia'],['🇺🇸','USA'],['🇨🇦','Kanada'],['🇦🇺','Australia'],['🇳🇿','Nowa Zelandia'],['🇧🇷','Brazylia'],['🇯🇵','Japonia']];
+// ---- edytor własnego zawodnika ----
+let ED=null; // {id, img:Image|null, z, ox, oy, c}
+function ed(id){
+  const r=id?mine().find(x=>x.id===id):null;
+  ED={id:id||null,img:null,z:1,ox:0,oy:0,c:r?r.c:'r',keep:r?r.img:null};
+  document.getElementById('fx-ed-t').textContent=r?'Edytuj zawodnika':'Nowy zawodnik';
+  const sel=document.getElementById('fx-co');sel.innerHTML=CO.map((c,i)=>'<option value="'+i+'">'+c[0]+' '+c[1]+'</option>').join('');
+  const ci=r?CO.findIndex(c=>c[1]===r.co):0;sel.value=String(ci<0?0:ci);
+  const v=(k,x)=>{document.getElementById(k).value=x==null?'':x;};
+  v('fx-k',r&&r.k);v('fx-n',r&&r.n);v('fx-a',r&&r.a);v('fx-w',r&&r.w);v('fx-avg',r&&r.avg);v('fx-bco',r&&r.co_);v('fx-m',r&&r.m);v('fx-b',r&&r.b);
+  if(r&&r.f)document.getElementById('fx-fp').value=r.f;
+  if(!r){const nm=(G.players[slot]||'');if(nm&&!/^Gracz \d+$/.test(nm))v('fx-k',nm);}
+  document.getElementById('fx-zoom').value=1;
+  cols();
+  if(r&&r.img){const im=new Image();im.onload=()=>{ED.img=im;draw();};im.src=r.img;}
+  draw();document.getElementById('fx-card').classList.remove('on');document.getElementById('fx-ed').classList.add('on');
+}
+function edClose(){document.getElementById('fx-ed').classList.remove('on');ED=null;}
+function cols(){document.getElementById('fx-cols').innerHTML=Object.keys(COL).map(k=>'<span style="background:'+COL[k]+'" class="'+(ED.c===k?'on':'')+'" onclick="FX._col(\''+k+'\')"></span>').join('');document.getElementById('fx-cv').style.setProperty('--c',COL[ED.c]);}
+function draw(){
+  const cv=document.getElementById('fx-cv'),g=cv.getContext('2d'),S=cv.width;g.fillStyle='#14141e';g.fillRect(0,0,S,S);
+  document.getElementById('fx-hint').textContent=ED&&ED.img?'Przesuń palcem, przybliż suwakiem':'Dodaj zdjęcie — potem przesuń palcem i przybliż suwakiem';
+  if(!ED||!ED.img){g.fillStyle='#3a3a55';g.font='700 120px system-ui';g.textAlign='center';g.textBaseline='middle';g.fillText('👤',S/2,S/2+8);return;}
+  const im=ED.img,base=S/Math.min(im.width,im.height),sc=base*ED.z,w=im.width*sc,h=im.height*sc;
+  // nie pozwól wyjechać zdjęciu poza kółko
+  const mx=(w-S)/2,my=(h-S)/2;ED.ox=Math.max(-mx,Math.min(mx,ED.ox));ED.oy=Math.max(-my,Math.min(my,ED.oy));
+  g.drawImage(im,(S-w)/2+ED.ox,(S-h)/2+ED.oy,w,h);
+}
+function file(inp){
+  const f=inp.files&&inp.files[0];inp.value='';if(!f)return;
+  const url=URL.createObjectURL(f),im=new Image();
+  im.onload=()=>{ED.img=im;ED.z=1;ED.ox=0;ED.oy=0;document.getElementById('fx-zoom').value=1;draw();URL.revokeObjectURL(url);};
+  im.onerror=()=>{toast('❌ Nie udało się wczytać zdjęcia');};im.src=url;
+}
+(function(){ // przesuwanie zdjęcia palcem
+  const cv=document.getElementById('fx-cv');let st=null;
+  cv.addEventListener('pointerdown',e=>{if(!ED||!ED.img)return;st={x:e.clientX,y:e.clientY,ox:ED.ox,oy:ED.oy};cv.setPointerCapture(e.pointerId);});
+  cv.addEventListener('pointermove',e=>{if(!st)return;const k=cv.width/cv.getBoundingClientRect().width;ED.ox=st.ox+(e.clientX-st.x)*k;ED.oy=st.oy+(e.clientY-st.y)*k;draw();});
+  const end=()=>{st=null;};cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+  document.getElementById('fx-zoom').addEventListener('input',e=>{if(!ED)return;ED.z=+e.target.value;draw();});
+})();
+function edSave(){
+  const k=document.getElementById('fx-k').value.trim().slice(0,20);
+  if(!k){toast('Wpisz pseudonim zawodnika');document.getElementById('fx-k').focus();return;}
+  let img=ED.keep;
+  if(ED.img){const o=document.createElement('canvas');o.width=o.height=360;const src=document.getElementById('fx-cv');o.getContext('2d').drawImage(src,0,0,360,360);img=o.toDataURL('image/jpeg',0.8);}
+  const num=(id,a,b)=>{const v=parseFloat(document.getElementById(id).value);return isFinite(v)&&v>=a&&v<=b?v:'';};
+  const co=CO[+document.getElementById('fx-co').value]||CO[0];
+  const r={id:ED.id||('u'+Date.now().toString(36)),c:ED.c,k,n:document.getElementById('fx-n').value.trim().slice(0,30),fl:co[0],co:co[1],
+    a:num('fx-a',5,99),f:document.getElementById('fx-fp').value,w:num('fx-w',12,50),avg:num('fx-avg',0,180),co_:num('fx-bco',2,170),
+    m:document.getElementById('fx-m').value.trim().slice(0,60),b:document.getElementById('fx-b').value.trim().slice(0,160),img:img||'',t:Date.now()};
+  const a=mine();const i=a.findIndex(x=>x.id===r.id);if(i>=0)a[i]=r;else a.unshift(r);
+  if(!saveMine(a))return;
+  edClose();
+  // nowy/edytowany zawodnik od razu dla tego gracza; przy edycji nazwa gracza idzie za pseudonimem
+  const was=get()[slot]===r.id;pick(r.id,true);
+  if(was||i<0){G.players[slot]=r.k;try{renderPlayers();}catch(e){}}
+  toast('💾 Zawodnik „'+r.k+'” zapisany — będzie czekał przy następnej grze');
+}
+function del(id){
+  const r=mine().find(x=>x.id===id);if(!r)return;
+  if(!confirm('Usunąć zawodnika „'+r.k+'”?'))return;
+  saveMine(mine().filter(x=>x.id!==id));
+  const a=get().map(x=>x===id?null:x);set(a);back();grid();try{renderPlayers();}catch(e){}
+}
+window.FX={open,close,card,back,pick,clear,ed,edClose,edSave,del,_file:file,_col(k){ED.c=k;cols();},_tab(k){tab=k;tabs();grid();},roster:R,pics:get};
+// po ponownym uruchomieniu: gracz ze zdjęciem i domyślną nazwą „Gracz N” dostaje z powrotem pseudonim swojego zawodnika
+setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{const r=a[i]&&find(a[i]);if(r&&(!p||/^Gracz \d+$/.test(p))){G.players[i]=r.k;ch=true;}});
+  if(ch&&typeof renderPlayers==='function')renderPlayers();else decorSetup();}catch(e){}},0);
 })();
 </script>
 
