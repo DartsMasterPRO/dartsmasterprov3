@@ -4680,6 +4680,7 @@ document.addEventListener('DOMContentLoaded', function() {
     'border-radius:6px;padding:4px 9px;font-family:monospace;font-size:9px;' +
     'color:#00ff88;pointer-events:none;letter-spacing:.5px;';
   badge.textContent = '🔒 CHRONIONE';
+  return; // znaczek „CHRONIONE” wyłączony — zasłaniał przycisk ✕ przy graczu
   document.body.appendChild(badge);
   badge.style.transition='opacity .8s';
   setTimeout(function(){ badge.style.opacity = '0'; setTimeout(function(){ badge.remove(); },900); }, 4000); // znika całkiem — nie zasłania pól
@@ -14649,6 +14650,175 @@ if(TVMODE){
   }else if(c)connect(c);else askCode();
 }
 window.TVX={sheet,cast,auto(v){LS.set('dm_tv_auto',!!v);if(v&&window._fbUser&&!ON)setOn(true);},_recv:(st)=>{msg(null);render(st);},toggle(){setOn(!ON);sheet();},go(){const i=document.getElementById('tv-in');connect(i&&i.value);},unlock,_snap:snap,_render:render,_code:myCode,_fr:()=>FR};
+})();
+</script>
+
+<!-- ===== ZAWODNICY: zdjęcie gracza zamiast litery (wymyśleni zawodnicy, dla zabawy) ===== -->
+<style>
+.fx-av{cursor:pointer;position:relative;background-size:cover!important;background-position:center 20%!important}
+.fx-av .fx-plus{position:absolute;right:-2px;bottom:-2px;width:15px;height:15px;border-radius:50%;background:#0a0a0f;border:1.5px solid #00e5ff;color:#00e5ff;font:700 11px/12px system-ui;text-align:center;pointer-events:none}
+.fx-pic{color:transparent!important;background-size:cover!important;background-position:center 20%!important;box-shadow:0 0 0 2px rgba(255,255,255,.18)}
+#fx-ov{position:fixed;inset:0;z-index:3000;background:rgba(5,5,10,.94);backdrop-filter:blur(6px);display:none;flex-direction:column;font-family:'Rajdhani',sans-serif;color:#e8e8f0}
+#fx-ov.on{display:flex}
+#fx-ov .hd{display:flex;align-items:center;gap:10px;padding:14px 14px 8px}
+#fx-ov .hd b{font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:1.5px;flex:1;line-height:1.05}
+#fx-ov .hd b small{display:block;font-family:'Rajdhani',sans-serif;font-size:13px;letter-spacing:.3px;color:#8888a8;font-weight:600}
+#fx-ov .x{width:38px;height:38px;border-radius:10px;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0;font-size:18px;cursor:pointer;flex-shrink:0}
+#fx-ov .tabs{display:flex;gap:6px;padding:0 14px 8px;overflow-x:auto}
+#fx-ov .tabs button{flex-shrink:0;border:1px solid #2a2a40;background:#14141e;color:#a8a8c0;border-radius:20px;padding:5px 12px;font:600 13px 'Rajdhani',sans-serif;cursor:pointer}
+#fx-ov .tabs button.on{border-color:#00e5ff;color:#00e5ff;background:rgba(0,229,255,.08)}
+#fx-ov .grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;padding:4px 14px 18px;align-content:start}
+#fx-ov .it{background:#12121b;border:1px solid #22223a;border-radius:14px;padding:8px 6px 7px;text-align:center;cursor:pointer;position:relative}
+#fx-ov .it.sel{border-color:#00e5ff;box-shadow:0 0 14px rgba(0,229,255,.35)}
+#fx-ov .it.tk{opacity:.45}
+#fx-ov .it img{width:68px;height:68px;border-radius:50%;object-fit:cover;object-position:center 20%;display:block;margin:0 auto 5px;border:2px solid var(--c,#444)}
+#fx-ov .it .n{font-family:'Bebas Neue',cursive;font-size:15px;letter-spacing:.6px;line-height:1.05;color:#fff}
+#fx-ov .it .f{font-size:12px;color:#8888a8;margin-top:1px}
+#fx-ov .it .tg{position:absolute;top:5px;left:5px;font-size:9px;font-weight:700;letter-spacing:.5px;background:#2a2a40;color:#c8c8d8;border-radius:5px;padding:1px 5px}
+#fx-ov .ft{display:flex;gap:8px;padding:8px 14px calc(12px + env(safe-area-inset-bottom))}
+#fx-ov .ft button{flex:1;border-radius:12px;padding:11px;font:700 15px 'Rajdhani',sans-serif;cursor:pointer;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0}
+/* karta zawodnika */
+#fx-card{position:fixed;inset:0;z-index:3001;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.7);padding:16px}
+#fx-card.on{display:flex}
+#fx-card .cd{width:min(92vw,380px);max-height:92vh;overflow-y:auto;background:#0d0d14;border:1px solid #2a2a40;border-radius:20px;position:relative;font-family:'Rajdhani',sans-serif;color:#e8e8f0}
+#fx-card .ph{position:relative;aspect-ratio:1/0.9;overflow:hidden;border-radius:20px 20px 0 0}
+#fx-card .ph img{width:100%;height:100%;object-fit:cover;object-position:center 18%;display:block}
+#fx-card .ph:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,#0d0d14 98%)}
+#fx-card .nm{position:absolute;left:16px;right:16px;bottom:8px;z-index:1}
+#fx-card .nm .nk{font-family:'Bebas Neue',cursive;font-size:34px;letter-spacing:1.5px;line-height:.95;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.8)}
+#fx-card .nm .fl{font-size:15px;font-weight:600;color:#c8c8d8}
+#fx-card .rows{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 14px 4px}
+#fx-card .st{background:#14141e;border:1px solid #22223a;border-radius:12px;padding:8px 6px;text-align:center}
+#fx-card .st b{display:block;font-family:'Bebas Neue',cursive;font-size:24px;line-height:1;color:var(--c,#00e5ff)}
+#fx-card .st span{font-size:11px;color:#8888a8;font-weight:600;letter-spacing:.3px}
+#fx-card .bio{padding:8px 16px 4px;font-size:14.5px;line-height:1.45;color:#c8c8d8}
+#fx-card .mt{margin:6px 16px 0;padding:8px 12px;border-left:3px solid var(--c,#00e5ff);background:#14141e;border-radius:0 10px 10px 0;font-style:italic;font-size:14px;color:#e8e8f0}
+#fx-card .bt{display:flex;gap:8px;padding:14px}
+#fx-card .bt button{flex:1;border-radius:12px;padding:12px;font:700 16px 'Rajdhani',sans-serif;cursor:pointer;border:1px solid #2a2a40;background:#14141e;color:#e8e8f0}
+#fx-card .bt .ok{background:linear-gradient(135deg,#ff3c3c,#c81e1e);border-color:#ff3c3c;color:#fff}
+#fx-card .xx{position:absolute;top:10px;right:10px;z-index:2;width:36px;height:36px;border-radius:50%;border:none;background:rgba(0,0,0,.55);color:#fff;font-size:17px;cursor:pointer}
+</style>
+<div id="fx-ov"><div class="hd"><b id="fx-t">Wybierz zawodnika<small></small></b><button class="x" onclick="FX.close()">✕</button></div>
+  <div class="tabs" id="fx-tabs"></div><div class="grid" id="fx-grid"></div>
+  <div class="ft"><button id="fx-clear" onclick="FX.clear()">Usuń zdjęcie (litera)</button></div></div>
+<div id="fx-card" onclick="if(event.target===this)FX.back()"><div class="cd" id="fx-cd"></div></div>
+<script>
+(function(){
+// Zdjęcia leżą w aplikacji (media/players). Wersja z pliku/strony www bierze je z serwera aplikacji.
+const BASE=/(^|\.)dartsmasterarena\.vercel\.app$|^localhost$|^127\./.test(location.hostname)?'':'https://dartsmasterarena.vercel.app/';
+const IMG=(id,big)=>BASE+'media/players/'+id+(big?'-big':'')+'.webp';
+const COL={r:'#ff3c3c',p:'#a855f7',b:'#3b82f6',g:'#22c55e',y:'#facc15'};
+const COLN={r:'Czerwoni',p:'Fioletowi',b:'Niebiescy',g:'Zieloni',y:'Żółci'};
+// Wymyśleni zawodnicy — wszystko fikcja, dla zabawy
+const R=[
+ {id:'p01',c:'r',n:'Lena Kowalczyk',k:'Red Viper',fl:'🇵🇱',co:'Polska',a:28,avg:91.4,co_:156,f:'T20',w:22,s:2014,m:'Jedna lotka, jeden cel, zero litości.',b:'Mistrzyni zejść z Gdańska. Na treningu rzuca 1000 lotek dziennie i zawsze kończy na D16.'},
+ {id:'p02',c:'r',n:'Emma Brooks',k:'Scarlet',fl:'🇬🇧',co:'Anglia',a:31,avg:88.7,co_:141,f:'T19',w:21,s:2011,m:'Spokojna ręka, gorące serce.',b:'Była nauczycielka matematyki — liczy zejścia szybciej niż kalkulator. Kocha herbatę i finały w Blackpool.'},
+ {id:'p03',c:'r',n:'Marco Bellini',k:'Il Toro',fl:'🇮🇹',co:'Włochy',a:34,avg:95.2,co_:170,f:'T20',w:24,s:2008,m:'Avanti, sempre avanti!',b:'Byk z Mediolanu. Wchodzi na scenę przy owacjach, a 180-tki celebruje jak gole w derbach.'},
+ {id:'p04',c:'r',n:'Connor Doyle',k:'Firestarter',fl:'🇮🇪',co:'Irlandia',a:29,avg:93.8,co_:164,f:'T20',w:23,s:2012,m:'Rozpalam tarczę od pierwszej lotki.',b:'Rudy z Dublina, który w pubie ojca wyrzucił swoją pierwszą 180-tkę w wieku 14 lat.'},
+ {id:'p05',c:'p',n:'Sofia Lindqvist',k:'Amethyst',fl:'🇸🇪',co:'Szwecja',a:30,avg:87.9,co_:132,f:'T18',w:20,s:2013,m:'Precyzja to moja supermoc.',b:'Projektantka biżuterii ze Sztokholmu. Jej lotki mają fioletowe kryształki w piórkach.'},
+ {id:'p06',c:'p',n:'Hanna Becker',k:'Lady Violet',fl:'🇩🇪',co:'Niemcy',a:26,avg:90.1,co_:148,f:'T20',w:22,s:2015,m:'Kein Druck, nur Doppel.',b:'Najmłodsza mistrzyni ligi w Hamburgu. Słynie z zimnej krwi przy decydującym legu.'},
+ {id:'p07',c:'p',n:'Tomasz Wiśniewski',k:'Fiolet',fl:'🇵🇱',co:'Polska',a:36,avg:92.6,co_:160,f:'T19',w:25,s:2006,m:'Nie gram o punkty, gram o legendę.',b:'Kierowca TIR-a z Łodzi. Trenuje na tarczy przyczepionej w kabinie — oczywiście tylko na postojach.'},
+ {id:'p08',c:'p',n:'Jakub Novák',k:'Grizzly',fl:'🇨🇿',co:'Czechy',a:33,avg:94.0,co_:167,f:'T20',w:26,s:2009,m:'Niedźwiedź nie spieszy się. Niedźwiedź trafia.',b:'Potężny piwowar z Pilzna. Najcięższe lotki w stawce i najdelikatniejszy wyrzut.'},
+ {id:'p09',c:'b',n:'Ingrid Hansen',k:'Ice Queen',fl:'🇳🇴',co:'Norwegia',a:27,avg:89.3,co_:136,f:'T20',w:21,s:2016,m:'Zimna głowa, ciepłe podwójne.',b:'Narciarka biegowa, która po kontuzji zamieniła kijki na lotki. Nigdy się nie uśmiecha przy tarczy.'},
+ {id:'p10',c:'b',n:'Chloé Dubois',k:'Blue Arrow',fl:'🇫🇷',co:'Francja',a:32,avg:86.5,co_:128,f:'T19',w:20,s:2012,m:'Élégance et précision.',b:'Sommelierka z Lyonu. Twierdzi, że rzut lotką to jak degustacja — liczy się wyczucie.'},
+ {id:'p11',c:'b',n:'Pieter de Vries',k:'Dutch Storm',fl:'🇳🇱',co:'Holandia',a:35,avg:97.1,co_:170,f:'T20',w:23,s:2005,m:'Storm komt, tarcza drży.',b:'Rotterdamczyk z rekordem 11 dziewięciolotkowców w lidze. Rzuca szybko jak wiatr znad morza.'},
+ {id:'p12',c:'b',n:'Lukas Hofer',k:'Glacier',fl:'🇦🇹',co:'Austria',a:30,avg:91.0,co_:151,f:'T18',w:22,s:2011,m:'Powoli, ale nieubłaganie.',b:'Instruktor narciarstwa z Tyrolu. Jego rytm rzutu jest tak równy, że można nim mierzyć czas.'},
+ {id:'p13',c:'g',n:'Aoife Byrne',k:'Shamrock',fl:'🇮🇪',co:'Irlandia',a:25,avg:88.0,co_:140,f:'T20',w:21,s:2017,m:'Szczęście? Nie — trening.',b:'Skrzypaczka folkowa z Galway. Przed każdym meczem gra krótką melodię na rozluźnienie.'},
+ {id:'p14',c:'g',n:'Ivana Horvat',k:'Emerald',fl:'🇭🇷',co:'Chorwacja',a:29,avg:89.6,co_:145,f:'T19',w:22,s:2013,m:'Morze uczy cierpliwości.',b:'Żeglarka ze Splitu. Rzuca boso, bo „tak lepiej czuje równowagę”.'},
+ {id:'p15',c:'g',n:'Callum MacLeod',k:'Highlander',fl:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',co:'Szkocja',a:38,avg:96.4,co_:170,f:'T20',w:24,s:2002,m:'Może być tylko jeden.',b:'Weteran z Inverness. Wchodzi na scenę przy dudach i ani razu nie przegrał decydującego lega w finale.'},
+ {id:'p16',c:'g',n:'Krzysztof Zieliński',k:'Zielony Cyklon',fl:'🇵🇱',co:'Polska',a:31,avg:93.3,co_:158,f:'T20',w:23,s:2010,m:'Cyklon nie pyta, cyklon trafia.',b:'Leśniczy z Bieszczad. Ćwiczy wieczorami przy kominku, a sąsiedzi mówią, że słychać tylko „pyk, pyk, pyk”.'},
+ {id:'p17',c:'y',n:'Ella Peters',k:'Sunshine',fl:'🇦🇺',co:'Australia',a:24,avg:87.2,co_:130,f:'T20',w:20,s:2018,m:'Uśmiech to najlepsze podwójne.',b:'Surferka z Gold Coast. Najszybciej rosnąca gwiazda — od zera do finału w dwa sezony.'},
+ {id:'p18',c:'y',n:'Lotte Janssens',k:'Bumblebee',fl:'🇧🇪',co:'Belgia',a:28,avg:88.9,co_:138,f:'T18',w:21,s:2014,m:'Brzęczę, aż trafię.',b:'Pszczelarka z Antwerpii. Ma zwyczaj zostawiania słoika miodu dla przeciwnika po meczu.'},
+ {id:'p19',c:'y',n:'Mateus Silva',k:'Canarinho',fl:'🇧🇷',co:'Brazylia',a:33,avg:92.0,co_:155,f:'T19',w:24,s:2010,m:'Samba na tarczy!',b:'Były piłkarz z Rio. Tańczy po każdej 180-tce — publiczność to uwielbia, sędziowie mniej.'},
+ {id:'p20',c:'y',n:'Erik Svensson',k:'Thunder',fl:'🇸🇪',co:'Szwecja',a:37,avg:94.7,co_:164,f:'T20',w:25,s:2004,m:'Najpierw grzmot, potem błysk.',b:'Kowal z Göteborga z najmocniejszym uściskiem dłoni w lidze. Lotki kuje sobie sam.'}
+];
+const BY={};R.forEach(r=>BY[r.id]=r);
+const KEY='dm_pl_pics';
+const get=()=>{try{const a=JSON.parse(localStorage.getItem(KEY)||'[]');return Array.isArray(a)?a:[];}catch(e){return[];}};
+const set=a=>{try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){}};
+let slot=0,tab='all';
+
+function paint(el,id){ // zdjęcie w kółku gracza (zostaje rozmiar i kształt z CSS)
+  if(!el)return;const r=id&&BY[id];
+  if(r){el.style.backgroundImage='url('+IMG(id)+')';el.classList.add('fx-pic');el.style.borderColor=COL[r.c];}
+  else if(el.classList.contains('fx-pic')){el.style.backgroundImage='';el.classList.remove('fx-pic');} // bez zdjęcia — zostaje kolorowe kółko z literą
+}
+function decorSetup(){
+  const pics=get();
+  (G.players||[]).forEach((p,i)=>{const el=document.getElementById('av'+i);if(!el)return;
+    el.classList.add('fx-av');el.title='Wybierz zdjęcie zawodnika';el.onclick=()=>open(i);
+    paint(el,pics[i]);
+    let pl=el.querySelector('.fx-plus');
+    if(!pics[i]){if(!pl){pl=document.createElement('span');pl.className='fx-plus';pl.textContent='+';el.appendChild(pl);}}
+    else if(pl)pl.remove();
+  });
+}
+function decorBoard(){
+  const pics=get();if(!pics.some(Boolean))return;
+  const cards=document.querySelectorAll('#scoreboard .player-card');
+  cards.forEach((c,i)=>{const av=c.querySelector('.player-avatar');if(av&&pics[i])paint(av,pics[i]);});
+}
+// podpięcie pod istniejące funkcje (bez nadpisywania ich działania)
+const _rp=window.renderPlayers;
+if(typeof _rp==='function')window.renderPlayers=function(){const r=_rp.apply(this,arguments);try{decorSetup();}catch(e){}return r;};
+const _rm=window.removePlayer;
+if(typeof _rm==='function')window.removePlayer=function(i){if(G.players.length>1){const a=get();a.splice(i,1);set(a);}return _rm.apply(this,arguments);};
+const _rs=window.renderScoreboard;
+if(typeof _rs==='function')window.renderScoreboard=function(){const r=_rs.apply(this,arguments);try{decorBoard();}catch(e){}return r;};
+// nazwa gracza wpisana ręcznie — litera w kółku nie może przykryć zdjęcia
+document.addEventListener('change',e=>{if(e.target&&e.target.classList&&e.target.classList.contains('player-input'))setTimeout(decorSetup,0);},true);
+
+function open(i){
+  slot=i;const nm=(G.players[i]||('Gracz '+(i+1)));
+  document.getElementById('fx-t').innerHTML='Wybierz zawodnika<small>dla: '+nm.replace(/[<&]/g,'')+' · stuknij zdjęcie, żeby zobaczyć kartę</small>';
+  document.getElementById('fx-clear').style.display=get()[i]?'':'none';
+  tabs();grid();document.getElementById('fx-ov').classList.add('on');
+}
+function close(){document.getElementById('fx-ov').classList.remove('on');document.getElementById('fx-card').classList.remove('on');}
+function tabs(){
+  const t=[['all','Wszyscy']].concat(Object.keys(COLN).map(k=>[k,COLN[k]]));
+  document.getElementById('fx-tabs').innerHTML=t.map(([k,l])=>'<button class="'+(tab===k?'on':'')+'" onclick="FX._tab(\''+k+'\')">'+(k==='all'?'':'<span style="color:'+COL[k]+'">●</span> ')+l+'</button>').join('');
+}
+function grid(){
+  const pics=get(),mine=pics[slot];
+  document.getElementById('fx-grid').innerHTML=R.filter(r=>tab==='all'||r.c===tab).map(r=>{
+    const owner=pics.findIndex((x,j)=>x===r.id&&j!==slot&&j<G.players.length);
+    return '<div class="it'+(r.id===mine?' sel':'')+(owner>=0?' tk':'')+'" style="--c:'+COL[r.c]+'" onclick="FX.card(\''+r.id+'\')">'+
+      (owner>=0?'<span class="tg">'+(G.players[owner]||'').slice(0,8).replace(/[<&]/g,'')+'</span>':'')+
+      '<img src="'+IMG(r.id)+'" alt="" loading="lazy"><div class="n">'+r.k+'</div><div class="f">'+r.fl+' '+r.co+'</div></div>';
+  }).join('');
+}
+function card(id){
+  const r=BY[id];if(!r)return;const c=COL[r.c];
+  document.getElementById('fx-cd').innerHTML=
+    '<button class="xx" onclick="FX.back()">✕</button>'+
+    '<div class="ph"><img src="'+IMG(id,1)+'" alt=""><div class="nm"><div class="nk">„'+r.k+'”</div><div class="fl">'+r.fl+' '+r.n+' · '+r.co+' · '+r.a+' lat</div></div></div>'+
+    '<div class="rows" style="--c:'+c+'">'+
+      '<div class="st"><b>'+r.avg.toFixed(1)+'</b><span>ŚREDNIA</span></div>'+
+      '<div class="st"><b>'+r.co_+'</b><span>NAJL. ZEJŚCIE</span></div>'+
+      '<div class="st"><b>'+r.f+'</b><span>ULUBIONE POLE</span></div>'+
+      '<div class="st"><b>'+r.w+'g</b><span>LOTKI</span></div>'+
+      '<div class="st"><b>'+r.s+'</b><span>RZUCA OD</span></div>'+
+      '<div class="st"><b>'+r.a+'</b><span>WIEK</span></div>'+
+    '</div><div class="bio">'+r.b+'</div><div class="mt" style="--c:'+c+'">„'+r.m+'”</div>'+
+    '<div class="bt"><button onclick="FX.back()">← Wróć</button><button class="ok" onclick="FX.pick(\''+id+'\')">✓ Wybieram</button></div>';
+  document.getElementById('fx-card').classList.add('on');
+}
+function back(){document.getElementById('fx-card').classList.remove('on');}
+function pick(id){
+  const a=get();
+  // jeden zawodnik = jeden gracz: zabierz zdjęcie innemu graczowi
+  for(let j=0;j<a.length;j++)if(a[j]===id&&j!==slot)a[j]=null;
+  a[slot]=id;set(a);
+  const r=BY[id],cur=G.players[slot]||'';
+  // domyślna nazwa „Gracz N” → wpisz pseudonim zawodnika (własnej nazwy nie ruszamy)
+  if(!cur||/^Gracz \d+$/.test(cur)){G.players[slot]=r.k;}
+  close();try{renderPlayers();}catch(e){decorSetup();}
+  try{toast('🎯 '+(G.players[slot])+' — '+r.fl+' '+r.n);}catch(e){}
+}
+function clear(){const a=get();a[slot]=null;set(a);close();try{renderPlayers();}catch(e){decorSetup();}}
+window.FX={open,close,card,back,pick,clear,_tab(k){tab=k;tabs();grid();},roster:R,pics:get};
+setTimeout(()=>{try{decorSetup();}catch(e){}},0);
 })();
 </script>
 
