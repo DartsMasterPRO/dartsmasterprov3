@@ -13251,6 +13251,16 @@ body.pc-ol #scoreboard .player-card:active{transform:scale(.985)}
 .pc-mhr em{font-style:normal;font-family:'Bebas Neue',cursive;font-size:18px;color:#e8e8f0;min-width:30px;text-align:center}
 .pc-mhr u{text-decoration:none;font-family:'Bebas Neue',cursive;font-size:18px;color:#00e5ff;text-align:right;min-width:40px;line-height:1}
 .pc-mhr u small{display:block;font-size:12px;color:#ff8c00}
+/* STATSY: gracze jako kółka z avatarami, klikalne kafelki */
+#st-player-bar.st-pbar{gap:12px!important;padding:2px 2px 6px!important;scrollbar-width:none}
+#st-player-bar.st-pbar::-webkit-scrollbar{display:none}
+.st-pl{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:5px;background:none;border:0;padding:0;cursor:pointer;width:66px}
+.st-pl .pc-av{border:3px solid #2a2a40;box-shadow:0 4px 12px rgba(0,0,0,.5);transition:transform .2s,border-color .2s}
+.st-pl span{max-width:66px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Bebas Neue',cursive;font-size:14px;letter-spacing:1px;color:#8888aa}
+.st-pl.on .pc-av{border-color:#00e5ff;box-shadow:0 0 0 2px rgba(0,229,255,.25),0 0 16px rgba(0,229,255,.55);transform:scale(1.06)}
+.st-pl.on span{color:#00e5ff}
+#stats-screen .stat-card{cursor:pointer;transition:transform .15s}
+#stats-screen .stat-card:active{transform:scale(.96)}
 </style>
 <script>
 (function(){
@@ -13320,48 +13330,50 @@ async function open(uid){
   render(uid,u);
 }
 function render(uid,u){
-  const o=overlay(),mine=me()&&me().uid===uid;
+  const loc=!!(u&&u._local);
+  const o=overlay(),mine=!loc&&me()&&me().uid===uid;
   const nick=u.nick||'Gracz',e=typeof u.elo==='number'?u.elo:START,t=tierOf(e),tc=TC[t.name]||TC['BRĄZ'];
   const games=u.games||0,wins=u.wins||0,avg=(u.totalDarts||0)>0?((u.totalPoints||0)/u.totalDarts*3).toFixed(1):'—';
-  const hist=u.eloHist||[];
+  const hist=loc?[]:(u.eloHist||[]);
   let since='';try{const ts=u.createdAt;const dt=ts&&ts.toDate?ts.toDate():(ts&&ts.seconds?new Date(ts.seconds*1000):null);
     if(dt)since='w grze od '+dt.toLocaleDateString('pl-PL',{month:'long',year:'numeric'});}catch(x){}
-  const form=hist.slice(-5).map(h=>'<i class="'+(h.w?'w':'l')+'">'+(h.w?'W':'P')+'</i>');while(form.length<5)form.unshift('<i class="n">·</i>');
+  const form=(loc?(u._form||[]):hist.slice(-5).map(h=>!!h.w)).map(w=>'<i class="'+(w?'w':'l')+'">'+(w?'W':'P')+'</i>');while(form.length<5)form.unshift('<i class="n">·</i>');
   // bilans z zalogowanym graczem (z mojej historii ELO)
   let h2h='';
-  const MH=parseMH(u.mh);
-  if(!mine&&me()){const my=CACHE[me().uid]||{};const L=parseMH(my.mh).filter(m=>m.ou===uid);
+  const MH=loc?[]:parseMH(u.mh);
+  if(!loc&&!mine&&me()){const my=CACHE[me().uid]||{};const L=parseMH(my.mh).filter(m=>m.ou===uid);
     if(L.length){const w=L.filter(m=>m.w).length,l=L.length-w,am=avgOf(L.map(m=>m.ma)),ao=avgOf(L.map(m=>m.oa));
       h2h='<div class="pc-sec">HISTORIA Z TOBĄ</div><div class="pc-h2h pc-tap" onclick="PC.det(\'h2h\')"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>'+L.length+' meczów online · śr. Ty '+(am?am.toFixed(1):'—')+' / '+esc(nick)+' '+(ao?ao.toFixed(1):'—')+'<br><u style="color:#00e5ff;text-decoration:none">pełna historia ›</u></span><b style="color:#ff5a5a">'+l+'</b></div>';}
     else if(my.eloHist){const vs=my.eloHist.filter(h=>h.vs===nick);if(vs.length){const w=vs.filter(h=>h.w).length,l=vs.length-w;
       h2h='<div class="pc-sec">BILANS Z TOBĄ</div><div class="pc-h2h"><b style="color:#00ff88">'+w+'</b><span>Twoje wygrane · porażki<br>z ostatnich meczów rankingowych</span><b style="color:#ff5a5a">'+l+'</b></div>';}}}
   if(MH.length)h2h+='<div class="pc-sec">OSTATNIE MECZE ONLINE</div><div class="pc-mh pc-tap" onclick="PC.det(\'mh\')">'+MH.slice(-4).reverse().map(mhRow).join('')+'<div class="pc-cap" style="margin:4px 0 0">wszystkie mecze ('+MH.length+') ›</div></div>';
+  if(loc)h2h='';
   const big=(v,l,c,k)=>'<div class="pc-tap" style="--c:'+c+'" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
   const sm=(v,l,k)=>'<div class="pc-tap" onclick="PC.det(\''+k+'\')"><b>'+v+'</b><small>'+l+'</small></div>';
-  CUR={uid,u,mine,pro:mine?(buildPro(nick)||u.pro):u.pro};
+  CUR={uid,u,mine,local:loc,pro:loc?u.pro:(mine?(buildPro(nick)||u.pro):u.pro)};
   const streak=(u.streak||0)>=2?'🔥'+u.streak:(u.streak||0);
   o.innerHTML='<div class="pc-card" style="--tc:'+tc[0]+';--tc2:'+tc[1]+'" onclick="event.stopPropagation()">'+
     '<div class="pc-hero"><button class="pc-x" onclick="PC.close()" aria-label="Zamknij">✕</button>'+
-      '<div class="pc-ring">'+avHTML(u.avatar,nick)+'<div class="pc-tier">'+t.icon+'</div>'+(mine?'<button class="pc-edit-av" onclick="PC.edit()">✎ ZMIEŃ</button>':'')+'</div>'+
+      '<div class="pc-ring">'+avHTML(u.avatar,nick)+(loc?'':'<div class="pc-tier">'+t.icon+'</div>')+(mine?'<button class="pc-edit-av" onclick="PC.edit()">✎ ZMIEŃ</button>':loc&&!/^🤖/.test(nick)?'<button class="pc-edit-av" onclick="PC.editLocal()">✎ ZMIEŃ</button>':'')+'</div>'+
       '<div class="pc-nick">'+esc(nick)+'</div>'+
-      '<div class="pc-tierline"><b>'+t.name+'</b><span>'+e+'</span><small>ELO</small></div>'+
+      (loc?'<div class="pc-tierline"><b>'+(/^🤖/.test(nick)?'BOT':'GRACZ')+'</b><small>mecze na tym telefonie</small></div>':'<div class="pc-tierline"><b>'+t.name+'</b><span>'+e+'</span><small>ELO</small></div>')+
       (since?'<div class="pc-since">'+since+'</div>':'')+
-      (window.X3?X3.seasonLine(u):'')+
+      (!loc&&window.X3?X3.seasonLine(u):'')+
       '<div class="pc-form">'+form.join('')+'</div>'+
     '</div>'+
     '<div class="pc-body">'+
       '<div class="pc-big">'+big(avg,'Średnia','#00e5ff','avg')+big(u.e180||0,'180-tki','#ff3c3c','t180')+big(u.highestCheckout||'—','Max zejście','#ffd700','co')+'</div>'+
-      '<div class="pc-grid">'+sm(games,'Mecze','wins')+sm(wins,'Wygrane','wins')+sm(pct(wins,games),'% wygr.','wins')+
+      '<div class="pc-grid">'+sm(games,loc?'Gier':'Mecze','wins')+sm(wins,'Wygrane','wins')+sm(pct(wins,games),'% wygr.','wins')+
         sm(u.first9Avg?(+u.first9Avg).toFixed(1):'—','Śr. 9 lotek','f9')+sm(pct(u.coSuccess||0,u.coAttempts||0),'Zejścia %','co')+sm(pct(u.doubleHits||0,u.doubleAttempts||0),'Podwójne %','dbl')+
         sm(u.best||'—','Najl. tura','score')+sm(u.highest140||0,'140+','score')+sm(u.highest100||0,'100+','score')+
-        sm(streak,'Seria','streak')+sm(u.bestStreak||0,'Najl. seria','streak')+sm(games&&u.totalDarts?(u.totalDarts/games).toFixed(0):'—','Lotek/mecz','dpm')+'</div>'+
+        sm(streak,'Seria','streak')+sm(u.bestStreak||0,'Najl. seria','streak')+(loc?sm(u._dpl||'—','Lotek/leg','dpm'):sm(games&&u.totalDarts?(u.totalDarts/games).toFixed(0):'—','Lotek/mecz','dpm'))+'</div>'+
       '<div class="pc-hint">👆 dotknij dowolne pole, żeby zobaczyć szczegóły</div>'+
       proSections()+
       h2h+
-      '<div class="pc-sec">RANKING ELO</div>'+
+      (loc?'':'<div class="pc-sec">RANKING ELO</div>'+
       (hist.length?'<div class="pc-elo"><canvas></canvas><div class="r"><span>start 1000</span><span>szczyt '+(u.eloPeak||e)+'</span><span>mecze '+(u.eloGames||0)+'</span></div></div>'+
         '<div class="pc-last">'+hist.slice(-5).reverse().map(h=>'<div><b style="color:'+(h.w?'#00ff88':'#ff5a5a')+'">'+(h.w?'W':'P')+'</b><span>vs '+esc(h.vs||'?')+'</span><em style="color:'+(h.d>=0?'#00ff88':'#ff5a5a')+'">'+(h.d>0?'+':'')+h.d+'</em></div>').join('')+'</div>'
-        :'<div class="pc-empty">Brak meczów rankingowych — start z 1000 ELO.<br>Liczą się mecze online 1 na 1.</div>')+
+        :'<div class="pc-empty">Brak meczów rankingowych — start z 1000 ELO.<br>Liczą się mecze online 1 na 1.</div>'))+
       (mine?'<button class="pc-btn pri" onclick="PC.edit()">✎ ZMIEŃ AVATAR</button><button class="pc-btn" onclick="PC.det(\'backup\')">☁️ KOPIA ZAPASOWA</button>':'')+
       (!mine&&window.X3?X3.cardBtns(uid,nick):'')+
       '<button class="pc-btn" onclick="PC.close()">ZAMKNIJ</button>'+
@@ -13371,6 +13383,55 @@ function render(uid,u){
   requestAnimationFrame(proMount);
   if(mine)syncPro(false);
 }
+
+/* =================== GRACZE LOKALNI (zakładka STATSY): ta sama karta co w grze online =================== */
+const LAVK='dm_lav';
+function lavAll(){try{return JSON.parse(localStorage.getItem(LAVK)||'{}')||{};}catch(e){return{};}}
+function localAv(nick){
+  const L=lavAll();if(L[nick])return L[nick];
+  try{const m=me();const d=m&&CACHE[m.uid];if(d&&d.avatar&&(d.nick===nick||(m.displayName&&m.displayName===nick)))return d.avatar;}catch(e){}
+  if(/^🤖/.test(String(nick||'')))return{t:'e',e:'🤖',c:4};
+  return null;
+}
+function localUser(nick){
+  const S=(typeof G!=='undefined'&&G&&G.stats)||{games:[],players:{}};const ps=(S.players||{})[nick]||{};
+  const games=(S.games||[]).filter(g=>(g.players||[]).includes(nick)); // od najnowszej
+  const wins=games.filter(g=>g.winner===nick).length;
+  let f9p=0,f9d=0;games.forEach(g=>{const rd=g.rounds_data;const r=rd&&typeof rd==='object'&&!Array.isArray(rd)?(rd[nick]||[]):[];const a=r.slice(0,3);f9p+=a.reduce((x,y)=>x+y,0);f9d+=a.length*3;});
+  let streak=0;for(const g of games){if(g.winner===nick)streak++;else break;}
+  let best=0,cur=0;games.slice().reverse().forEach(g=>{if(g.winner===nick){cur++;best=Math.max(best,cur);}else cur=0;});
+  return{_local:true,nick,avatar:localAv(nick),games:games.length,wins,totalDarts:ps.totalDarts||0,totalPoints:ps.totalPoints||0,
+    e180:ps.e180||0,highestCheckout:ps.highestCheckout||0,first9Avg:f9d?(f9p/f9d*3):0,coSuccess:ps.coSuccess||0,coAttempts:ps.coAttempts||0,
+    doubleHits:ps.doubleHits||0,doubleAttempts:ps.doubleAttempts||0,best:ps.best||0,highest140:ps.highest140||0,highest100:ps.highest100||0,
+    streak,bestStreak:best,_dpl:ps.games>0&&ps.totalDarts>0?(ps.totalDarts/ps.games).toFixed(1):null,
+    _form:games.slice(0,5).reverse().map(g=>g.winner===nick),pro:buildPro(nick)};
+}
+function openLocal(nick){if(!nick)return;render('local:'+nick,localUser(nick));}
+function detLocal(nick,k){if(!nick)return;openLocal(nick);det(k);}
+function editLocal(){if(!CUR||!CUR.local)return;const nick=CUR.u.nick,av=lavAll()[nick]||null;
+  ED={local:nick,tab:av&&av.t==='p'?'p':'e',e:(av&&av.t==='e'&&av.e)||'🎯',c:(av&&av.t==='e'?av.c|0:0),photo:av&&av.t==='p'?av.d:null,img:null,z:1,x:0,y:0,nick,had:!!av};drawEd();}
+function saveLocal(av){const nick=ED.local,L=lavAll();if(av)L[nick]=av;else delete L[nick];
+  try{localStorage.setItem(LAVK,JSON.stringify(L));toast(av?'✅ Avatar zapisany':'🗑 Avatar usunięty');}catch(e){toast('❌ Za mało miejsca na zdjęcie');}
+  ED=null;openLocal(nick);try{if(typeof renderPlayerBar==='function')renderPlayerBar();}catch(e){}}
+// pasek graczy w STATSY: kółka z avatarami; dotknięcie = wybór gracza + jego karta
+window.renderPlayerBar=function(){
+  const bar=document.getElementById('st-player-bar');if(!bar)return;
+  const nicks=typeof _knownNicks==='function'?_knownNicks():[];
+  if(!nicks.length){bar.innerHTML='';return;}
+  if(!_stPlayer||!nicks.includes(_stPlayer))_stPlayer=nicks[0];
+  bar.classList.add('st-pbar');
+  bar.innerHTML=nicks.map((n,i)=>'<button type="button" class="st-pl'+(n===_stPlayer?' on':'')+'" data-i="'+i+'">'+avHTML(localAv(n),n.replace(/^🤖\s*/,''),54)+'<span>'+esc(n.replace(/^🤖\s*/,''))+'</span></button>').join('');
+  bar.querySelectorAll('.st-pl').forEach(b=>b.onclick=()=>{const n=nicks[+b.dataset.i];if(typeof stSelectPlayer==='function')stSelectPlayer(n);openLocal(n);});
+};
+// kafelki w STATSY: dotknięcie = te same szczegóły z wykresami co na karcie online
+const ST_DET={'st-games':'wins','st-wins':'wins','st-wr':'wins','st-avg':'avg','st-180':'t180','st-co':'co','st-highco':'co','st-first9':'f9','st-dpl':'dpm','st-streak':'streak','st-100plus':'score','st-140plus':'score','st-180plus':'t180','st-best':'score','st-dbl':'dbl','st-darts':'avg'};
+document.addEventListener('click',e=>{
+  const card=e.target.closest&&e.target.closest('#stats-screen .stat-card');if(!card)return;
+  const v=card.querySelector('[id^="st-"]');const k=v&&ST_DET[v.id];if(!k)return;
+  let nick=null;try{nick=_stPlayer;}catch(x){}
+  if(!nick){toast('Najpierw rozegraj mecz');return;}
+  detLocal(nick,k);
+});
 
 /* =================== ROZBUDOWANA KARTA: forma, mapa trafień, skupienie, szczegóły pól =================== */
 let CUR=null,MAPV='heat';
@@ -13500,7 +13561,7 @@ function periodAvg(f,days){const lim=days?dkey(Date.now()-(days-1)*864e5):'00000
 
 /* ---------- sekcje na karcie ---------- */
 function proSections(){
-  const P=dec(CUR.pro),mine=CUR.mine;
+  const P=dec(CUR.pro),mine=CUR.mine||CUR.local;
   const none=mine?'Zagraj mecz 501/301 — wykres pojawi się sam':'Gracz jeszcze nie udostępnił|danych (po jego następnym meczu)';
   let tr='';if(P&&P.f.length>=3){const s=slope(P.f.slice(-14).map(r=>r.avg));tr=s>0.15?'<b style="color:#00ff88">▲ forma rośnie</b>':s<-0.15?'<b style="color:#ff5a5a">▼ forma spada</b>':'<b style="color:#c8c8d8">● forma stabilna</b>';}
   const t20=P&&P.z.t20;
@@ -13516,11 +13577,11 @@ function achSec(P){
   const D=(window.DMX&&DMX.ACH)||[];if(!D.length)return'';const got=(P?P.a:[]).slice().sort((a,b)=>b.day.localeCompare(a.day));const AD=(window.DMX&&DMX.AD)||{};
   const ic=got.filter(x=>AD[x.id]).slice(0,7).map(x=>'<i title="'+esc(AD[x.id].n)+'">'+AD[x.id].ic+'</i>').join('');
   return'<div class="pc-sec">ODZNAKI <span style="font-family:monospace;font-size:11px;color:#ffd700;letter-spacing:0">'+got.length+'/'+D.length+'</span></div>'+
-    '<div class="pc-mini pc-tap pc-achmini" onclick="PC.det(\'ach\')">'+(ic||'<span class="pc-cap" style="margin:0">'+(CUR.mine?'Jeszcze bez odznak — zagraj mecz!':'Brak odznak')+'</span>')+(got.length>7?'<em>+'+(got.length-7)+'</em>':'')+'</div>';
+    '<div class="pc-mini pc-tap pc-achmini" onclick="PC.det(\'ach\')">'+(ic||'<span class="pc-cap" style="margin:0">'+((CUR.mine||CUR.local)?'Jeszcze bez odznak — zagraj mecz!':'Brak odznak')+'</span>')+(got.length>7?'<em>+'+(got.length-7)+'</em>':'')+'</div>';
 }
 function trainSec(P){
   const TR=P?P.tr:{};const best=(k,min)=>TR[k]&&TR[k].length?(min?Math.min(...TR[k].map(e=>e.v)):Math.max(...TR[k].map(e=>e.v))):'—';
-  if(!CUR.mine&&!Object.keys(TR||{}).length)return'';
+  if(!(CUR.mine||CUR.local)&&!Object.keys(TR||{}).length)return'';
   return'<div class="pc-sec">TRENING</div><div class="pc-grid pc-tap" onclick="PC.det(\'train\')" style="grid-template-columns:repeat(4,1fr)">'+
     [["Bob's 27",best('bobs27')],['121',best('co121')],['Halve-It',best('halveit')],['ATC',best('atc',1)]].map(([n,v])=>'<div><b>'+v+'</b><small>'+n+'</small></div>').join('')+'</div>';
 }
@@ -13537,8 +13598,8 @@ function det(k){
   const games=u.games||0,wins=u.wins||0,loss=Math.max(0,games-wins),hist=u.eloHist||[];
   const avg=(u.totalDarts||0)>0?(u.totalPoints||0)/u.totalDarts*3:null,f9=u.first9Avg?+u.first9Avg:null;
   const n180=u.e180||0,n140=Math.max(0,(u.highest140||0)-n180),n100=Math.max(0,(u.highest100||0)-(u.highest140||0));
-  const noF='<div class="pc-empty">'+(CUR.mine?'Wykres pojawi się po rozegraniu meczów 501/301.':'Gracz nie udostępnił jeszcze danych formy.')+'</div>';
-  const noC='<div class="pc-empty">'+(CUR.mine?'Graj z kamerą (tryb auto-liczenia) — mapa wypełnia się sama.':'Brak danych z kamery tego gracza.')+'</div>';
+  const noF='<div class="pc-empty">'+((CUR.mine||CUR.local)?'Wykres pojawi się po rozegraniu meczów 501/301.':'Gracz nie udostępnił jeszcze danych formy.')+'</div>';
+  const noC='<div class="pc-empty">'+((CUR.mine||CUR.local)?'Graj z kamerą (tryb auto-liczenia) — mapa wypełnia się sama.':'Brak danych z kamery tego gracza.')+'</div>';
   const strip=hist.length?'<div class="pc-strip">'+hist.slice(-20).map(h=>'<i class="'+(h.w?'w':'l')+'" title="vs '+esc(h.vs||'')+'">'+(h.w?'W':'P')+'</i>').join('')+'</div><div class="pc-cap">ostatnie mecze rankingowe (od lewej najstarszy)</div>':'';
   const cv=(id,cls)=>'<canvas id="'+id+'" class="'+(cls||'')+'"></canvas>';
   let t='',ic='',b='',after=[];
@@ -13579,7 +13640,7 @@ function det(k){
     if(P&&P.h.length)after.push(()=>board(document.getElementById('pc-d1'),{R:215,hits:P.h.filter(h=>{const r=Math.hypot(h.x,h.y);return r>=148&&r<=192;}),col:h=>h.d?'rgba(0,255,136,.9)':'rgba(255,70,70,.85)'}));
   }else if(k==='wins'||k==='streak'){
     t=k==='wins'?'MECZE I WYGRANE':'SERIE';ic='🏆';
-    b=(games?donut([{v:wins,c:'#00ff88',l:'Wygrane'},{v:loss,c:'#ff3c3c',l:'Porażki'}],Math.round(wins/games*100)+'%','wygranych'):'<div class="pc-empty">Brak meczów online.</div>')+
+    b=(games?donut([{v:wins,c:'#00ff88',l:'Wygrane'},{v:loss,c:'#ff3c3c',l:'Porażki'}],Math.round(wins/games*100)+'%','wygranych'):'<div class="pc-empty">'+(CUR.local?'Brak rozegranych meczów.':'Brak meczów online.')+'</div>')+
       '<div class="pc-kpis">'+kpi(games,'mecze')+kpi((u.streak||0)>=2?'🔥'+u.streak:(u.streak||0),'seria teraz','#ff8c00')+kpi(u.bestStreak||0,'najdłuższa','#ffd700')+'</div>'+
       (strip?'<div class="pc-box"><div class="pc-bt">PRZEBIEG</div>'+strip+'</div>':'');
   }else if(k==='form'){
@@ -13608,7 +13669,7 @@ function det(k){
       '<div class="pc-box"><div class="pc-bt">ROZRZUT DZIEŃ PO DNIU <span>mniej = lepiej</span></div>'+(P.sp.length?cv('pc-d2'):'<div class="pc-empty">Za mało dni z danymi.</div>')+'</div>';
       after.push(()=>{board(document.getElementById('pc-d1'),{cx:0,cy:103,R:42,hits:P.h.filter(h=>Math.hypot(h.x,h.y-103)<48),zones:[Object.assign({cx:0,cy:103},z)],target:true});
         const c2=document.getElementById('pc-d2');if(c2)line(c2,P.sp.map(r=>({lbl:r.lbl,v:r.v})),{color:'#ffd700',fill:'rgba(255,215,0,.25)',min:0});});}
-    else b=CUR.mine?'<div class="pc-empty">Potrzeba min. 5 lotek rzuconych w T20 z kamerą.</div>':noC;
+    else b=(CUR.mine||CUR.local)?'<div class="pc-empty">Potrzeba min. 5 lotek rzuconych w T20 z kamerą.</div>':noC;
   }else if(k==='ach'){
     t='ODZNAKI';ic='🏅';const got={};(P?P.a:[]).forEach(x=>got[x.id]=x);const D=(window.DMX&&DMX.ACH)||[];const nGot=D.filter(a=>got[a.id]).length;
     const groups=[...new Set(D.map(a=>a.g))];
@@ -13623,7 +13684,7 @@ function det(k){
       return'<div class="pc-box"><div class="pc-bt" style="color:'+m[0]+'">'+esc(NM[x]||x)+' <span>'+a.length+' podejść</span></div>'+
         '<div class="pc-kpis">'+'<div><b style="color:'+m[0]+'">'+best+'</b><small>rekord</small></div><div><b>'+last+'</b><small>ostatnio</small></div><div><b>'+avgv.toFixed(0)+'</b><small>średnio</small></div></div>'+
         (a.length>=2?'<canvas id="pc-tr-'+x+'" style="margin-top:8px"></canvas>':'')+'<div class="pc-cap">'+m[1]+(m[2]==='min'?' — mniej = lepiej':'')+'</div></div>';}).join('')
-      :'<div class="pc-empty">'+(CUR.mine?'Zagraj w Bob\'s 27, 121 Checkout, Halve-It, Shanghai albo Around the Clock — wyniki zapiszą się tutaj.':'Ten gracz nie ma jeszcze zapisanych treningów.')+'</div>';
+      :'<div class="pc-empty">'+((CUR.mine||CUR.local)?'Zagraj w Bob\'s 27, 121 Checkout, Halve-It, Shanghai albo Around the Clock — wyniki zapiszą się tutaj.':'Ten gracz nie ma jeszcze zapisanych treningów.')+'</div>';
     ks.forEach(x=>{if(TR[x].length>=2)after.push(()=>line(document.getElementById('pc-tr-'+x),TR[x].slice(-30).map(e=>({lbl:e.lbl,v:e.v})),{color:meta[x][0],fill:'rgba(255,255,255,.08)',min:0}));});
   }else if(k==='h2h'||k==='mh'){
     const my=me()&&CACHE[me().uid]||{};const L=k==='h2h'?parseMH(my.mh).filter(m=>m.ou===CUR.uid):parseMH(u.mh);
@@ -13679,11 +13740,11 @@ function drawEd(){
   }else{
     body='<div class="pc-pick"><label><i>🖼️</i>Z GALERII<input type="file" accept="image/*" onchange="PC._file(this)"></label>'+
       '<label><i>🤳</i>ZRÓB ZDJĘCIE<input type="file" accept="image/*" capture="user" onchange="PC._file(this)"></label></div>'+
-      '<div class="pc-note">Zdjęcie zobaczą inni gracze online (w rankingu i w meczu).</div>';
+      '<div class="pc-note">'+(ED.local?'Zdjęcie zostaje tylko na tym telefonie (statystyki).':'Zdjęcie zobaczą inni gracze online (w rankingu i w meczu).')+'</div>';
   }
   const prevAv=ED.tab==='p'&&ED.img?null:curAv();
   o.innerHTML='<div class="pc-card" onclick="event.stopPropagation()"><button class="pc-x" onclick="PC.back()" aria-label="Wróć">✕</button><div class="pc-ed">'+
-    '<h3>TWÓJ AVATAR</h3>'+(ED.tab==='p'&&ED.img?'':'<div class="pc-prev">'+avHTML(prevAv,ED.nick)+'</div>')+tabs+body+
+    '<h3>'+(ED.local?'AVATAR: '+esc(ED.local):'TWÓJ AVATAR')+'</h3>'+(ED.tab==='p'&&ED.img?'':'<div class="pc-prev">'+avHTML(prevAv,ED.nick)+'</div>')+tabs+body+
     '<div class="pc-row">'+(ED.had?'<button class="pc-btn" style="flex:0 0 auto;padding:13px 16px" onclick="PC._del()" title="Usuń avatar">🗑</button>':'')+
     '<button class="pc-btn" onclick="PC.back()">ANULUJ</button><button class="pc-btn pri" id="pc-save" onclick="PC._save()"'+(ED.tab==='p'&&!ED.img&&!ED.photo?' disabled style="opacity:.4"':'')+'>ZAPISZ</button></div>'+
     '</div></div>';
@@ -13728,6 +13789,7 @@ function loadFile(inp){
   im.onerror=()=>{toast('❌ Nie udało się wczytać zdjęcia');};im.src=url;
 }
 async function save(av){
+  if(ED&&ED.local){saveLocal(av);return;}
   const u=me();if(!u)return;const b=document.getElementById('pc-save');if(b){b.disabled=true;b.textContent='ZAPISUJĘ…';}
   try{
     const f=fb(),r=uref(u.uid),s=await f.getDoc(r);
@@ -13778,7 +13840,7 @@ document.addEventListener('click',e=>{
 });
 
 window.PC={open,close,edit,det,_bk(a){if(!window.DMX)return;if(a==='save')DMX.backup.save().then(()=>det('backup'));else DMX.backup.restore();},_back(){if(CUR)render(CUR.uid,CUR.u);},_mv(v){MAPV=v;det('map');},_sync:syncPro,_build:buildPro,av:avHTML,mini:(u)=>avHTML(u&&u.avatar,u&&u.nick),
-  back(){ED=null;const u=me();if(u)open(u.uid);else close();},
+  back(){if(ED&&ED.local){const n=ED.local;ED=null;openLocal(n);return;}ED=null;const u=me();if(u)open(u.uid);else close();},openLocal,editLocal,
   _tab(t){ED.tab=t;drawEd();},_emo(x){ED.e=x;drawEd();},_col(i){ED.c=i;drawEd();},
   _zoom(v){ED.z=+v;cropDraw();},_file:loadFile,
   _save(){const av=curAv();if(!av)return;save(av);},_del(){if(confirm('Usunąć avatar?'))save(null);},
