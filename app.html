@@ -8362,7 +8362,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-7'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-8'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -8424,7 +8424,7 @@ function scoreAt(bx,by){
 /* ---------- stan ---------- */
 let stream=null,track=null,video=null,running=false,timer=null,raf=0,wakeLock=null;
 let vw=0,vh=0,GEO=null;
-let diffWait=0,LASTCUR=null,handRej=null,bigRun=0,lastShakeTick=-999,edgeHist=[],lastDartTick=-999,lastBigTick=-999,cand0tries=0,lastMoveTick=-999,tickN=0,forceAt=-1,cand=null,noiseEst=0,frames=[],refAge=0,mvHist=[],DG={mv:0,mvThr:0,area:0},ref=null,empty=null,prevL=null,dirty=false,stable=0,lastMask=null,lastMaskT=0;
+let touchT=0,touchTick=-999,diffWait=0,LASTCUR=null,handRej=null,bigRun=0,lastShakeTick=-999,edgeHist=[],lastDartTick=-999,lastBigTick=-999,cand0tries=0,lastMoveTick=-999,tickN=0,forceAt=-1,cand=null,noiseEst=0,frames=[],refAge=0,mvHist=[],DG={mv:0,mvThr:0,area:0},ref=null,empty=null,prevL=null,dirty=false,stable=0,lastMask=null,lastMaskT=0;
 let turn=[],turnKey0=null,closed=false,sumDarts=[],confirmT=null,fsMode=false;
 const wc=document.createElement('canvas');const wctx=wc.getContext('2d',{willReadFrequently:true});
 
@@ -8859,14 +8859,26 @@ function tick(){
   if(dirty||stable%4===0||tickN===forceAt){dirty=false;analyze(cur);}
   diag();
 }
+document.addEventListener('pointerdown',()=>{try{if(running){touchT=performance.now();touchTick=tickN;}}catch(e){}},{capture:true,passive:true});
 function unionPx(){let a=[];turn.forEach(d=>{if(!d.fell)a=a.concat(d.px);});return a;}
 function analyze(cur){
   const mode=gm();
   // 1) wyjęcie lotek?
-  if(turn.length){
+  // gracz podszedł do telefonu (poprawka / dodanie lotki): jego sylwetka w kadrze to NIE wyjmowanie lotek.
+  // Przez chwilę po dotknięciu ekranu nie kończymy tury (zgłoszenie 20.11.2026: poprawka 1. lotki kończyła całą turę).
+  try{const pk=$('dm-pick');if(pk&&pk.classList.contains('on')){touchT=performance.now();touchTick=tickN;}}catch(e){}
+  const atPhone=turn.length&&performance.now()-touchT<5000;
+  if(atPhone){if(lastBigTick>lastDartTick&&touchTick>=lastDartTick)STILL=null;}
+  else if(turn.length){
     const U=unionPx();
-    if(!U.length){if(closed||(lastBigTick>lastDartTick&&tickN-lastBigTick>4)){lg('brak lotek w tarczy — koniec tury');takeout(cur);return;}}
+    // ktoś stoi przed kamerą (duża zmiana poza lotkami) — to nie jest „tarcza po wyjęciu lotek”
+    let busyV=-1;const busy=()=>{if(busyV<0){try{const ex=new Uint8Array(GEO.rw*GEO.rh);U.forEach(i=>{ex[i]=1;});busyV=analyzeDiff(cur,empty,ex).total;}catch(e){busyV=0;}}return busyV>GEO.maxA*0.35;};
+    if(!U.length){if(closed||(turn.length>=3&&lastBigTick>lastDartTick&&tickN-lastBigTick>4)){lg('brak lotek w tarczy — koniec tury');takeout(cur);return;}
+      // same lotki dopisane ręcznie i tura niepełna: ruch przed kamerą to gracz wracający od telefonu
+      if(lastBigTick>lastDartTick&&touchTick>=lastDartTick&&tickN-lastBigTick>4)lastBigTick=lastDartTick;}
     else{const f=Math.min(fracChanged(cur,empty,U),turn[0].before?fracChanged(cur,turn[0].before,U):1); // porównaj z tłem i z tarczą sprzed tej tury
+      // ruch po dotknięciu telefonu, a lotki nadal w tarczy i nikt nie stoi w kadrze → to było podejście do telefonu, nie ręka przy tarczy
+      if(f>=0.4&&lastBigTick>lastDartTick&&touchTick>=lastDartTick&&tickN-lastBigTick>4&&!busy()){lg('poprawka przy telefonie — lotki zostają, czekam na kolejną');lastBigTick=lastDartTick;STILL=null;}
       if(f<0.4){
         // czy tarcza jest naprawdę pusta? jeśli obok jest NOWA lotka, to stara została wybita, a nie wyjęta
         // wyjmowanie zawsze oznacza rękę przy tarczy; bez ręki lotka wypadła albo została wybita
@@ -8877,7 +8889,9 @@ function analyze(cur){
       }
       // drugi sposób: po ręce przy tarczy miejsca WSZYSTKICH lotek zmieniły się względem chwili tuż po ich wbiciu
       if(lastBigTick>lastDartTick&&tickN-lastBigTick>4){const live=turn.filter(d=>!d.fell&&d.px.length&&d.after);
-        if(live.length&&live.every(d=>fracChanged(cur,d.after,d.px)>0.6)){lg('wyjęcie lotek (po ręce)');takeout(cur);return;}}}
+        if(live.length&&live.every(d=>fracChanged(cur,d.after,d.px)>0.6)){
+          if(busy()){if(TOB++%6===0)lg('ktoś stoi przed tarczą — czekam z zakończeniem tury');if(TOB<40)return;}
+          TOB=0;lg('wyjęcie lotek (po ręce)');takeout(cur);return;}}}
     // 1b) czy któraś lotka WYPADŁA / została wybita? (nie podczas wyjmowania ręką)
     if(S.fallDetect!==false&&tickN-lastBigTick>30&&lastBigTick<lastDartTick){ // ręka po ostatnim rzucie = wyjmowanie, nie wypadanie
       for(let i=0;i<turn.length;i++){const d=turn[i];if(d.fell||!d.px.length||!d.before)continue;
@@ -8956,9 +8970,12 @@ function analyze(cur){
   }
   if(turn.length&&lastBigTick>lastDartTick&&!closed){
     const st=blobStill(r);
-    const lk=st>=8?looksLikeDart(r.px,OCC):null;
-    if(lk&&lk.ok){lg('to nie ręka — nieruchoma lotka od '+st+' odczytów, liczę');lastBigTick=lastDartTick;}
-    else{lg('ręka przy tarczy po rzucie — czekam na wyjęcie'+(lk?' ('+lk.why+')':''));cand=null;return;}
+    // lotka wlatująca przez brzeg kadru (piórka wystają poza obraz) wygląda chwilę jak „ręka” — nieruchoma plama to lotka:
+    // sprawdzamy co odczyt, zamiast czekać kilka sekund (zgłoszenia: druga lotka „niewidziana”)
+    const lk=st>=4?looksLikeDart(r.px,OCC):null;
+    const edgeOk=lk&&!lk.ok&&lk.hand&&st>=7&&r.px.length<GEO.maxA*0.5&&(tickN-lastMoveTick)>=4;
+    if(lk&&(lk.ok||edgeOk)){lg('to nie ręka — nieruchoma lotka od '+st+' odczytów, liczę'+(edgeOk?' (przy brzegu kadru)':''));lastBigTick=lastDartTick;}
+    else{if(st<1||st%3===0)lg('ręka przy tarczy po rzucie — czekam na wyjęcie'+(lk?' ('+lk.why+')':''));cand=null;forceAt=tickN+1;return;}
   }
   if(tickN-lastBigTick<12){lg('ręka przy tarczy — czekam');cand=null;status('Ruch przy tarczy…','#ff8c00');return;}
   {const v=looksLikeDart(r.px,OCC);
@@ -9017,7 +9034,7 @@ function analyze(cur){
 }
 // ===== LOTKI ZASŁONIĘTE PRZEZ WCZEŚNIEJSZE =====
 // grot schowany = koniec plamy od strony grota styka się z wcześniejszą lotką (widoczny grot ma wokół wolną tarczę)
-let STILL=null,GRPWHY='',GRPLK=null;
+let STILL=null,GRPWHY='',GRPLK=null,TOB=0;
 function blobStill(r){ // ile kolejnych odczytów ta sama plama stoi w miejscu (rozmiar ±12%, środek ±2% promienia)
   const rw=GEO.rw;let sx=0,sy=0;for(const i of r.px){sx+=i%rw;sy+=(i/rw)|0;}const n=r.px.length,cx=sx/n,cy=sy/n,h=STILL;
   const same=h&&Math.abs(n-h.n)<Math.max(n,h.n)*0.12&&Math.hypot(cx-h.cx,cy-h.cy)<GEO.rpx*0.02;
@@ -9121,7 +9138,9 @@ function looksLikeDart(px,occl){
   }else{
     if(ext>GEO.rpx*0.6)return{ok:false,why:'za duża plama ('+ext+'px)'};
   }
-  if(fill>0.6&&n>GEO.minA*3&&!(occl&&n<GEO.maxA*0.5))return{ok:false,why:'pełna plama (cień/ręka?)'}; // same piórka lotki schowanej za inną też są „pełne”
+  // wypełnienie liczone w ramce wzdłuż osi lotki (lotka ukośna/pozioma w prostokącie x/y wyglądała na „pełną”)
+  const fillO=(od&&od[2]>GEO.rpx*0.1)?n/Math.max(1,(t1-t0+1)*(q1-q0+1)):fill;
+  if(Math.min(fill,fillO)>0.6&&n>GEO.minA*3&&!(occl&&n<GEO.maxA*0.5))return{ok:false,why:'pełna plama (cień/ręka?)'}; // same piórka lotki schowanej za inną też są „pełne”
   return{ok:true};
 }
 // przesunięcie całego obrazu (wstrząs tarczy/statywu przy wbiciu lotki) — szukamy w zakresie ±3 px
@@ -9380,7 +9399,7 @@ function takeout(cur){
   try{fineRecord(turn);}catch(e){}
   if(S.autoConfirm&&turn.length)confirmTurn();
   bgCalSoon('po wyjęciu lotek',45000);
-  turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;unsureHide();
+  turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;TOB=0;unsureHide();
   status('Tarcza czysta — rzucaj 🎯','#00ff88');renderDarts();
 }
 function removeLast(){
@@ -9932,7 +9951,7 @@ function addMissed(n,m){
   report('missed',null,sc,null);accAdd('missed');
   if(LASTCUR){ref=LASTCUR;cand=null;diffWait=0;} // lotka już jest w obrazie — nie licz jej drugi raz
   if(!applyDart(sc))return;
-  turn.push({px:[],before:ref,tip:null,sc,manual:true});
+  turn.push({px:[],before:ref,tip:null,sc,manual:true});lastDartTick=tickN;touchT=performance.now();touchTick=tickN;
   sayDart(sc);afterDart();renderDarts();lg('dodano ręcznie → '+sc.lbl);
 }
 function setDart(i,n,m){
@@ -9954,7 +9973,7 @@ function addManual(nx,ny){ // dodanie lotki, której kamera nie wykryła
   report('missed',null,sc,[nx,ny]);accAdd('missed');
   if(LASTCUR){ref=LASTCUR;cand=null;diffWait=0;}
   if(!applyDart(sc))return;
-  {const dm={px:[],before:ref,tip:[nx,ny],sc};turn.push(dm);hmRec(dm);}afterDart();renderDarts();lg('ręcznie → '+sc.lbl);
+  {const dm={px:[],before:ref,tip:[nx,ny],sc};turn.push(dm);hmRec(dm);}lastDartTick=tickN;touchT=performance.now();touchTick=tickN;afterDart();renderDarts();lg('ręcznie → '+sc.lbl);
 }
 
 /* ================= AUTOKALIBRACJA (kolory pól double/triple/bull) ================= */
