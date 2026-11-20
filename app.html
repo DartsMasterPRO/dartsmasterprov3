@@ -2693,7 +2693,26 @@ function cancelOrderSelection(){
 }
 
 // ===== START GAME =====
+// Gra lokalna (bot / gracze na jednym telefonie) startuje, a w tle wisi niedokończony mecz online:
+// odłącz go całkowicie — inaczej kamera i nasłuch pokoju dalej traktują grę jako online
+// i aplikacja „wraca” do meczu z rywalem.
+function olDetachForLocalGame(){
+  try{
+    if(window.__olStarting) return;
+    const hasOl = typeof OL!=='undefined' && OL && OL.currentRoomId;
+    if(!hasOl && !G._onlineRoomId) return;
+    try{ if(window.AutoCam && AutoCam.close) AutoCam.close(); }catch(e){}
+    if(hasOl && typeof olLeaveRoom==='function'){ olLeaveRoom().catch(()=>{}); }
+    try{ if(OL.gameUnsub){OL.gameUnsub();OL.gameUnsub=null;} if(OL.roomUnsub){OL.roomUnsub();OL.roomUnsub=null;} if(OL.rematchUnsub){OL.rematchUnsub();OL.rematchUnsub=null;} }catch(e){}
+    try{ if(typeof olStopHostHeartbeat==='function') olStopHostHeartbeat(); }catch(e){}
+    try{ hideOnlineGameBar(); }catch(e){}
+    G._onlineRoomId=null; G._fbHistory=null; G._onlineTimerSecs=0;
+    try{ OL.currentRoomId=null; OL.isHost=false; OL.myIndex=-1; OL.winRecorded=false; OL._lastGameStartedAt=0; }catch(e){}
+    try{ localStorage.removeItem('ol_last_room'); localStorage.removeItem('ol_last_room_ts'); }catch(e){}
+  }catch(e){ console.log('olDetachForLocalGame', e); }
+}
 function startGame(){ 
+  olDetachForLocalGame();
   if(!G.countingMode) G.countingMode = 'classic';
   const s=G.mode==='301'?301:501;
   G.scores=G.players.map(()=>s);
@@ -5744,6 +5763,7 @@ async function olLeaveRoom() {
   OL.isHost = false;
   OL.myIndex = -1;
   OL._lastGameStartedAt = 0;
+  if (typeof G !== 'undefined' && G) { G._onlineRoomId = null; G._fbHistory = null; }
   hideOnlineGameBar();
 }
 
@@ -6382,7 +6402,8 @@ function olEnterOnlineGame(roomData, players) {
 
   // Idź na ekran gry
   goto('game');
-  startGame();
+  window.__olStarting = true;
+  try { startGame(); } finally { window.__olStarting = false; }
 
   // startGame() resetuje stan — przywróć wartości z Firebase
   G.scores = [...gs.scores];
@@ -8341,7 +8362,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-6'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-7'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -9643,7 +9664,7 @@ function toggleFs(){
 
 /* ================= WIDOK KAMERY (styl Dartsmind) + ONLINE ================= */
 let camReady=false,dmOn=false,dmRaf=0,dmTimer=null,dmUnsub=null,dmSeq=0,dmSending=false,dmLastRect=null,dmLastSendDarts='';
-const RIV={uid:null,img:null,seq:-1,dm:null,ts:0};
+const RIV={uid:null,img:null,seq:-1,dm:null,ts:0,room:null,seen:0};
 const sendCv=document.createElement('canvas');
 function isOnline(){return typeof G!=='undefined'&&G&&G._onlineRoomId&&window._fb&&window._fbUser;}
 function dartSvg(c){return '<svg viewBox="0 0 120 22" width="70" height="13"><line x1="2" y1="11" x2="24" y2="11" stroke="'+c+'" stroke-width="2.4" stroke-linecap="round"/><rect x="22" y="6.5" width="34" height="9" rx="4" fill="'+c+'"/><rect x="55" y="9.3" width="27" height="3.4" fill="'+c+'" opacity=".75"/><path d="M80 11 L95 1.5 L118 1.5 L109 11 L118 20.5 L95 20.5 Z" fill="'+c+'"/></svg>';}
@@ -9681,12 +9702,15 @@ function dmDraw(){
   const nc=$('dm-nocam'),k=Math.min(cw,ch);let msg='';
   const rival=isOnline()&&!myTurn();
   if(rival){
-    const ok=RIV.img&&RIV.img.naturalWidth&&RIV.dm&&RIV.dm.cp===G.cp&&Date.now()-RIV.ts<10000;
-    if(ok){
+    // obraz pokazujemy, jeśli jest w miarę świeży (zator sieci ≠ brak kamery); znaczniki tylko dla bieżącej tury
+    const age=Date.now()-RIV.ts,has=RIV.img&&RIV.img.naturalWidth&&RIV.room===G._onlineRoomId;
+    if(has&&age<20000){
       const iw=RIV.img.naturalWidth,ih=RIV.img.naturalHeight,sc=Math.max(cw/iw,ch/ih),dw=iw*sc,dh=ih*sc,dx=(cw-dw)/2,dy=(ch-dh)/2;
       ctx.drawImage(RIV.img,dx,dy,dw,dh);
-      (RIV.dm.darts||[]).forEach((d,i)=>{if(d.x!=null)dmMarker(ctx,dx+d.x*dw,dy+d.y*dh,d.l,k,i);});
-    }else msg='📡 '+(G.players[G.cp]||'Rywal')+' rzuca<br>— rywal nie ma włączonej kamery —';
+      if(RIV.dm&&RIV.dm.cp===G.cp)(RIV.dm.darts||[]).forEach((d,i)=>{if(d.x!=null)dmMarker(ctx,dx+d.x*dw,dy+d.y*dh,d.l,k,i);});
+      if(age>6000){ctx.fillStyle='rgba(0,0,0,.45)';ctx.fillRect(0,0,cw,ch);msg='📡 Słaby internet — czekam na obraz rywala…';}
+    }else if(RIV.seen&&RIV.room===G._onlineRoomId)msg='📡 '+(G.players[G.cp]||'Rywal')+' rzuca<br>— brak obrazu z kamery rywala (słaby internet lub kamera wyłączona) —';
+    else msg='📡 '+(G.players[G.cp]||'Rywal')+' rzuca<br>— czekam na obraz z kamery rywala… —<br><small>jeśli rywal gra bez kamery, wpisuje wynik ręcznie</small>';
   }else if(running&&camReady&&video&&video.readyState>=2&&vw){
     const R=viewRect(cw/ch);dmLastRect=R;
     ctx.drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,cw,ch);
@@ -9790,6 +9814,7 @@ function dmRenderTrain(md){
 function dmSendTick(){
   if(!dmOn||!running||!isOnline()||dmSending||!video||video.readyState<2||!vw)return;
   if(!myTurn()||!camReady)return;
+  if(Date.now()-(window.__dmLastSend||0)<700)return;window.__dmLastSend=Date.now();
   dmSending=true;
   try{
     const N=360,R=viewRect(1);sendCv.width=N;sendCv.height=N;sendCv.getContext('2d').drawImage(video,R.sx,R.sy,R.sw,R.sh,0,0,N,N);
@@ -9808,7 +9833,7 @@ function dmListen(){
     for(const key of Object.keys(d)){if(!key.endsWith('_frame'))continue;const u=key.slice(0,-6);if(u===my)continue;
       const m=d[u+'_dm'],sc=(m&&m.cp===G.cp?2:0)+(m?1:0);if(!best||sc>best.s)best={u,s:sc};}
     if(!best)return;const u=best.u,seq=d[u+'_seq']||0;RIV.uid=u;RIV.dm=d[u+'_dm']||null;
-    if(seq!==RIV.seq&&d[u+'_frame']){RIV.seq=seq;const im=new Image();im.onload=()=>{RIV.img=im;RIV.ts=Date.now();};im.src='data:image/jpeg;base64,'+d[u+'_frame'];}
+    if(seq!==RIV.seq&&d[u+'_frame']){RIV.seq=seq;const room=G._onlineRoomId,im=new Image();im.onload=()=>{RIV.img=im;RIV.ts=Date.now();RIV.room=room;RIV.seen=1;};im.src='data:image/jpeg;base64,'+d[u+'_frame'];}
     dmRender();
   },e=>lg('odbiór kamery: '+(e.code||e.message)));
 }
@@ -9824,7 +9849,7 @@ function dmOpen(){
 function dmClose(){
   if(!dmOn)return;dmOn=false;$('dm').classList.remove('on');$('dm-sheet').classList.remove('on');
   cancelAnimationFrame(dmRaf);clearInterval(dmTimer);if(dmUnsub){dmUnsub();dmUnsub=null;}
-  dmClearMine();RIV.img=null;RIV.dm=null;RIV.seq=-1;if(running)stop();
+  dmClearMine();RIV.img=null;RIV.dm=null;RIV.seq=-1;RIV.ts=0;if(RIV.room!==G._onlineRoomId){RIV.seen=0;RIV.room=null;}if(running)stop();
 }
 function nextRound(){
   if(BULL.active){if(BULL.res&&!BULL.locked){try{BULL.cb.onConfirm&&BULL.cb.onConfirm(Object.assign({img:bullImg(BULL.res.tip)},BULL.res));}catch(e){}}return;}
