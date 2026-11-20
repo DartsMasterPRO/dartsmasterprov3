@@ -9303,26 +9303,53 @@ function report(type,d,corrected,tap){
     imgs:{before:d?roiJpeg(d.before,cr):roiJpeg(ref),after:d?roiJpeg(d.after||ref,cr):null,now:frameJpeg(),mask:d?maskPng(d.px,cr):null}};
   rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — wyślij je z menu ⋮');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
 }
+// Wysyłanie zgłoszeń: Chrome na Androidzie ma limit wielkości udostępnianych plików (duże paczki kończyły się „Nie udało się udostępnić”).
+// Dlatego paczka jest dzielona na części do ~15 MB — każdą część wysyła się osobno (WhatsApp itd.).
+// Gdy udostępnianie i tak się nie uda, plik jest pobierany na telefon (nic nie przepada) i widać nazwę błędu.
+const RPT_PART=15*1024*1024;
 async function rptExport(){
   const all=await rptAll();if(!all.length){toast('Brak zgłoszeń');return;}
   const d=new Date(),pad=x=>String(x).padStart(2,'0');
-  const name='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.json';
-  const blob=new Blob([JSON.stringify({app:'Darts Master Arena',kind:'autocam-reports',ver:APP_VER,exported:d.toISOString(),count:all.length,acc:accSummary(),reports:all})],{type:'application/json'});
-  // udostępnianie (WhatsApp itd.): Chrome na Androidzie nie udostępnia plików .json — wtedy ten sam plik jako .txt (treść bez zmian)
-  let sf=null;try{if(navigator.canShare){for(const[nm,tp]of[[name,'application/json'],[name.replace(/\.json$/,'.txt'),'text/plain']]){const f=new File([blob],nm,{type:tp});if(navigator.canShare({files:[f]})){sf=f;break;}}}}catch(e){}
-  if(sf){try{await navigator.share({files:[sf],title:'Zgłoszenia pomyłek Darts Master Arena'});toast('📤 Wysłano '+all.length+' zgłoszeń');return;}
-    catch(e){if(e&&e.name==='AbortError')return;
-      // przygotowanie dużego pliku trwało za długo i przeglądarka zablokowała udostępnianie — drugie stuknięcie otworzy je od razu
-      if(e&&e.name==='NotAllowedError'){rptShareBtn(sf,all.length);return;}}}
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
-  toast('📥 Pobrano plik ze zgłoszeniami ('+all.length+')');
+  const base='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes());
+  // podział na części (zgłoszenie nigdy nie jest cięte w środku)
+  const groups=[];let cur=[],sz=0;
+  for(const r of all){let n=0;try{n=JSON.stringify(r).length;}catch(e){}
+    if(cur.length&&sz+n>RPT_PART){groups.push(cur);cur=[];sz=0;}cur.push(r);sz+=n;}
+  if(cur.length)groups.push(cur);
+  const N=groups.length,meta={app:'Darts Master Arena',kind:'autocam-reports',ver:APP_VER,exported:d.toISOString(),total:all.length,acc:accSummary()};
+  const parts=groups.map((g,i)=>({n:g.length,name:base+(N>1?'-cz'+(i+1)+'z'+N:''),
+    blob:new Blob([JSON.stringify(Object.assign({},meta,{part:i+1,parts:N,count:g.length,reports:g}))],{type:'application/json'})}));
+  // typ pliku, który telefon pozwala udostępnić (.json bywa blokowany — wtedy .txt, treść bez zmian)
+  let ext=null;try{if(navigator.canShare&&navigator.share){for(const[e,tp]of[['.json','application/json'],['.txt','text/plain']]){
+    if(navigator.canShare({files:[new File([parts[0].blob],parts[0].name+e,{type:tp})]})){ext=[e,tp];break;}}}}catch(e){}
+  if(!ext){parts.forEach(rptDownload);toast('📥 Pobrano '+(N>1?N+' pliki ':'plik ')+'ze zgłoszeniami ('+all.length+')');return;}
+  parts.forEach(p=>{p.file=new File([p.blob],p.name+ext[0],{type:ext[1]});});
+  rptSharePart(parts,0,false);
 }
-function rptShareBtn(f,n){
+function rptDownload(p){try{const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);}catch(e){}}
+// wysyła część i; fromTap = wywołane bezpośrednio stuknięciem (świeża zgoda przeglądarki na udostępnianie)
+function rptSharePart(parts,i,fromTap){
+  const N=parts.length,p=parts[i],lbl=N>1?' (część '+(i+1)+'/'+N+')':'';
+  let pr;try{pr=navigator.share({files:[p.file],title:'Zgłoszenia pomyłek Darts Master Arena'+lbl});}catch(e){pr=Promise.reject(e);}
+  pr.then(()=>{
+    if(i+1<N){toast('📤 Wysłano część '+(i+1)+'/'+N);rptShareBtn('📤 Wyślij część '+(i+2)+'/'+N+' ('+parts[i+1].n+' zgł.)',()=>rptSharePart(parts,i+1,true));}
+    else toast('📤 Wysłano '+parts.reduce((a,q)=>a+q.n,0)+' zgłoszeń — możesz je teraz usunąć w menu');
+  }).catch(e=>{
+    const nm=(e&&e.name)||'błąd';
+    if(nm==='AbortError')return; // zamknięte okno udostępniania
+    if(nm==='NotAllowedError'&&!fromTap){ // za długo przygotowywany plik — przeglądarka chce świeżego stuknięcia
+      rptShareBtn('📤 Udostępnij zgłoszenia'+lbl+' — np. WhatsApp',()=>rptSharePart(parts,i,true));return;}
+    // udostępnianie nie działa dla tego pliku: pobierz go, żeby nic nie przepadło
+    rptDownload(p);toast('⚠️ Nie udało się udostępnić ('+nm+') — plik'+lbl+' pobrany do folderu Pobrane, wyślij go z WhatsAppa jako dokument');
+    if(i+1<N)rptShareBtn('📤 Wyślij część '+(i+2)+'/'+N,()=>rptSharePart(parts,i+1,true));
+  });
+}
+function rptShareBtn(txt,fn){
   let b=document.getElementById('rpt-share-btn');if(b)b.remove();b=document.createElement('button');b.id='rpt-share-btn';
-  b.textContent='📤 Udostępnij zgłoszenia ('+n+') — np. WhatsApp';
-  b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;padding:14px 20px;border-radius:12px;border:1px solid #ffd700;background:#1a1a26;color:#ffd700;font-family:Bebas Neue,cursive;font-size:18px;letter-spacing:1px;box-shadow:0 6px 24px rgba(0,0,0,.6);cursor:pointer';
-  b.onclick=()=>{b.remove();navigator.share({files:[f],title:'Zgłoszenia pomyłek Darts Master Arena'}).then(()=>toast('📤 Wysłano '+n+' zgłoszeń')).catch(e=>{if(!e||e.name!=='AbortError')toast('⚠️ Nie udało się udostępnić');});};
-  document.body.appendChild(b);setTimeout(()=>{try{b.remove();}catch(e){}},20000);
+  b.textContent=txt;
+  b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;padding:14px 20px;border-radius:12px;border:1px solid #ffd700;background:#1a1a26;color:#ffd700;font-family:Bebas Neue,cursive;font-size:18px;letter-spacing:1px;box-shadow:0 6px 24px rgba(0,0,0,.6);cursor:pointer;max-width:92vw';
+  b.onclick=()=>{b.remove();fn();};
+  document.body.appendChild(b);setTimeout(()=>{try{b.remove();}catch(e){}},60000);
 }
 function confirmClear(){return RPT.cnt?window.confirm('Usunąć '+RPT.cnt+' zgłoszeń?'):true;}
 function takeout(cur){
