@@ -9285,10 +9285,21 @@ async function rptExport(){
   const d=new Date(),pad=x=>String(x).padStart(2,'0');
   const name='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.json';
   const blob=new Blob([JSON.stringify({app:'Darts Master Arena',kind:'autocam-reports',exported:d.toISOString(),count:all.length,reports:all})],{type:'application/json'});
-  try{const f=new File([blob],name,{type:'application/json'});
-    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Zgłoszenia pomyłek Darts Master Arena'});toast('📤 Wysłano '+all.length+' zgłoszeń');return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  // udostępnianie (WhatsApp itd.): Chrome na Androidzie nie udostępnia plików .json — wtedy ten sam plik jako .txt (treść bez zmian)
+  let sf=null;try{if(navigator.canShare){for(const[nm,tp]of[[name,'application/json'],[name.replace(/\.json$/,'.txt'),'text/plain']]){const f=new File([blob],nm,{type:tp});if(navigator.canShare({files:[f]})){sf=f;break;}}}}catch(e){}
+  if(sf){try{await navigator.share({files:[sf],title:'Zgłoszenia pomyłek Darts Master Arena'});toast('📤 Wysłano '+all.length+' zgłoszeń');return;}
+    catch(e){if(e&&e.name==='AbortError')return;
+      // przygotowanie dużego pliku trwało za długo i przeglądarka zablokowała udostępnianie — drugie stuknięcie otworzy je od razu
+      if(e&&e.name==='NotAllowedError'){rptShareBtn(sf,all.length);return;}}}
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);
   toast('📥 Pobrano plik ze zgłoszeniami ('+all.length+')');
+}
+function rptShareBtn(f,n){
+  let b=document.getElementById('rpt-share-btn');if(b)b.remove();b=document.createElement('button');b.id='rpt-share-btn';
+  b.textContent='📤 Udostępnij zgłoszenia ('+n+') — np. WhatsApp';
+  b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;padding:14px 20px;border-radius:12px;border:1px solid #ffd700;background:#1a1a26;color:#ffd700;font-family:Bebas Neue,cursive;font-size:18px;letter-spacing:1px;box-shadow:0 6px 24px rgba(0,0,0,.6);cursor:pointer';
+  b.onclick=()=>{b.remove();navigator.share({files:[f],title:'Zgłoszenia pomyłek Darts Master Arena'}).then(()=>toast('📤 Wysłano '+n+' zgłoszeń')).catch(e=>{if(!e||e.name!=='AbortError')toast('⚠️ Nie udało się udostępnić');});};
+  document.body.appendChild(b);setTimeout(()=>{try{b.remove();}catch(e){}},20000);
 }
 function confirmClear(){return RPT.cnt?window.confirm('Usunąć '+RPT.cnt+' zgłoszeń?'):true;}
 function takeout(cur){
