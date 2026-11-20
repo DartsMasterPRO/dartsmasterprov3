@@ -21,7 +21,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Anton&family=Open+Sans:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, onSnapshot, deleteDoc, deleteField, serverTimestamp, query, orderBy, limit, where, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -38,7 +38,7 @@
   const db = getFirestore(app);
 
   // Eksportuj do window żeby reszta kodu miała dostęp
-  window._fb = { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, collection, doc, setDoc, getDoc, getDocs, updateDoc, onSnapshot, deleteDoc, deleteField, serverTimestamp, query, orderBy, limit, where, addDoc };
+  window._fb = { auth, db, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, sendPasswordResetEmail, collection, doc, setDoc, getDoc, getDocs, updateDoc, onSnapshot, deleteDoc, deleteField, serverTimestamp, query, orderBy, limit, where, addDoc };
 
   // Śledź stan logowania
   onAuthStateChanged(auth, user => {
@@ -5439,6 +5439,30 @@ async function olLogin() {
   }
 }
 
+// Reset hasła: Firebase wysyła na podany email link do ustawienia nowego hasła
+async function olResetPassword() {
+  const fb = getFb();
+  if (!fb || !fb.sendPasswordResetEmail) { olMsg('ol-login-msg','❌ Brak połączenia z serwerem — spróbuj za chwilę','error'); return; }
+  const inp = document.getElementById('ol-login-email');
+  const email = (inp && inp.value || '').trim();
+  if (!email) { olMsg('ol-login-msg','✉️ Wpisz swój email w polu powyżej i kliknij jeszcze raz „Nie pamiętasz hasła?”','error'); if(inp) inp.focus(); return; }
+  olMsg('ol-login-msg','⏳ Wysyłam link...','');
+  try {
+    try { fb.auth.languageCode = 'pl'; } catch(e) {}
+    await fb.sendPasswordResetEmail(fb.auth, email);
+    olMsg('ol-login-msg','✅ Jeśli konto z adresem '+email.replace(/[<>&"]/g,'')+' istnieje, wysłaliśmy na nie link do ustawienia nowego hasła. Sprawdź też folder SPAM.','success');
+  } catch(e) {
+    const msgs = {
+      'auth/invalid-email': '❌ Nieprawidłowy email',
+      'auth/user-not-found': '❌ Nie znaleziono konta z tym adresem',
+      'auth/missing-email': '❌ Wpisz email',
+      'auth/too-many-requests': '⏳ Za dużo prób — spróbuj ponownie za kilka minut',
+      'auth/network-request-failed': '❌ Brak internetu'
+    };
+    olMsg('ol-login-msg', msgs[e.code] || '❌ Błąd: '+e.message, 'error');
+  }
+}
+
 async function olLogout() {
   const fb = getFb();
   if (fb) {
@@ -7379,7 +7403,8 @@ function showMessage(element, text, type) {
       <input type="email" class="modal-input" id="ol-login-email" placeholder="Email" style="margin-bottom:10px">
       <input type="password" class="modal-input" id="ol-login-pass" placeholder="Hasło" style="margin-bottom:14px">
       <button class="btn btn-primary" style="margin-top:0" onclick="olLogin()">ZALOGUJ SIĘ</button>
-      <div class="modal-text" style="margin-top:12px">Brak konta? <span class="modal-link" onclick="olShowRegister()">Zarejestruj się</span></div>
+      <div class="modal-text" style="margin-top:12px"><span class="modal-link" onclick="olResetPassword()">Nie pamiętasz hasła?</span></div>
+      <div class="modal-text" style="margin-top:6px">Brak konta? <span class="modal-link" onclick="olShowRegister()">Zarejestruj się</span></div>
     </div>
   </div>
 
@@ -8410,7 +8435,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-13'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.21-1'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
