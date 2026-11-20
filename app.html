@@ -764,8 +764,8 @@ input{outline:none}
       <span>Niestandardowe dźwięki</span>
     </div>
     <div class="menu-item" onclick="closeMenu(); if(window.AutoCam)AutoCam.exportReports()">
-      <span class="menu-item-icon">🐞</span>
-      <span>Wyślij zgłoszenia <b id="menu-rpt-cnt" style="color:#ffd700"></b></span>
+      <span class="menu-item-icon">📥</span>
+      <span>Pobierz zgłoszenia <b id="menu-rpt-cnt" style="color:#ffd700"></b></span>
     </div>
     <div class="menu-item" id="menu-rpt-clear" style="display:none" onclick="closeMenu(); if(window.AutoCam)AutoCam.clearReports()">
       <span class="menu-item-icon">🗑</span>
@@ -9270,7 +9270,7 @@ async function rptAdd(o){RPT.mem.push(o);if(RPT.mem.length>40)RPT.mem.shift();co
 async function rptAll(){const db=await idb();if(!db)return RPT.mem.slice();
   try{return await new Promise((ok,er)=>{const q=db.transaction('r').objectStore('r').getAll();q.onsuccess=()=>ok(q.result);q.onerror=er;});}catch(e){return RPT.mem.slice();}}
 async function rptClear(){RPT.mem=[];const db=await idb();if(db){try{await new Promise(ok=>{const t=db.transaction('r','readwrite');t.objectStore('r').clear();t.oncomplete=ok;});}catch(e){}}await rptCount();}
-async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📤 WYŚLIJ ZGŁOSZENIA ('+RPT.cnt+')';
+async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📥 POBIERZ ZGŁOSZENIA ('+RPT.cnt+')';
   const o=$('dm-opt-btn');if(o)o.innerHTML='⚙️ OPCJE'+(RPT.cnt?' <span style="color:#ffd700">🐞'+RPT.cnt+'</span>':'');return RPT.cnt;}
 function roiJpeg(d,cr){try{if(!d||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d');
   const id=x.createImageData(GEO.rw,GEO.rh);id.data.set(d);for(let i=3;i<id.data.length;i+=4)id.data[i]=255;x.putImageData(id,0,0);
@@ -9301,55 +9301,16 @@ function report(type,d,corrected,tap){
     geo:{rx:GEO.rx,ry:GEO.ry,rw:GEO.rw,rh:GEO.rh,ww:GEO.ww,wh:GEO.wh,rpx:GEO.rpx,minA:GEO.minA,maxA:GEO.maxA,cal:CAL&&CAL.pts,pose:GEO.pose?{f:GEO.pose.f}:null},
     video:{vw,vh},settings:Object.assign({},S),noise:noiseEst,thr:effT(),log:LOGALL.slice(-60),ua:navigator.userAgent,
     imgs:{before:d?roiJpeg(d.before,cr):roiJpeg(ref),after:d?roiJpeg(d.after||ref,cr):null,now:frameJpeg(),mask:d?maskPng(d.px,cr):null}};
-  rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — wyślij je z menu ⋮');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
+  rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — pobierzesz je z menu');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
 }
-// Wysyłanie zgłoszeń: Chrome na Androidzie ma limit wielkości udostępnianych plików (duże paczki kończyły się „Nie udało się udostępnić”).
-// Dlatego paczka jest dzielona na części do ~15 MB — każdą część wysyła się osobno (WhatsApp itd.).
-// Gdy udostępnianie i tak się nie uda, plik jest pobierany na telefon (nic nie przepada) i widać nazwę błędu.
-const RPT_PART=15*1024*1024;
+// Pobieranie zgłoszeń: jeden plik .json zapisany w folderze Pobrane (potem można go wysłać np. przez WhatsApp jako dokument)
 async function rptExport(){
   const all=await rptAll();if(!all.length){toast('Brak zgłoszeń');return;}
   const d=new Date(),pad=x=>String(x).padStart(2,'0');
-  const base='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes());
-  // podział na części (zgłoszenie nigdy nie jest cięte w środku)
-  const groups=[];let cur=[],sz=0;
-  for(const r of all){let n=0;try{n=JSON.stringify(r).length;}catch(e){}
-    if(cur.length&&sz+n>RPT_PART){groups.push(cur);cur=[];sz=0;}cur.push(r);sz+=n;}
-  if(cur.length)groups.push(cur);
-  const N=groups.length,meta={app:'Darts Master Arena',kind:'autocam-reports',ver:APP_VER,exported:d.toISOString(),total:all.length,acc:accSummary()};
-  const parts=groups.map((g,i)=>({n:g.length,name:base+(N>1?'-cz'+(i+1)+'z'+N:''),
-    blob:new Blob([JSON.stringify(Object.assign({},meta,{part:i+1,parts:N,count:g.length,reports:g}))],{type:'application/json'})}));
-  // typ pliku, który telefon pozwala udostępnić (.json bywa blokowany — wtedy .txt, treść bez zmian)
-  let ext=null;try{if(navigator.canShare&&navigator.share){for(const[e,tp]of[['.json','application/json'],['.txt','text/plain']]){
-    if(navigator.canShare({files:[new File([parts[0].blob],parts[0].name+e,{type:tp})]})){ext=[e,tp];break;}}}}catch(e){}
-  if(!ext){parts.forEach(rptDownload);toast('📥 Pobrano '+(N>1?N+' pliki ':'plik ')+'ze zgłoszeniami ('+all.length+')');return;}
-  parts.forEach(p=>{p.file=new File([p.blob],p.name+ext[0],{type:ext[1]});});
-  rptSharePart(parts,0,false);
-}
-function rptDownload(p){try{const a=document.createElement('a');a.href=URL.createObjectURL(p.blob);a.download=p.name+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);}catch(e){}}
-// wysyła część i; fromTap = wywołane bezpośrednio stuknięciem (świeża zgoda przeglądarki na udostępnianie)
-function rptSharePart(parts,i,fromTap){
-  const N=parts.length,p=parts[i],lbl=N>1?' (część '+(i+1)+'/'+N+')':'';
-  let pr;try{pr=navigator.share({files:[p.file],title:'Zgłoszenia pomyłek Darts Master Arena'+lbl});}catch(e){pr=Promise.reject(e);}
-  pr.then(()=>{
-    if(i+1<N){toast('📤 Wysłano część '+(i+1)+'/'+N);rptShareBtn('📤 Wyślij część '+(i+2)+'/'+N+' ('+parts[i+1].n+' zgł.)',()=>rptSharePart(parts,i+1,true));}
-    else toast('📤 Wysłano '+parts.reduce((a,q)=>a+q.n,0)+' zgłoszeń — możesz je teraz usunąć w menu');
-  }).catch(e=>{
-    const nm=(e&&e.name)||'błąd';
-    if(nm==='AbortError')return; // zamknięte okno udostępniania
-    if(nm==='NotAllowedError'&&!fromTap){ // za długo przygotowywany plik — przeglądarka chce świeżego stuknięcia
-      rptShareBtn('📤 Udostępnij zgłoszenia'+lbl+' — np. WhatsApp',()=>rptSharePart(parts,i,true));return;}
-    // udostępnianie nie działa dla tego pliku: pobierz go, żeby nic nie przepadło
-    rptDownload(p);toast('⚠️ Nie udało się udostępnić ('+nm+') — plik'+lbl+' pobrany do folderu Pobrane, wyślij go z WhatsAppa jako dokument');
-    if(i+1<N)rptShareBtn('📤 Wyślij część '+(i+2)+'/'+N,()=>rptSharePart(parts,i+1,true));
-  });
-}
-function rptShareBtn(txt,fn){
-  let b=document.getElementById('rpt-share-btn');if(b)b.remove();b=document.createElement('button');b.id='rpt-share-btn';
-  b.textContent=txt;
-  b.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:99999;padding:14px 20px;border-radius:12px;border:1px solid #ffd700;background:#1a1a26;color:#ffd700;font-family:Bebas Neue,cursive;font-size:18px;letter-spacing:1px;box-shadow:0 6px 24px rgba(0,0,0,.6);cursor:pointer;max-width:92vw';
-  b.onclick=()=>{b.remove();fn();};
-  document.body.appendChild(b);setTimeout(()=>{try{b.remove();}catch(e){}},60000);
+  const name='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.json';
+  const blob=new Blob([JSON.stringify({app:'Darts Master Arena',kind:'autocam-reports',ver:APP_VER,exported:d.toISOString(),count:all.length,acc:accSummary(),reports:all})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},4000);
+  toast('📥 Pobrano plik ze zgłoszeniami ('+all.length+') — potem możesz je usunąć w menu');
 }
 function confirmClear(){return RPT.cnt?window.confirm('Usunąć '+RPT.cnt+' zgłoszeń?'):true;}
 function takeout(cur){
@@ -10251,8 +10212,8 @@ function mount(){
      '<button onclick="AutoCam.openSetup()" style="grid-column:span 2;color:#00e5ff;border-color:rgba(0,229,255,.4)">📐 ASYSTENT USTAWIENIA TELEFONU</button><button onclick="AutoCam.resetBg()">↺ RESET TŁA</button><button class="red" onclick="AutoCam.close()">✕ ZAMKNIJ WIDOK</button></div>'+
      '<div style="margin-top:10px;padding:10px;border:1px solid rgba(255,215,0,.35);border-radius:8px;background:rgba(255,215,0,.04)">'+
        '<div style="color:#ffd700;font-family:Bebas Neue,cursive;font-size:17px;letter-spacing:1px">🐞 ZGŁOSZENIA POMYŁEK</div>'+
-       '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin:4px 0 8px">Każda poprawka lotki zapisuje obraz i dane rzutu. Wyślij plik autorowi rozpoznawania (np. wrzuć go do czatu z Claude), żeby dostroić liczenie do Twojej tarczy.</div>'+
-       '<div class="dm-sheet-btns" style="margin-top:0"><button id="dm-rpt-btn" onclick="AutoCam.exportReports()" style="color:#ffd700;border-color:rgba(255,215,0,.4)">📤 WYŚLIJ ZGŁOSZENIA (0)</button><button onclick="AutoCam.clearReports()">🗑 WYCZYŚĆ</button></div>'+
+       '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin:4px 0 8px">Każda poprawka lotki zapisuje obraz i dane rzutu. Pobierz plik i przekaż go autorowi rozpoznawania (np. wrzuć go do czatu z Claude), żeby dostroić liczenie do Twojej tarczy.</div>'+
+       '<div class="dm-sheet-btns" style="margin-top:0"><button id="dm-rpt-btn" onclick="AutoCam.exportReports()" style="color:#ffd700;border-color:rgba(255,215,0,.4)">📥 POBIERZ ZGŁOSZENIA (0)</button><button onclick="AutoCam.clearReports()">🗑 WYCZYŚĆ</button></div>'+
        '<label style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:#c8c8d8">Zbieraj automatycznie przy poprawkach <input type="checkbox" id="ac-rpt" onchange="AutoCam.set(\'collectReports\',this.checked)"></label>'+
      '</div>'+
      '<div style="margin-top:10px;padding:10px;border:1px solid rgba(0,229,255,.3);border-radius:8px;background:rgba(0,229,255,.03)">'+
