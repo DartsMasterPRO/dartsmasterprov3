@@ -8435,7 +8435,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.21-1'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.21-2'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -12302,7 +12302,7 @@ body.gl.gl-ol .gl-undo-turn{display:none!important}
     // 📺 podgląd kamery rywala (dawny przycisk „WRC” z dołu ekranu)
     const w=document.createElement('button');w.id='olb-wrc';w.type='button';w.title='Kamera rywala (WRC)';w.textContent='📺';
     w.onclick=()=>{try{if(wrcState.open)wrcToggle();else wrcOpen();}catch(e){}sync();};
-    acts.appendChild(w);
+    acts.insertBefore(w,share); // kolejność: 📺 WRC (podgląd rywala) → 📷 moja kamera → 🎙
     // 💬 czat z rywalem (dawny zielony okrągły przycisk)
     const fab=document.getElementById('rchat-fab');
     if(fab){acts.appendChild(fab);const t=[...fab.childNodes].find(n=>n.nodeType===3&&n.textContent.trim());if(t)t.textContent='💬';fab.title='Czat z rywalem';}
