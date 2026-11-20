@@ -15035,6 +15035,10 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
 })();
 </script>
 
+<!-- nagłówki TRENING / STATYSTYKI: odsunięte w prawo, żeby nie wchodziły pod przycisk menu (☰) w lewym górnym rogu -->
+<style>
+#training-screen>div:first-child,#stats-screen>div:first-child{margin-left:50px!important;min-height:44px;display:flex;align-items:center;gap:8px;line-height:1.1}
+</style>
 <!-- ================= PRZYCISK „WSTECZ” TELEFONU: pytanie przed wyjściem z aplikacji ================= -->
 <div id="exit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200000;align-items:center;justify-content:center;padding:24px">
   <div style="background:#12121a;border:2px solid #ff3c3c;border-radius:16px;padding:26px 22px;max-width:320px;width:100%;text-align:center;animation:popIn .3s ease-out;box-shadow:0 0 40px rgba(255,60,60,.3)">
