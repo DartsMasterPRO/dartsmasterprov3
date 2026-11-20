@@ -238,6 +238,15 @@ input{outline:none}
 /* WRC - podgląd kamery rywala */
 #wrc-window{position:fixed;bottom:70px;left:12px;z-index:800;display:none;flex-direction:column;align-items:flex-start;gap:6px}
 #wrc-window.open{display:flex}
+#wrc-window.open.docked{display:none}
+.wrc-slot{display:none;position:relative;flex-shrink:0}
+.wrc-slot.on{display:block}
+.wrc-slot .wrc-video-box{width:100%!important;height:100%!important;border-radius:10px}
+.wrc-slot-x{position:absolute;top:4px;right:4px;z-index:3;width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,229,255,.5);background:rgba(0,0,0,.65);color:#00e5ff;font-size:12px;line-height:20px;text-align:center;cursor:pointer;padding:0}
+#wrc-slot-sum{width:150px;height:96px;margin-bottom:10px}
+#x01-summary-in.wrc-docked #sum-input{height:96px!important;margin-bottom:10px!important;padding:6px!important}
+#wrc-slot-x01{width:170px;height:96px;margin:0 auto 26px}
+#x01-in.wrc-docked .dart-graphics{display:none!important}
 .wrc-video-box{width:140px;height:105px;border-radius:10px;overflow:hidden;background:#000;border:2px solid rgba(0,229,255,.5);box-shadow:0 4px 20px rgba(0,229,255,.25),0 0 0 1px rgba(0,229,255,.1);position:relative;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1)}
 .wrc-video-box video{width:100%;height:100%;object-fit:cover;display:block}
 .wrc-video-box.fullscreen{position:fixed;inset:0;width:100vw;height:100dvh;border-radius:0;border:none;z-index:9500;box-shadow:none;cursor:pointer}
@@ -1181,7 +1190,7 @@ input{outline:none}
     <div class="card">
       <div style="font-family:monospace;font-size:16px;color:#00e5ff;letter-spacing:2px;margin-bottom:16px;text-transform:uppercase;font-weight:700">⚡ Tryb Sumaryczny</div>
       
-      <input type="number" id="sum-input" min="0" max="180" value="0" style="width:100%;padding:20px;background:#1a1a26;border:2px solid #00e5ff;border-radius:10px;color:#00e5ff;font-family:'Bebas Neue',cursive;font-size:36px;text-align:center;margin-bottom:16px;box-shadow:0 0 15px rgba(0,229,255,0.2)">
+      <div style="display:flex;gap:8px;align-items:stretch"><div class="wrc-slot" id="wrc-slot-sum"><button class="wrc-slot-x" onclick="event.stopPropagation();wrcToggle()" title="Ukryj podgląd rywala">✕</button></div><div style="flex:1;min-width:0"><input type="number" id="sum-input" min="0" max="180" value="0" style="width:100%;padding:20px;background:#1a1a26;border:2px solid #00e5ff;border-radius:10px;color:#00e5ff;font-family:'Bebas Neue',cursive;font-size:36px;text-align:center;margin-bottom:16px;box-shadow:0 0 15px rgba(0,229,255,0.2)"></div></div>
       
       <!-- NUMPAD 5x4 -->
       <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px">
@@ -1238,6 +1247,7 @@ input{outline:none}
         <div class="dart-icon" id="dart-2">
           <img src="media/rzutka.png" style="width:52px;height:90px;object-fit:contain;display:block" alt="rzutka"/>
         </div></div>
+      <div class="wrc-slot" id="wrc-slot-x01"><button class="wrc-slot-x" onclick="event.stopPropagation();wrcToggle()" title="Ukryj podgląd rywala">✕</button></div>
       <div style="display:flex;gap:8px;margin-bottom:4px" id="throw-slots">
         <div class="throw-slot" id="ts0">-</div>
         <div class="throw-slot" id="ts1">-</div>
@@ -4799,6 +4809,11 @@ var wrcState = {
 };
 
 function wrcShowButton(roomId, opponentName) {
+  // nowy mecz: domyślnie zwykły widok — podgląd rywala pojawia się dopiero po kliknięciu 📺 (WRC)
+  if(wrcState.roomId !== roomId){
+    wrcState.open = false;
+    try{ const w=document.getElementById('wrc-window'); if(w) w.classList.remove('open'); const bx=document.getElementById('wrc-video-box'); if(bx&&bx.classList.contains('fullscreen')) wrcToggleFullscreen(); wrcDock(); }catch(e){}
+  }
   wrcState.roomId = roomId;
   const nameEl = document.getElementById('wrc-name');
   if(nameEl) nameEl.textContent = opponentName || 'Rywal';
@@ -4843,6 +4858,31 @@ function wrcToggle() {
   }
 }
 
+// Podgląd rywala (WRC) nie zasłania klawiatury: w grze X01 siedzi w karcie wpisywania —
+// obok pola sumy (tryb sumaryczny) albo w miejscu grafik lotek (tryb klasyczny). Bez dodatkowego przewijania.
+function wrcDock(){
+  const box=document.getElementById('wrc-video-box'),win=document.getElementById('wrc-window');
+  if(!box||!win||box.classList.contains('fullscreen'))return;
+  const vis=id=>{const e=document.getElementById(id);return !!(e&&e.offsetParent!==null&&getComputedStyle(e).display!=='none');};
+  const gs=document.getElementById('game-screen');
+  const dmOn=!!document.querySelector('#dm.on');
+  let slot=null;
+  if(wrcState.open&&gs&&gs.classList.contains('active')&&!dmOn){
+    if(vis('x01-summary-in'))slot=document.getElementById('wrc-slot-sum');
+    else if(vis('x01-in'))slot=document.getElementById('wrc-slot-x01');
+  }
+  ['wrc-slot-sum','wrc-slot-x01'].forEach(id=>{const e=document.getElementById(id);if(e&&e!==slot)e.classList.remove('on');});
+  const xi=document.getElementById('x01-in');if(xi)xi.classList.toggle('wrc-docked',!!slot&&slot.id==='wrc-slot-x01');
+  const xs=document.getElementById('x01-summary-in');if(xs)xs.classList.toggle('wrc-docked',!!slot&&slot.id==='wrc-slot-sum');
+  if(slot){
+    if(box.parentNode!==slot)slot.insertBefore(box,slot.firstChild);
+    slot.classList.add('on');win.classList.add('docked');
+  }else{
+    if(box.parentNode!==win)win.insertBefore(box,win.firstChild);
+    win.classList.remove('docked');
+  }
+}
+setInterval(()=>{try{wrcDock();}catch(e){}},500);
 function wrcToggleFullscreen() {
   const box = document.getElementById('wrc-video-box');
   const win = document.getElementById('wrc-window');
@@ -4854,6 +4894,7 @@ function wrcToggleFullscreen() {
     // Przywróć box do wrc-window
     win.insertBefore(box, win.firstChild);
     if(hint) { hint.textContent = '⤢ 2×klik'; hint.style.opacity = '.7'; }
+    try{ wrcDock(); }catch(e){}
   } else {
     // Wejdź w fullscreen — przenieś box na body, żeby nie był ograniczony przez wrc-window
     document.body.appendChild(box);
@@ -8362,7 +8403,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-9'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-11'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
