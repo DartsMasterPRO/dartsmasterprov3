@@ -2716,6 +2716,7 @@ function olDetachForLocalGame(){
     try{ if(OL.gameUnsub){OL.gameUnsub();OL.gameUnsub=null;} if(OL.roomUnsub){OL.roomUnsub();OL.roomUnsub=null;} if(OL.rematchUnsub){OL.rematchUnsub();OL.rematchUnsub=null;} }catch(e){}
     try{ if(typeof olStopHostHeartbeat==='function') olStopHostHeartbeat(); }catch(e){}
     try{ hideOnlineGameBar(); }catch(e){}
+    try{ if(typeof wrcHideAll==='function') wrcHideAll(); }catch(e){}
     G._onlineRoomId=null; G._fbHistory=null; G._onlineTimerSecs=0;
     try{ OL.currentRoomId=null; OL.isHost=false; OL.myIndex=-1; OL.winRecorded=false; OL._lastGameStartedAt=0; }catch(e){}
     try{ localStorage.removeItem('ol_last_room'); localStorage.removeItem('ol_last_room_ts'); }catch(e){}
@@ -4867,7 +4868,11 @@ function wrcDock(){
   const gs=document.getElementById('game-screen');
   const dmOn=!!document.querySelector('#dm.on');
   let slot=null;
-  if(wrcState.open&&gs&&gs.classList.contains('active')&&!dmOn){
+  // tylko w meczu online — w grze offline nie ma rywala do podglądu
+  const onl=typeof G!=='undefined'&&G&&G._onlineRoomId&&typeof OL!=='undefined'&&OL&&OL.currentRoomId;
+  if(!onl&&wrcState.open){wrcState.open=false;win.classList.remove('open');}
+  if(!onl){const ob=document.getElementById('wrc-open-btn');if(ob&&ob.style.display!=='none')ob.style.display='none';}
+  if(onl&&wrcState.open&&gs&&gs.classList.contains('active')&&!dmOn){
     if(vis('x01-summary-in'))slot=document.getElementById('wrc-slot-sum');
     else if(vis('x01-in'))slot=document.getElementById('wrc-slot-x01');
   }
@@ -8405,7 +8410,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-12'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-13'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
