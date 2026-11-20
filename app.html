@@ -15038,7 +15038,7 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
 <!-- ================= PRZYCISK „WSTECZ” TELEFONU: pytanie przed wyjściem z aplikacji ================= -->
 <div id="exit-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200000;align-items:center;justify-content:center;padding:24px">
   <div style="background:#12121a;border:2px solid #ff3c3c;border-radius:16px;padding:26px 22px;max-width:320px;width:100%;text-align:center;animation:popIn .3s ease-out;box-shadow:0 0 40px rgba(255,60,60,.3)">
-    <div style="font-size:44px;margin-bottom:6px">🚪</div>
+    <img id="exit-logo" alt="Darts Master Arena" style="display:block;width:220px;max-width:85%;height:auto;margin:0 auto 10px">
     <div style="font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:2px;color:#ff3c3c;margin-bottom:6px">WYJŚCIE Z APLIKACJI</div>
     <div style="font-size:15px;color:#e8e8f0;margin-bottom:20px">Czy na pewno chcesz opuścić aplikację?</div>
     <div style="display:flex;flex-direction:column;gap:10px">
@@ -15054,7 +15054,10 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
   let guard=false,leaving=false;
   const modal=()=>document.getElementById('exit-modal');
   function arm(){if(guard||leaving)return;try{history.pushState({dmGuard:1},'',location.href);guard=true;}catch(e){}}
-  function show(){const m=modal();if(m)m.style.display='flex';}
+  function show(){const m=modal();if(!m)return;
+    // logo bierzemy z ekranu startowego (bez drugiej kopii obrazka w pliku)
+    const l=document.getElementById('exit-logo');if(l&&!l.getAttribute('src')){const src=document.querySelector('#dm-logo img')||document.querySelector('.ab-logo img');l.src=src&&src.src?src.src:'/icon-192x192.png';}
+    m.style.display='flex';}
   function hide(){const m=modal();if(m)m.style.display='none';}
   window.addEventListener('pointerdown',arm,true);
   window.addEventListener('keydown',arm,true);
@@ -15072,7 +15075,9 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
     if(t&&t.id==='exit-stay'){hide();arm();}
     else if(t&&t.id==='exit-leave'){
       hide();leaving=true;
-      try{history.back();}catch(e){}
+      // zainstalowana aplikacja (ikona na pulpicie): zamknij okno od razu; w zwykłej karcie przeglądarki: cofnij na poprzednią stronę
+      let app=false;try{app=['standalone','fullscreen','minimal-ui'].some(m=>window.matchMedia('(display-mode: '+m+')').matches)||navigator.standalone===true;}catch(e){}
+      try{if(app)window.close();else history.back();}catch(e){}
       // jeśli przeglądarka nie ma dokąd cofnąć (aplikacja otwarta od zera), wystarczy jeszcze raz „wstecz”
       setTimeout(function(){if(document.visibilityState==='visible'){try{toast('Naciśnij ◁ jeszcze raz, aby wyjść');}catch(e){}
         setTimeout(function(){leaving=false;},4000);}},500);
