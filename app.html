@@ -15040,20 +15040,22 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
   <div style="background:#12121a;border:2px solid #ff3c3c;border-radius:16px;padding:26px 22px;max-width:320px;width:100%;text-align:center;animation:popIn .3s ease-out;box-shadow:0 0 40px rgba(255,60,60,.3)">
     <img id="exit-logo" alt="Darts Master Arena" style="display:block;width:220px;max-width:85%;height:auto;margin:0 auto 10px">
     <div style="font-family:'Bebas Neue',cursive;font-size:24px;letter-spacing:2px;color:#ff3c3c;margin-bottom:6px">WYJŚCIE Z APLIKACJI</div>
-    <div style="font-size:15px;color:#e8e8f0;margin-bottom:20px">Czy na pewno chcesz opuścić aplikację?</div>
+    <div style="font-size:15px;color:#e8e8f0;margin-bottom:20px;line-height:1.5">Aby wyjść, naciśnij <b style="color:#ff3c3c;font-size:18px">◁</b> jeszcze raz</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button id="exit-stay" style="padding:14px;background:linear-gradient(135deg,#00ff88,#00aacc);color:#000;border:none;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:2px">NIE, ZOSTAJĘ</button>
-      <button id="exit-leave" style="padding:12px;background:#1a1a26;border:1px solid #ff3c3c;color:#ff3c3c;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:1px">TAK, WYCHODZĘ</button>
     </div>
   </div>
 </div>
 <script>
 (function(){
+  // Android/Chrome nie pozwala stronie zamknąć aplikacji — zamyka ją tylko fizyczny przycisk ◁.
+  // Dlatego: pierwsze ◁ pokazuje okno „naciśnij ◁ jeszcze raz”, drugie ◁ zamyka aplikację.
   // Przeglądarka pomija przy „wstecz” wpisy historii dodane bez dotknięcia ekranu,
-  // dlatego „strażnika” dodajemy przy dotknięciu (i ponownie po każdym użyciu).
+  // dlatego „strażnika” dodajemy przy dotknięciu (i ponownie po „NIE, ZOSTAJĘ”).
   let guard=false,leaving=false;
   const modal=()=>document.getElementById('exit-modal');
-  function arm(){if(guard||leaving)return;try{history.pushState({dmGuard:1},'',location.href);guard=true;}catch(e){}}
+  // przy otwartym oknie nie dodajemy strażnika — drugie ◁ ma zamknąć aplikację
+  function arm(){if(guard||leaving)return;const m=modal();if(m&&m.style.display==='flex')return;try{history.pushState({dmGuard:1},'',location.href);guard=true;}catch(e){}}
   function show(){const m=modal();if(!m)return;
     // logo bierzemy z ekranu startowego (bez drugiej kopii obrazka w pliku)
     const l=document.getElementById('exit-logo');if(l&&!l.getAttribute('src')){const src=document.querySelector('#dm-logo img')||document.querySelector('.ab-logo img');l.src=src&&src.src?src.src:'/icon-192x192.png';}
@@ -15073,15 +15075,6 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
   document.addEventListener('click',function(e){
     const t=e.target;
     if(t&&t.id==='exit-stay'){hide();arm();}
-    else if(t&&t.id==='exit-leave'){
-      hide();leaving=true;
-      // zainstalowana aplikacja (ikona na pulpicie): zamknij okno od razu; w zwykłej karcie przeglądarki: cofnij na poprzednią stronę
-      let app=false;try{app=['standalone','fullscreen','minimal-ui'].some(m=>window.matchMedia('(display-mode: '+m+')').matches)||navigator.standalone===true;}catch(e){}
-      try{if(app)window.close();else history.back();}catch(e){}
-      // jeśli przeglądarka nie ma dokąd cofnąć (aplikacja otwarta od zera), wystarczy jeszcze raz „wstecz”
-      setTimeout(function(){if(document.visibilityState==='visible'){try{toast('Naciśnij ◁ jeszcze raz, aby wyjść');}catch(e){}
-        setTimeout(function(){leaving=false;},4000);}},500);
-    }
   });
 })();
 </script>
