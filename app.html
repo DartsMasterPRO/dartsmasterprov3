@@ -764,8 +764,8 @@ input{outline:none}
       <span>Niestandardowe dźwięki</span>
     </div>
     <div class="menu-item" onclick="closeMenu(); if(window.AutoCam)AutoCam.exportReports()">
-      <span class="menu-item-icon">📥</span>
-      <span>Pobierz zgłoszenia <b id="menu-rpt-cnt" style="color:#ffd700"></b></span>
+      <span class="menu-item-icon">🐞</span>
+      <span>Wyślij zgłoszenia <b id="menu-rpt-cnt" style="color:#ffd700"></b></span>
     </div>
     <div class="menu-item" id="menu-rpt-clear" style="display:none" onclick="closeMenu(); if(window.AutoCam)AutoCam.clearReports()">
       <span class="menu-item-icon">🗑</span>
@@ -8314,7 +8314,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-5'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-6'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -8888,7 +8888,13 @@ function analyze(cur){
   // zmiana głównie w miejscu istniejących lotek = ktoś je wyjmuje / lotka się rusza — to nie nowa lotka
   let GRP=false;
   if(turn.length&&r.exclFrac>0.6){
-    if(lastBigTick>lastDartTick){lg('wyjmowanie lotek…');status('Wyjmowanie lotek…','#ffd700');cand=null;return;}
+    if(lastBigTick>lastDartTick){
+      // ruch ręki po poprzedniej lotce, ale plama stoi w miejscu i wygląda jak lotka → to nowa lotka w ciasnej grupie, nie wyjmowanie
+      // (wcześniej czekaliśmy w nieskończoność i lotka przepadała — zgłoszenie 20.11.2026, T20 w grupie)
+      const st=blobStill(r),lk=st>=8?looksLikeDart(r.px,true):null;
+      if(lk&&lk.ok){lg('to nie wyjmowanie — nieruchoma lotka przy poprzednich od '+st+' odczytów, liczę');lastBigTick=lastDartTick;}
+      else{lg('wyjmowanie lotek…');status('Wyjmowanie lotek…','#ffd700');cand=null;return;}
+    }
     // ciasna grupa: nowa lotka zachodzi na poprzednie (zmiana głównie na nich), ale jej widoczna część poza nimi wygląda jak lotka → licz dalej
     const vg=looksLikeDart(r.px,OCC);
     if(!vg.ok){
@@ -9270,7 +9276,7 @@ async function rptAdd(o){RPT.mem.push(o);if(RPT.mem.length>40)RPT.mem.shift();co
 async function rptAll(){const db=await idb();if(!db)return RPT.mem.slice();
   try{return await new Promise((ok,er)=>{const q=db.transaction('r').objectStore('r').getAll();q.onsuccess=()=>ok(q.result);q.onerror=er;});}catch(e){return RPT.mem.slice();}}
 async function rptClear(){RPT.mem=[];const db=await idb();if(db){try{await new Promise(ok=>{const t=db.transaction('r','readwrite');t.objectStore('r').clear();t.oncomplete=ok;});}catch(e){}}await rptCount();}
-async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📥 POBIERZ ZGŁOSZENIA ('+RPT.cnt+')';
+async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📤 WYŚLIJ ZGŁOSZENIA ('+RPT.cnt+')';
   const o=$('dm-opt-btn');if(o)o.innerHTML='⚙️ OPCJE'+(RPT.cnt?' <span style="color:#ffd700">🐞'+RPT.cnt+'</span>':'');return RPT.cnt;}
 function roiJpeg(d,cr){try{if(!d||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d');
   const id=x.createImageData(GEO.rw,GEO.rh);id.data.set(d);for(let i=3;i<id.data.length;i+=4)id.data[i]=255;x.putImageData(id,0,0);
@@ -9301,7 +9307,7 @@ function report(type,d,corrected,tap){
     geo:{rx:GEO.rx,ry:GEO.ry,rw:GEO.rw,rh:GEO.rh,ww:GEO.ww,wh:GEO.wh,rpx:GEO.rpx,minA:GEO.minA,maxA:GEO.maxA,cal:CAL&&CAL.pts,pose:GEO.pose?{f:GEO.pose.f}:null},
     video:{vw,vh},settings:Object.assign({},S),noise:noiseEst,thr:effT(),log:LOGALL.slice(-60),ua:navigator.userAgent,
     imgs:{before:d?roiJpeg(d.before,cr):roiJpeg(ref),after:d?roiJpeg(d.after||ref,cr):null,now:frameJpeg(),mask:d?maskPng(d.px,cr):null}};
-  rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — pobierzesz je z menu');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
+  rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — wyślij je z menu');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
 }
 // Pobieranie zgłoszeń: jeden plik .json zapisany w folderze Pobrane (potem można go wysłać np. przez WhatsApp jako dokument)
 async function rptExport(){
@@ -10212,8 +10218,8 @@ function mount(){
      '<button onclick="AutoCam.openSetup()" style="grid-column:span 2;color:#00e5ff;border-color:rgba(0,229,255,.4)">📐 ASYSTENT USTAWIENIA TELEFONU</button><button onclick="AutoCam.resetBg()">↺ RESET TŁA</button><button class="red" onclick="AutoCam.close()">✕ ZAMKNIJ WIDOK</button></div>'+
      '<div style="margin-top:10px;padding:10px;border:1px solid rgba(255,215,0,.35);border-radius:8px;background:rgba(255,215,0,.04)">'+
        '<div style="color:#ffd700;font-family:Bebas Neue,cursive;font-size:17px;letter-spacing:1px">🐞 ZGŁOSZENIA POMYŁEK</div>'+
-       '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin:4px 0 8px">Każda poprawka lotki zapisuje obraz i dane rzutu. Pobierz plik i przekaż go autorowi rozpoznawania (np. wrzuć go do czatu z Claude), żeby dostroić liczenie do Twojej tarczy.</div>'+
-       '<div class="dm-sheet-btns" style="margin-top:0"><button id="dm-rpt-btn" onclick="AutoCam.exportReports()" style="color:#ffd700;border-color:rgba(255,215,0,.4)">📥 POBIERZ ZGŁOSZENIA (0)</button><button onclick="AutoCam.clearReports()">🗑 WYCZYŚĆ</button></div>'+
+       '<div style="font-size:10px;color:#8888aa;line-height:1.5;margin:4px 0 8px">Każda poprawka lotki zapisuje obraz i dane rzutu. Wyślij plik autorowi rozpoznawania (np. wrzuć go do czatu z Claude), żeby dostroić liczenie do Twojej tarczy.</div>'+
+       '<div class="dm-sheet-btns" style="margin-top:0"><button id="dm-rpt-btn" onclick="AutoCam.exportReports()" style="color:#ffd700;border-color:rgba(255,215,0,.4)">📤 WYŚLIJ ZGŁOSZENIA (0)</button><button onclick="AutoCam.clearReports()">🗑 WYCZYŚĆ</button></div>'+
        '<label style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:#c8c8d8">Zbieraj automatycznie przy poprawkach <input type="checkbox" id="ac-rpt" onchange="AutoCam.set(\'collectReports\',this.checked)"></label>'+
      '</div>'+
      '<div style="margin-top:10px;padding:10px;border:1px solid rgba(0,229,255,.3);border-radius:8px;background:rgba(0,229,255,.03)">'+
