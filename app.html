@@ -8088,6 +8088,13 @@ async function olChatSend() {
 #ac-set label{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0}
 #ac-set select,#ac-set input[type=range]{flex:1;max-width:60%;background:#1a1a26;color:#e8e8f0;border:1px solid #2a2a40;border-radius:6px;padding:4px}
 #ac-hint{font-family:monospace;font-size:10px;color:#8888aa;margin-top:6px;line-height:1.5}
+/* suwak czułości: czerwony (za mało) → żółty → zielony (dobrze) */
+#ac-set .ac-thr-row{display:block}
+#ac-set .ac-thr-row .ac-thr-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+#ac-set input#ac-thr{-webkit-appearance:none;appearance:none;width:100%;max-width:none;height:12px;margin:9px 0 5px;padding:0;border:none;border-radius:7px;background:linear-gradient(90deg,#ff3c3c 0%,#ff3c3c 20%,#ffd700 50%,#00ff88 72%,#00ff88 100%)}
+#ac-set input#ac-thr::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:#0d0d14;border:3px solid var(--thr-c,#00ff88);box-shadow:0 0 10px var(--thr-c,#00ff88);cursor:pointer}
+#ac-set input#ac-thr::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#0d0d14;border:3px solid var(--thr-c,#00ff88);box-shadow:0 0 10px var(--thr-c,#00ff88);cursor:pointer}
+#ac-thr-st{font-size:10.5px;line-height:1.4}
 #ac-hud{display:none}
 /* pełny ekran (telefon na statywie) */
 #ac-panel.fs{position:fixed;inset:0;z-index:5000;margin:0;border-radius:0;border:none;padding:8px;display:flex;flex-direction:column;background:#000}
@@ -9004,6 +9011,14 @@ function occlTouch(px,excl){if(!excl)return 0;const W=GEO.rw,N=excl.length;let t
 // 2) długość lotki (tył piórek → grot) w jednostkach outDir — uczona z lotek widocznych w całości
 const LEN0=140/120;let LENS=[];
 if(Array.isArray(S.lenR))LENS=S.lenR.slice(-15);
+// 20.11.2026: przy bardzo niskiej czułości kamera widziała tylko piórka (bez ciemnej lufki) i „nauczyła się” za krótkiej lotki — czyścimy raz
+if(S.lenRv!==2){LENS=[];S.lenR=[];S.lenRv=2;try{saveCfg();}catch(e){}}
+// kolorowy suwak czułości: czerwony = za mało (lufka/grot znika), zielony = dobrze
+function thrUI(){const el=$('ac-thr');if(!el)return;const t=S.thr,pct=Math.round((135-t-15)/105*100);
+  const c=t>=70?'#ff3c3c':t>=50?'#ffd700':'#00ff88';
+  const txt=t>=70?'Za niska — ciemne lufki i groty mogą być niewidoczne (duże pomyłki pól).':t>=50?'Trochę za niska — przesuń w prawo.':t<=20?'Bardzo wysoka — przy drganiach mogą pojawiać się fałszywe lotki.':'Dobra'+(t===40?' (domyślna).':'.');
+  el.style.setProperty('--thr-c',c);const v=$('ac-thr-v');if(v){v.textContent=pct+'%';v.style.color=c;}
+  const st=$('ac-thr-st');if(st){st.textContent=txt;st.style.color=c;}}
 function lenRatio(){if(!LENS.length)return LEN0;const a=LENS.slice().sort((x,y)=>x-y);return a[a.length>>1];}
 function farEnd(px,od){const rw=GEO.rw;let mx=0,my=0;for(const i of px){mx+=i%rw;my+=(i/rw)|0;}mx/=px.length;my/=px.length;
   let t1=-1e9,t0=1e9;for(const i of px){const t=(i%rw-mx)*od[0]+(((i/rw)|0)-my)*od[1];if(t>t1)t1=t;if(t<t0)t0=t;}return{x:mx+od[0]*t1,y:my+od[1]*t1,mx,my,t0,t1};}
@@ -9056,7 +9071,8 @@ function occlTip(px,excl){
   if(!cnt||hid/cnt<0.25)return null;
   return{x:tx,y:ty,vis:Lvis/L,hidFrac:hid/cnt,dbg:[narrow?'N':'-',e[0].toFixed(2),e[1].toFixed(2),od[0].toFixed(2),od[1].toFixed(2),Math.round(Lvis),Math.round(L),Math.round(P0x),Math.round(P0y),Math.round(tx),Math.round(ty),R.toFixed(2)].join(' ')};
 }
-function learnLen(px,tip){try{const[nx,ny]=workToNorm(tip.x,tip.y),bb=ap(GEO.Hi,nx,ny);if(!bb)return;const od=outDir(bb[0],bb[1]);if(!od||od[2]<GEO.rpx*0.1)return;
+function learnLen(px,tip){try{if(effT()>60)return; // przy niskiej czułości lufka bywa niewidoczna → zła długość
+  const[nx,ny]=workToNorm(tip.x,tip.y),bb=ap(GEO.Hi,nx,ny);if(!bb)return;const od=outDir(bb[0],bb[1]);if(!od||od[2]<GEO.rpx*0.1)return;
   const F=farEnd(px,od),r=Math.hypot(F.x-tip.x,F.y-tip.y)/od[2];if(r>0.8&&r<1.8){LENS.push(r);if(LENS.length>15)LENS.shift();S.lenR=LENS.slice();saveCfg();}}catch(e){}}
 // czy plama wygląda jak lotka? (kształt wzdłuż osi lotki z kalibracji)
 function looksLikeDart(px,occl){
@@ -10196,7 +10212,7 @@ function mount(){
    '</div>'+
    '<div id="ac-set">'+
      '<label>Kamera <select id="ac-cam" onchange="AutoCam.setCam(this.value)"></select></label>'+
-     '<label>Czułość <small style="color:#8888aa">(w prawo = więcej)</small> <input type="range" id="ac-thr" min="15" max="120" step="5" oninput="AutoCam.set(\'thr\',135-this.value)"></label>'+
+     '<label class="ac-thr-row"><span class="ac-thr-top"><span>Czułość <small style="color:#8888aa">(w prawo = lepiej)</small></span><b id="ac-thr-v" style="font-weight:normal"></b></span><input type="range" id="ac-thr" min="15" max="120" step="5" oninput="AutoCam.set(\'thr\',135-this.value);AutoCam.thrUI()"><span id="ac-thr-st"></span></label>'+
      '<label>Grot lotki na obrazie <select id="ac-tip" onchange="AutoCam.set(\'tipDir\',this.value)">'+
        '<option value="auto">Auto (z kalibracji)</option><option value="narrow">Węższy koniec</option><option value="down">Niżej</option><option value="up">Wyżej</option><option value="left">Z lewej</option><option value="right">Z prawej</option></select></label>'+
      '<label>Kalibracja w tle (co 3 min) <input type="checkbox" id="ac-bgc" onchange="AutoCam.set(\'bgCal\',this.checked)"></label>'+
@@ -10261,7 +10277,7 @@ function mount(){
     const R=dmLastRect,nx=(R.sx+(e.clientX-r.left)/r.width*R.sw)/vw,ny=(R.sy+(e.clientY-r.top)/r.height*R.sh)/vh;
     addManual(nx,ny);
   });
-  const thr=$('ac-thr');thr.value=135-S.thr;$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;if($('ac-req'))$('ac-req').checked=!window.Caller||Caller.reqOn;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;if($('ac-occl'))$('ac-occl').checked=S.occl===true;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
+  const thr=$('ac-thr');thr.value=135-S.thr;thrUI();$('ac-tip').value=S.tipDir;$('ac-auto').checked=S.autoConfirm;$('ac-exp').checked=S.lockExp;$('ac-dbg').checked=S.debug;$('ac-say').checked=S.sayDarts!==false;if($('ac-req'))$('ac-req').checked=!window.Caller||Caller.reqOn;$('ac-bgc').checked=S.bgCal!==false;$('ac-rpt').checked=S.collectReports!==false;$('ac-learn').checked=S.learn!==false;lrnUI();rptCount();$('ac-fall').checked=S.fallDetect!==false;if($('ac-occl'))$('ac-occl').checked=S.occl===true;applyVoice();$('ac-hc').checked=!!S.hideComp;{const pl=$('ac-plen');pl.value=S.pointLen||27;pl.nextElementSibling.textContent=pl.value;}$('ac-acal').checked=S.autoCal!==false;
   $('ac-view').addEventListener('click',e=>{
     if(!GEO)return;const r=e.currentTarget.getBoundingClientRect();
     correctLast((e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height);
@@ -10325,6 +10341,7 @@ window.AutoCam={
   resetBg(){resetRefs();status('Tło zresetowane — tarcza musi być pusta','#00e5ff');renderDarts();},
   toggleSet(){$('ac-set').classList.toggle('on');},
   set(k,v){S[k]=v;saveCfg();if(k==='lockExp'&&v)lockExposure();},
+  thrUI(){thrUI();},
   async setCam(id){S.deviceId=id;saveCfg();stop();await start();},
   _fine:()=>FINE,_fineEst:()=>{fineEstimate();return FINE.off;},
   _t:{bgSoon:(w)=>bgCalSoon(w),autoCalibrate:(i)=>autoCalibrate(i),bgCal:()=>bgCalRun(true),cal:(v)=>{if(v){CAL={pts:v};buildGeo();resetRefs();}return CAL&&CAL.pts;},solveH,ap,scoreAt,learn:()=>LRN,turn:()=>turn.map(d=>({tip:d.tip,lbl:d.sc.lbl,un:d.unsure?d.unsure.lbl:null})),log:()=>LOGALL.slice(-120)}
