@@ -3444,7 +3444,7 @@ function _doShowWin(name,rounds,avg,mode){
   const rematchBtn = document.getElementById('rematch-btn');
   const lobbyBtn   = document.getElementById('win-lobby-btn');
   const rematchWait= document.getElementById('rematch-waiting');
-  if(rematchBtn)  { rematchBtn.style.display  = G._onlineRoomId ? '' : 'none'; }
+  if(rematchBtn)  { rematchBtn.style.display  = (G._onlineRoomId || offlineRematchOk()) ? '' : 'none'; }
   if(lobbyBtn)    { lobbyBtn.style.display     = G._onlineRoomId ? '' : 'none'; }
   if(rematchWait) { rematchWait.style.display  = 'none'; }
   const statsHtml=`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #2a2a40;font-size:14px"><span style="color:#8888aa">Rundy</span><span style="font-weight:700;color:#00e5ff">${rounds}</span></div>
@@ -3553,14 +3553,22 @@ async function closeLose(){
 }
 window.closeLose=closeLose;
 
+// rewanż offline (gracze lokalni / bot): ten sam tryb, ci sami gracze, te same ustawienia
+function offlineRematchOk(){
+  try{ return !G._onlineRoomId && !(typeof OL!=='undefined' && OL.currentRoomId) && Array.isArray(G.players) && G.players.length>0 && ['501','301','cricket','atc'].includes(G.mode); }catch(e){ return false; }
+}
 function rematchGame(){
-  // Tryb OFFLINE — zwykły restart
+  // Tryb OFFLINE — nowy mecz z tymi samymi ustawieniami; zaczyna kolejny gracz (jak w turnieju: zaczynający się zmienia)
   if(!G._onlineRoomId){
+    stopWinFanfare();
     var ov=document.getElementById('win-overlay');
     ov.classList.remove('show');
     ov.style.display='none';
+    var lo=document.getElementById('lose-overlay'); if(lo) lo.style.display='none';
+    if(Array.isArray(G.players) && G.players.length>1) G.players = G.players.slice(1).concat(G.players[0]);
     startGame();
     goto('game');
+    if(G.players && G.players.length>1) toast('⚔️ Rewanż! Zaczyna '+G.players[0]);
     return;
   }
   // Tryb ONLINE — wyślij żądanie rewanżu do Firestore
