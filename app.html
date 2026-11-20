@@ -8539,7 +8539,8 @@ function tipOf(px,raw,useGeo,soft){
   }
   // cienki grot znika po filtrze — idziemy dalej wzdłuż osi po surowej masce
   if(raw){const dx=useMin?-fx:fx,dy=useMin?-fy:fy,rh=GEO.rh;let maxS=Math.round(L*0.6);let gap=0,last=0;
-    const M=raw,ww=2,gp=3;
+    // wąski korytarz (±1 px) i krótka przerwa: szersze/luźniejsze przeskakiwało po szumie na drucie (zgłoszenia 11.2026: grot „przechodził” przez drut do sąsiedniego pola)
+    const M=raw,ww=1,gp=1;
     // grot nie wystaje dalej niż ~45 mm przed lufkę
     if(geoAx){const[nx,ny]=workToNorm(tx,ty),bb=ap(GEO.Hi,nx,ny),od=bb?outDir(bb[0],bb[1]):null;if(od)maxS=Math.max(3,Math.round(Math.min(maxS,od[2]*45/120)));}
     for(let s=1;s<=maxS;s++){let hit=false;
@@ -8831,7 +8832,7 @@ function analyze(cur){
   }
   lastMask=r.m;lastMaskT=performance.now();
   const blobN=r.px?r.px.length:0;DG.area=blobN;
-  const OCCT=S.occl===true&&excl&&r.px&&r.px.length?occlTouch(r.px,excl):0,OCC=OCCT>=8;if(S.debug&&OCCT)lg('styk z wcześniejszą lotką: '+OCCT+'px / '+r.px.length);
+  const OCCT=S.occl===true&&excl&&r.px&&r.px.length?occlTouch(r.px,excl):0;let OCC=OCCT>=8;if(S.debug&&OCCT)lg('styk z wcześniejszą lotką: '+OCCT+'px / '+r.px.length);
   if(blobN>=GEO.minA*0.3)lg('zmiana '+blobN+'px (min '+Math.round(GEO.minA)+', max '+Math.round(GEO.maxA)+', wszystkie '+r.total+')');
   if(blobN<GEO.minA){cand=null;if(blobN<GEO.minA*0.3){ref=cur;if(!turn.length)empty=cur;}status(turn.length?'Czekam na kolejną lotkę':'Gotowe — rzucaj 🎯','#00ff88');return;}
   if(blobN>GEO.maxA){lastBigTick=tickN;lg('za duża zmiana → zasłonięte');ref=refAge>25?cur:ref;refAge++;status('Coś zasłania tarczę…','#ff8c00');return;}
@@ -8851,25 +8852,33 @@ function analyze(cur){
     const last=turn[turn.length-1];const set=new Set(last.px);let ov=0;r.px.forEach(i=>{if(set.has(i))ov++;});
     if(!last.fell&&ov>r.px.length*0.6&&r.px.length<last.px.length*0.6){
       if(fracChanged(cur,last.before,last.px)<0.35&&turnKey0===tkey())markFell(turn.length-1);
+      else lg('zmiana w miejscu ostatniej lotki (poruszyła się) → nowe tło');
       ref=cur;return;
     }
   }
   if(closed||turn.length>=3){lg('tura pełna — czekam na wyjęcie');ref=cur;status('Wyjmij lotki z tarczy ✋','#ffd700');return;}
   if(turn.length&&turnKey0!==tkey()){closed=true;ref=cur;status('Tura zatwierdzona — wyjmij lotki ✋','#ffd700');return;}
-  if(sinceMove>45&&!cand&&!looksLikeDart(r.px,OCC).ok){lg('zmiana bez ruchu → nowe tło');ref=cur;if(!turn.length)empty=cur;return;}
+  if(sinceMove>45&&!cand&&!(GRPLK=looksLikeDart(r.px,OCC)).ok){lg('zmiana bez ruchu → nowe tło ('+GRPLK.why+')');ref=cur;if(!turn.length)empty=cur;return;}
   // zmiana głównie w miejscu istniejących lotek = ktoś je wyjmuje / lotka się rusza — to nie nowa lotka
   let GRP=false;
   if(turn.length&&r.exclFrac>0.6){
     if(lastBigTick>lastDartTick){lg('wyjmowanie lotek…');status('Wyjmowanie lotek…','#ffd700');cand=null;return;}
     // ciasna grupa: nowa lotka zachodzi na poprzednie (zmiana głównie na nich), ale jej widoczna część poza nimi wygląda jak lotka → licz dalej
     const vg=looksLikeDart(r.px,OCC);
-    if(!vg.ok){cand=null;return;}
-    GRP=true;if(!cand)lg('ciasna grupa — nowa lotka przy poprzednich ('+Math.round(r.exclFrac*100)+'% zmiany na nich)');
+    if(!vg.ok){
+      // lotka schowana częściowo za wcześniejszymi: widoczny fragment nie wygląda jak cała lotka i wcześniej czekaliśmy w nieskończoność (lotka nieliczona).
+      // Jeśli plama stoi nieruchomo i przechodzi łagodniejszy test „lotki zasłoniętej”, liczymy ją z obsługą ukrytego grota.
+      const st=blobStill(r),vr=OCC?vg:looksLikeDart(r.px,true);
+      if(st>=5&&vr.ok){if(!OCC)lg('ciasna grupa: lotka częściowo schowana za wcześniejszymi — liczę (nieruchoma od '+st+' odczytów)');OCC=true;}
+      else{if(GRPWHY!==vg.why){GRPWHY=vg.why;lg('ciasna grupa — czekam ('+vg.why+')');}cand=null;return;}
+    }
+    GRPWHY='';GRP=true;if(!cand)lg('ciasna grupa — nowa lotka przy poprzednich ('+Math.round(r.exclFrac*100)+'% zmiany na nich)');
   }
   if(turn.length&&lastBigTick>lastDartTick&&!closed){
     const st=blobStill(r);
-    if(st>=8&&looksLikeDart(r.px,OCC).ok){lg('to nie ręka — nieruchoma lotka od '+st+' odczytów, liczę');lastBigTick=lastDartTick;}
-    else{lg('ręka przy tarczy po rzucie — czekam na wyjęcie');cand=null;return;}
+    const lk=st>=8?looksLikeDart(r.px,OCC):null;
+    if(lk&&lk.ok){lg('to nie ręka — nieruchoma lotka od '+st+' odczytów, liczę');lastBigTick=lastDartTick;}
+    else{lg('ręka przy tarczy po rzucie — czekam na wyjęcie'+(lk?' ('+lk.why+')':''));cand=null;return;}
   }
   if(tickN-lastBigTick<12){lg('ręka przy tarczy — czekam');cand=null;status('Ruch przy tarczy…','#ff8c00');return;}
   {const v=looksLikeDart(r.px,OCC);
@@ -8927,7 +8936,7 @@ function analyze(cur){
 }
 // ===== LOTKI ZASŁONIĘTE PRZEZ WCZEŚNIEJSZE =====
 // grot schowany = koniec plamy od strony grota styka się z wcześniejszą lotką (widoczny grot ma wokół wolną tarczę)
-let STILL=null;
+let STILL=null,GRPWHY='',GRPLK=null;
 function blobStill(r){ // ile kolejnych odczytów ta sama plama stoi w miejscu (rozmiar ±12%, środek ±2% promienia)
   const rw=GEO.rw;let sx=0,sy=0;for(const i of r.px){sx+=i%rw;sy+=(i/rw)|0;}const n=r.px.length,cx=sx/n,cy=sy/n,h=STILL;
   const same=h&&Math.abs(n-h.n)<Math.max(n,h.n)*0.12&&Math.hypot(cx-h.cx,cy-h.cy)<GEO.rpx*0.02;
