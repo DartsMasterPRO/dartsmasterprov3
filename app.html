@@ -8250,6 +8250,8 @@ async function olChatSend() {
 #dm .dm-ic{background:#1a1a26;color:#00e5ff;border:1px solid rgba(0,229,255,.35)}
 #dm .dm-mode{color:#ff3c3c}
 #dm .dm-modei{color:#8888aa;border-color:#2a2a40}
+#dm.x4n .dm-next{padding:8px 9px;font-size:15px;letter-spacing:.5px}
+#dm .dm-x{flex-shrink:0;width:38px;height:38px;border-radius:9px;border:2px solid #ff3c3c;background:rgba(255,60,60,.1);color:#ff3c3c;font-size:18px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 #dm .dm-next{background:#1a1a26;color:#00e5ff;border:2px solid #00e5ff;box-shadow:0 0 12px rgba(0,229,255,.35),inset 0 0 8px rgba(0,229,255,.08)}
 #dm .dm-pill{background:rgba(10,10,15,.78);color:#00e5ff;border:1px solid rgba(0,229,255,.3)}
 #dm #dm-round small{color:#8888aa}
@@ -8403,7 +8405,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
-const APP_VER='2026.11.20-11'; // wersja rozpoznawania (trafia do zgłoszeń)
+const APP_VER='2026.11.20-12'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -10336,7 +10338,7 @@ function mount(){
   dm.innerHTML=
    '<div class="dm-top"><button class="dm-ic" onclick="AutoCam.sheet()">⋮</button>'+
      '<div class="dm-mode" id="dm-mode">501</div>'+
-     '<button class="dm-next" id="dm-next" onclick="AutoCam.nextRound()">NASTĘPNA RUNDA</button></div>'+
+     '<button class="dm-next" id="dm-next" onclick="AutoCam.nextRound()">NASTĘPNA RUNDA</button><button class="dm-x" id="dm-x" onclick="AutoCam.close()" title="Wyłącz kamerę — wróć do liczenia ręcznego">✕</button></div>'+
    '<div id="dm-camwrap"><canvas id="dm-cam"></canvas><div id="dm-nocam"></div>'+
      '<div class="dm-pill" id="dm-who"></div><div class="dm-pill" id="dm-round">R1</div>'+
      '<div class="dm-tools"><button onclick="AutoCam.refocus()" title="Wyostrz">🔍</button><button onclick="AutoCam.undoDart()" title="Cofnij lotkę">↶</button><button id="dm-zoom" onclick="AutoCam.zoom()">1.4x</button></div></div>'+
@@ -14589,14 +14591,18 @@ function mute(){VM.muted=!VM.muted;VM.room=roomId();if(RTC.audio)RTC.audio.muted
 function dock(box){
   const fsP=document.querySelector('#ac-panel.fs');
   try{const p=document.getElementById('ac-panel');if(p)p.classList.toggle('x4pad',!!fsP&&box.classList.contains('on'));}catch(e){}
-  if(!box.classList.contains('on')){box.classList.remove('dock');return;}
+  if(!box.classList.contains('on')){box.classList.remove('dock');try{const d=document.getElementById('dm');if(d)d.classList.remove('x4n');}catch(e){}return;}
   const top=document.querySelector('#dm.on .dm-top'),nx=document.getElementById('dm-next');
   box.classList.add('dock');
   const bw=box.offsetWidth||74,bh=box.offsetHeight||34;
   if(fsP){const h=document.getElementById('ac-hud');const r=h?h.getBoundingClientRect():{top:8,height:40};
     box.style.top=Math.max(4,r.top+(r.height-bh)/2)+'px';box.style.right='10px';box.style.left='auto';return;}
-  if(top&&nx){const r=top.getBoundingClientRect(),n=nx.getBoundingClientRect();
-    const md=document.getElementById('dm-mode'),mr=md?md.getBoundingClientRect().right+18:8;box.style.top=(n.top+(n.height-bh)/2)+'px';box.style.left=Math.max(mr,n.left-bw-8)+'px';box.style.right='auto';return;}
+  if(top&&nx){const dm=document.getElementById('dm'),md=document.getElementById('dm-mode');
+    const fit=()=>{const n=nx.getBoundingClientRect(),mr=md?md.getBoundingClientRect().right+10:8;return{n,mr,ok:n.left-bw-8>=mr};};
+    let f=fit();if(!f.ok&&dm&&!dm.classList.contains('x4n')){dm.classList.add('x4n');f=fit();}
+    if(f.ok){box.style.top=(f.n.top+(f.n.height-bh)/2)+'px';box.style.left=(f.n.left-bw-8)+'px';box.style.right='auto';return;}
+    // za wąsko na jeden pasek — tuż pod paskiem, przy prawej krawędzi (poza tarczą)
+    const r=top.getBoundingClientRect();box.style.top=(r.bottom+6)+'px';box.style.right='10px';box.style.left='auto';return;}
   box.classList.remove('dock');box.style.top='';box.style.left='';box.style.right='';
 }
 function sync(){
