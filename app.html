@@ -763,6 +763,14 @@ input{outline:none}
       <span class="menu-item-icon">🎵</span>
       <span>Niestandardowe dźwięki</span>
     </div>
+    <div class="menu-item" onclick="closeMenu(); if(window.AutoCam)AutoCam.exportReports()">
+      <span class="menu-item-icon">🐞</span>
+      <span>Wyślij zgłoszenia <b id="menu-rpt-cnt" style="color:#ffd700"></b></span>
+    </div>
+    <div class="menu-item" id="menu-rpt-clear" style="display:none" onclick="closeMenu(); if(window.AutoCam)AutoCam.clearReports()">
+      <span class="menu-item-icon">🗑</span>
+      <span>Usuń wysłane zgłoszenia</span>
+    </div>
     <div class="menu-item" onclick="openInfo(); closeMenu()">
       <span class="menu-item-icon">ℹ️</span>
       <span id="about-label">O aplikacji</span>
@@ -1440,6 +1448,7 @@ function toggleMenu(){
   const toggle = document.getElementById('menu-toggle');
   menu.classList.toggle('open');
   toggle.classList.toggle('open');
+  try{if(menu.classList.contains('open')&&window.AutoCam&&AutoCam.reportCount)AutoCam.reportCount();}catch(e){}
   SFX.nav();
 }
 
@@ -8508,6 +8517,7 @@ function tipOf(px,raw,useGeo,soft){
   if(!geoOk&&(S.tipDir==='auto'||S.tipDir==='narrow'))useMin=cMin<cMax; // grot = węższy koniec
   else if(S.tipDir==='__force')useMin=FORCE_MIN;
   else if(!geoOk&&['down','up','left','right'].includes(S.tipDir)){const d={down:[0,1],up:[0,-1],left:[-1,0],right:[1,0]}[S.tipDir];useMin=(tmin*ex*d[0]+tmin*ey*d[1])>(tmax*ex*d[0]+tmax*ey*d[1]);}
+  HC_ADD=false;
   const lim=Math.max(1.5,L*0.03);let sx=0,sy=0,c=0;
   if(geoAx){ // szukaj grota w wąskim korytarzu wzdłuż osi lotki (omija skrzydełka piórek)
     const cor=Math.max(3,GEO.rpx*0.03);let tm=1e9;const inC=new Uint8Array(n),pp=new Float32Array(n);
@@ -8558,15 +8568,22 @@ function tipOf(px,raw,useGeo,soft){
           const wmax=Math.max(...prof);
           if(wmax>=4){const thrW=Math.max(3,wmax*0.55);let vis=prof.findIndex(w=>w>=thrW);if(vis<0)vis=N;
             const tipThin=prof[0]+prof[1]+prof[2]<=thrW*1.2; // na samym końcu brak cienkiego grota?
-            if(vis<=3&&!tipThin||vis<=2){const add=(Lexp-vis)*cosA;tx+=dx*add;ty+=dy*add;LAST_FIX=Math.round(add/ppm);}else LAST_FIX=0;}
+            if((vis<=3&&!tipThin||vis<=2)&&hcShort(px,tx,ty,dx,dy,od,(Lexp-vis)*cosA)){const add=(Lexp-vis)*cosA;tx+=dx*add;ty+=dy*add;LAST_FIX=Math.round(add/ppm);HC_ADD=true;}else LAST_FIX=0;}
         }}}
   }
-  return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my,geo:geoAx||geoOk};
+  return{x:tx,y:ty,elong,ax:[ex,ey],useMin,tmin,tmax,mx,my,geo:geoAx||geoOk,hc:HC_ADD};
 }
 function tipOfForced(px,raw,useMin){
   const d=S.tipDir;S.tipDir='__force';FORCE_MIN=useMin;try{return tipOf(px,raw,false);}finally{S.tipDir=d;}
 }
-let FORCE_MIN=false,LAST_FIX=0;
+let FORCE_MIN=false,LAST_FIX=0,HC_ADD=false;
+// kompensacja ukrytego grota tylko wtedy, gdy lotka na obrazie jest wyraźnie KRÓTSZA niż zwykle (przód lotki faktycznie schowany).
+// Bez tego warunku dokładała ~25 mm do co drugiej lotki z widocznym grotem (zgłoszenia 20.11.2026: 19→3, 3→17, 20→5).
+function hcShort(px,tx,ty,dx,dy,od,add){
+  if(!od||!(add>0))return false;const rw=GEO.rw;let m=0;
+  for(const i of px){const t=(tx-i%rw)*dx+(ty-((i/rw)|0))*dy;if(t>m)m=t;} // grot → tył piórek
+  return m<od[2]*lenRatio()*0.55; // widać mniej niż ~55% zwykłej długości lotki
+}
 function fracChanged(cur,base,px){
   if(!px||!px.length)return 0;const T=effT(),a=hp(cur),b=hp(base);let n=0;
   for(const i of px){const j=i*3;if(Math.abs(a[j]-b[j])+Math.abs(a[j+1]-b[j+1])+Math.abs(a[j+2]-b[j+2])>T)n++;}
@@ -8926,7 +8943,7 @@ function analyze(cur){
     lg('to poruszona wcześniejsza lotka (grot w tym samym miejscu) — pomijam');ref=cur;status('Czekam na kolejną lotkę','#00ff88');return;}}
   lg('lotka → '+sc.lbl+' (grot '+Math.round(nx*1000)/10+'%,'+Math.round(ny*1000)/10+'%'+(LAST_FIX?', ukryty grot +'+LAST_FIX+' mm':'')+')');LAST_FIX=0;
   CUR_TIP=[nx,ny];if(!applyDart(sc)){lg('gra odrzuciła rzut');ref=cur;return;}
-  if(!OCCF&&!OCC&&tp.geo&&tp.elong>3)learnLen(r.px,tp);d.occl=OCCF;
+  if(!OCCF&&!OCC&&!tp.hc&&tp.geo&&tp.elong>3)learnLen(r.px,tp);d.occl=OCCF;
   if(!OCCF){try{d.axi=axisInfo(r.px,tp.x,tp.y);}catch(e){}}
   hmRec(d);d.after=cur;d.dbg={blob:r.px.length,total:r.total,exclFrac:r.exclFrac,geo:!!tp.geo,elong:tp.elong,ax:tp.ax,thr:effT(),noise:noiseEst,mv:DG.mv,mvThr:DG.mvThr};turn.push(d);ref=cur;refAge=0;lastDartTick=tickN;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');sayDart(sc);
@@ -9243,7 +9260,7 @@ async function rptAdd(o){RPT.mem.push(o);if(RPT.mem.length>40)RPT.mem.shift();co
 async function rptAll(){const db=await idb();if(!db)return RPT.mem.slice();
   try{return await new Promise((ok,er)=>{const q=db.transaction('r').objectStore('r').getAll();q.onsuccess=()=>ok(q.result);q.onerror=er;});}catch(e){return RPT.mem.slice();}}
 async function rptClear(){RPT.mem=[];const db=await idb();if(db){try{await new Promise(ok=>{const t=db.transaction('r','readwrite');t.objectStore('r').clear();t.oncomplete=ok;});}catch(e){}}await rptCount();}
-async function rptCount(){const a=await rptAll();RPT.cnt=a.length;const b=$('dm-rpt-btn');if(b)b.textContent='📤 WYŚLIJ ZGŁOSZENIA ('+RPT.cnt+')';
+async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📤 WYŚLIJ ZGŁOSZENIA ('+RPT.cnt+')';
   const o=$('dm-opt-btn');if(o)o.innerHTML='⚙️ OPCJE'+(RPT.cnt?' <span style="color:#ffd700">🐞'+RPT.cnt+'</span>':'');return RPT.cnt;}
 function roiJpeg(d){try{if(!d||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d');
   const id=x.createImageData(GEO.rw,GEO.rh);id.data.set(d);for(let i=3;i<id.data.length;i+=4)id.data[i]=255;x.putImageData(id,0,0);return c.toDataURL('image/jpeg',0.88);}catch(e){return null;}}
@@ -10187,6 +10204,7 @@ window.AutoCam={
   start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,pickTab,addMissed,addMissedTab,refocus(){refocus(true);},
   sheet(){$('dm-sheet').classList.toggle('on');applyVoice();rptCount();lrnUI();},
   exportReports(){rptExport();},
+  reportCount(){return rptCount();},
   correctTap(nx,ny){correctLast(nx,ny);},
   hmSet(k,v){HMF[k]=k==='days'?+v:v;hmRender();},
   hmClear(){if(!window.confirm('Usunąć całą historię rzutów z mapy?'))return;HITS=[];hmSave();hmRender();},
@@ -10199,7 +10217,7 @@ window.AutoCam={
   bullActive(){return BULL.active;},
   testApplause(l){applause(l||1);},
   learnReset(){LRN.samples=[];LRN.cal=CAL?CAL.pts.map(p=>p.slice()):null;FINE.h=[];FINE.off=[0,0];FINE.gain=0;fineSave();lrnSave();toast('🧠 Zapomniano nauczone korekty');},
-  async clearReports(){if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
+  async clearReports(){await rptCount();if(!RPT.cnt){toast('Brak zgłoszeń');return;}if(!confirmClear()){return;}await rptClear();toast('🗑 Usunięto zgłoszenia');},
   reportDart(i){$('dm-pick').classList.remove('on');if(turn[i])report('manual',turn[i],null,null);},
   setVoice(v){if(v==='__pack'){try{Caller.set(true);}catch(e){}}else{try{Caller.set(false);}catch(e){}S.voice=v;saveCfg();applyVoice();}try{TTS.say('Treble twenty',0.7,0.95);}catch(e){}},
   testVoice(){applyVoice();try{TTS.say('One hundred and eighty',0.7,0.9);}catch(e){}},
