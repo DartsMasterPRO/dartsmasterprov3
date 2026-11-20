@@ -8306,6 +8306,7 @@ const RB={bi:6.35,bo:15.9,ti:99,to:107,di:162,dd:170};
 const CAL_BOARD=[[0,170],[170,0],[0,-170],[-170,0]]; // 20, 6, 3, 11 (oś Y w górę)
 const CAL_LBL=['20','6','3','11'];
 const CRICKET=[15,16,17,18,19,20,25];
+const APP_VER='2026.11.20-5'; // wersja rozpoznawania (trafia do zgłoszeń)
 const LS='dm_autocam_v1', WORK_W=800, TICK=90, STABLE_N=3, ROI_K=1.45;
 
 const S={bgCal:true,learn:true,collectReports:true,fallDetect:true,occl:false,sayDarts:true,voice:'',unsureMm:2.5,hideComp:false,pointLen:27,autoCal:true,zoom:1,thr:40,tipDir:'auto',autoConfirm:true,debug:false,lockExp:true,deviceId:''};
@@ -8947,7 +8948,8 @@ function analyze(cur){
   if(!OCCF){try{d.axi=axisInfo(r.px,tp.x,tp.y);}catch(e){}}
   hmRec(d);d.after=cur;d.dbg={blob:r.px.length,total:r.total,exclFrac:r.exclFrac,geo:!!tp.geo,elong:tp.elong,ax:tp.ax,thr:effT(),noise:noiseEst,mv:DG.mv,mvThr:DG.mvThr};turn.push(d);ref=cur;refAge=0;lastDartTick=tickN;
   status('🎯 '+sc.lbl+(sc.val?' ('+sc.val+')':''),'#00ff88');sayDart(sc);
-  if(d.unsure){lg('niepewne: '+sc.lbl+' / '+d.unsure.lbl+' (grot przy drucie)');toast('⚠️ '+sc.lbl+' czy '+d.unsure.lbl+'? Stuknij lotkę, żeby poprawić');}
+  if(d.unsure){lg('niepewne: '+sc.lbl+' / '+d.unsure.lbl+' (grot przy drucie)');unsureAsk(turn.length-1);}
+  d.grp=GRP;if(gm()!=='bull'){accAdd('auto');if(GRP||OCCF)occlNote();}
   afterDart();renderDarts();
   if(closed)setTimeout(()=>{if(closed&&turn.length)status('Wyjmij lotki z tarczy ✋','#ffd700');},1200);
 }
@@ -9262,29 +9264,42 @@ async function rptAll(){const db=await idb();if(!db)return RPT.mem.slice();
 async function rptClear(){RPT.mem=[];const db=await idb();if(db){try{await new Promise(ok=>{const t=db.transaction('r','readwrite');t.objectStore('r').clear();t.oncomplete=ok;});}catch(e){}}await rptCount();}
 async function rptCount(){const a=await rptAll();RPT.cnt=a.length;{const m=$('menu-rpt-cnt');if(m)m.textContent=RPT.cnt?'('+RPT.cnt+')':'';const c=$('menu-rpt-clear');if(c)c.style.display=RPT.cnt?'':'none';}const b=$('dm-rpt-btn');if(b)b.textContent='📤 WYŚLIJ ZGŁOSZENIA ('+RPT.cnt+')';
   const o=$('dm-opt-btn');if(o)o.innerHTML='⚙️ OPCJE'+(RPT.cnt?' <span style="color:#ffd700">🐞'+RPT.cnt+'</span>':'');return RPT.cnt;}
-function roiJpeg(d){try{if(!d||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d');
-  const id=x.createImageData(GEO.rw,GEO.rh);id.data.set(d);for(let i=3;i<id.data.length;i+=4)id.data[i]=255;x.putImageData(id,0,0);return c.toDataURL('image/jpeg',0.88);}catch(e){return null;}}
-function maskPng(px){try{if(!px||!px.length||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d'),id=x.createImageData(GEO.rw,GEO.rh);
-  for(const i of px){id.data[i*4]=255;id.data[i*4+3]=255;}x.putImageData(id,0,0);return c.toDataURL('image/png');}catch(e){return null;}}
-function frameJpeg(){try{if(!video||!vw)return null;const c=document.createElement('canvas'),k=Math.min(1,1280/vw);c.width=Math.round(vw*k);c.height=Math.round(vh*k);
-  c.getContext('2d').drawImage(video,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.85);}catch(e){return null;}}
+function roiJpeg(d,cr){try{if(!d||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d');
+  const id=x.createImageData(GEO.rw,GEO.rh);id.data.set(d);for(let i=3;i<id.data.length;i+=4)id.data[i]=255;x.putImageData(id,0,0);
+  if(cr){const c2=document.createElement('canvas');c2.width=cr.w;c2.height=cr.h;c2.getContext('2d').drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,cr.w,cr.h);return c2.toDataURL('image/jpeg',0.9);}
+  return c.toDataURL('image/jpeg',0.8);}catch(e){return null;}}
+// kadr zgłoszenia: lotka + wcześniejsze lotki tury + zapas (zamiast całego obszaru tarczy — plik kilka razy mniejszy)
+function rptCrop(d){try{if(!d||!GEO||!d.px||!d.px.length)return null;const rw=GEO.rw,rh=GEO.rh;let x0=1e9,y0=1e9,x1=-1,y1=-1;
+  const addP=(x,y)=>{if(x<x0)x0=x;if(x>x1)x1=x;if(y<y0)y0=y;if(y>y1)y1=y;};
+  for(const i of d.px)addP(i%rw,(i/rw)|0);
+  for(const t of turn){if(t.tip&&!t.fell)addP(t.tip[0]*GEO.ww-GEO.rx,t.tip[1]*GEO.wh-GEO.ry);}
+  if(d.tip)addP(d.tip[0]*GEO.ww-GEO.rx,d.tip[1]*GEO.wh-GEO.ry);
+  const m=Math.max(60,Math.round(GEO.rpx*0.3));x0=Math.max(0,Math.floor(x0-m));y0=Math.max(0,Math.floor(y0-m));x1=Math.min(rw,Math.ceil(x1+m));y1=Math.min(rh,Math.ceil(y1+m));
+  if(x1-x0<20||y1-y0<20)return null;if((x1-x0)*(y1-y0)>rw*rh*0.7)return null;return{x:x0,y:y0,w:x1-x0,h:y1-y0};}catch(e){return null;}}
+function maskPng(px,cr){try{if(!px||!px.length||!GEO)return null;const c=document.createElement('canvas');c.width=GEO.rw;c.height=GEO.rh;const x=c.getContext('2d'),id=x.createImageData(GEO.rw,GEO.rh);
+  for(const i of px){id.data[i*4]=255;id.data[i*4+3]=255;}x.putImageData(id,0,0);
+  if(cr){const c2=document.createElement('canvas');c2.width=cr.w;c2.height=cr.h;c2.getContext('2d').drawImage(c,cr.x,cr.y,cr.w,cr.h,0,0,cr.w,cr.h);return c2.toDataURL('image/png');}
+  return c.toDataURL('image/png');}catch(e){return null;}}
+function frameJpeg(){try{if(!video||!vw)return null;const c=document.createElement('canvas'),k=Math.min(1,800/Math.max(vw,vh));c.width=Math.round(vw*k);c.height=Math.round(vh*k);
+  c.getContext('2d').drawImage(video,0,0,c.width,c.height);return c.toDataURL('image/jpeg',0.7);}catch(e){return null;}}
 function boardXY(t){try{const b=t&&GEO?ap(GEO.Hi,t[0],t[1]):null;return b?[+b[0].toFixed(1),+b[1].toFixed(1)]:null;}catch(e){return null;}}
 function report(type,d,corrected,tap){
   if(S.collectReports===false||!GEO)return;
-  const o={v:1,ts:new Date().toISOString(),type,mode:gm(),online:!!isOnline(),
+  const cr=rptCrop(d);
+  const o={v:1,ver:APP_VER,ts:new Date().toISOString(),type,mode:gm(),online:!!isOnline(),crop:cr,
     detected:d?{lbl:d.sc&&d.sc.lbl,tip:d.tip,rawTip:d.rawTip||null,board:boardXY(d.tip),unsure:d.unsure?d.unsure.lbl:null,fell:!!d.fell,dbg:d.dbg||null}:null,
     corrected:corrected?{lbl:corrected.lbl,tap:tap||null,board:tap?boardXY(tap):null}:null,
     dartIndex:d?turn.indexOf(d):-1,turn:turn.map(x=>({lbl:x.sc.lbl,tip:x.tip,fell:!!x.fell})),
     geo:{rx:GEO.rx,ry:GEO.ry,rw:GEO.rw,rh:GEO.rh,ww:GEO.ww,wh:GEO.wh,rpx:GEO.rpx,minA:GEO.minA,maxA:GEO.maxA,cal:CAL&&CAL.pts,pose:GEO.pose?{f:GEO.pose.f}:null},
     video:{vw,vh},settings:Object.assign({},S),noise:noiseEst,thr:effT(),log:LOGALL.slice(-60),ua:navigator.userAgent,
-    imgs:{before:d?roiJpeg(d.before):roiJpeg(ref),after:d?roiJpeg(d.after||ref):null,now:frameJpeg(),mask:d?maskPng(d.px):null}};
+    imgs:{before:d?roiJpeg(d.before,cr):roiJpeg(ref),after:d?roiJpeg(d.after||ref,cr):null,now:frameJpeg(),mask:d?maskPng(d.px,cr):null}};
   rptAdd(o).then(n=>{if(!RPT.toastShown){RPT.toastShown=true;toast('🐞 Zapisano zgłoszenie pomyłki — wyślij je z menu ⋮');}else toast('🐞 Zgłoszenie zapisane ('+n+')');});
 }
 async function rptExport(){
   const all=await rptAll();if(!all.length){toast('Brak zgłoszeń');return;}
   const d=new Date(),pad=x=>String(x).padStart(2,'0');
   const name='darts-master-arena-zgloszenia-'+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+'-'+pad(d.getHours())+pad(d.getMinutes())+'.json';
-  const blob=new Blob([JSON.stringify({app:'Darts Master Arena',kind:'autocam-reports',exported:d.toISOString(),count:all.length,reports:all})],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({app:'Darts Master Arena',kind:'autocam-reports',ver:APP_VER,exported:d.toISOString(),count:all.length,acc:accSummary(),reports:all})],{type:'application/json'});
   // udostępnianie (WhatsApp itd.): Chrome na Androidzie nie udostępnia plików .json — wtedy ten sam plik jako .txt (treść bez zmian)
   let sf=null;try{if(navigator.canShare){for(const[nm,tp]of[[name,'application/json'],[name.replace(/\.json$/,'.txt'),'text/plain']]){const f=new File([blob],nm,{type:tp});if(navigator.canShare({files:[f]})){sf=f;break;}}}}catch(e){}
   if(sf){try{await navigator.share({files:[sf],title:'Zgłoszenia pomyłek Darts Master Arena'});toast('📤 Wysłano '+all.length+' zgłoszeń');return;}
@@ -9306,7 +9321,7 @@ function takeout(cur){
   try{fineRecord(turn);}catch(e){}
   if(S.autoConfirm&&turn.length)confirmTurn();
   bgCalSoon('po wyjęciu lotek',45000);
-  turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;
+  turn=[];turnKey0=null;closed=false;sumDarts=[];ref=cur;empty=cur;lastMask=null;unsureHide();
   status('Tarcza czysta — rzucaj 🎯','#00ff88');renderDarts();
 }
 function removeLast(){
@@ -9323,12 +9338,49 @@ function correctLast(nx,ny){
   if(turnKey0!==tkey()){toast('Tura już zatwierdzona — użyj COFNIJ');return;}
   const d=turn[turn.length-1],mode=gm();
   if(mode==='bull'){if(BULL.locked){toast('Rzut już zatwierdzony');return;}CUR_TIP=[nx,ny];CUR_TIP_FIX=true;const sc=normToScore(nx,ny);applyDart(sc);CUR_TIP_FIX=false;d.sc=sc;d.tip=[nx,ny];d.unsure=null;renderDarts();return;}
-  {const nsc=normToScore(nx,ny);if(nsc.lbl!==d.sc.lbl)report('correction',d,nsc,[nx,ny]);if(d.rawB){const tb=ap(GEO.Hi,nx,ny);if(tb)lrnAdd(d.rawB,tb,1);}}
+  {const nsc=normToScore(nx,ny);if(nsc.lbl!==d.sc.lbl){report('correction',d,nsc,[nx,ny]);if(!d.manual&&!d._fx&&d.px&&d.px.length){d._fx=true;accAdd('fixed');}}if(d.rawB){const tb=ap(GEO.Hi,nx,ny);if(tb)lrnAdd(d.rawB,tb,1);}}
   const sc=normToScore(nx,ny);
   if(mode==='atc'||mode==='train'||mode==='xg'){if(!redoFrom(turn.length-1,sc))return;}
   else{if(mode==='x01')undoLast();else if(mode==='sum')sumDarts.pop();else if(mode==='cricket'&&d.sc._hit)undoCricketMove();applyDart(sc);}
   d.sc=sc;d.tip=[nx,ny];d.unsure=null;sayDart(sc);hmUpd(d,[nx,ny],sc);clearTimeout(confirmT);closed=false;afterDart();renderDarts();
   status('✏️ Poprawiono: '+sc.lbl,'#00e5ff');
+}
+
+/* ---------- SZYBKA POPRAWKA „NIEPEWNEJ” LOTKI ---------- */
+// grot przy drucie: dwa duże przyciski — jedno stuknięcie wybiera pole (i uczy aplikację), bez otwierania klawiatury
+let UNS_T=null,UNS_I=-1;
+function unsureHide(){clearTimeout(UNS_T);UNS_I=-1;const b=document.getElementById('ac-uns');if(b)b.remove();}
+function unsureAsk(i){
+  const d=turn[i];if(!d||!d.unsure)return;const a=d.sc,u=d.unsure;
+  let b=document.getElementById('ac-uns');if(!b){b=document.createElement('div');b.id='ac-uns';document.body.appendChild(b);}
+  b.style.cssText='position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:100000;background:rgba(10,10,15,.96);border:1px solid #ffd700;border-radius:14px;padding:10px 12px;box-shadow:0 8px 30px rgba(0,0,0,.7);width:min(92vw,360px);font-family:Rajdhani,sans-serif';
+  const btn=(lbl,k,main)=>'<button data-k="'+k+'" style="flex:1;padding:12px 6px;border-radius:10px;border:1px solid '+(main?'#00e5ff':'#ffd700')+';background:'+(main?'rgba(0,229,255,.08)':'rgba(255,215,0,.12)')+';color:'+(main?'#00e5ff':'#ffd700')+';font-family:Bebas Neue,cursive;font-size:26px;letter-spacing:1px;cursor:pointer">'+lbl+'</button>';
+  b.innerHTML='<div style="color:#c8c8d8;font-size:13px;text-align:center;margin-bottom:8px">⚠️ Lotka '+(i+1)+' przy drucie — które pole?</div><div style="display:flex;gap:10px">'+btn(a.lbl,'a',true)+btn(u.lbl,'u',false)+'</div>';
+  UNS_I=i;
+  b.querySelector('[data-k="a"]').onclick=()=>{unsureHide();const t=turn[i];if(t&&t.sc&&t.sc.lbl===a.lbl){t.unsure=null;renderDarts();}};
+  b.querySelector('[data-k="u"]').onclick=()=>{unsureHide();const t=turn[i];if(!t||!t.sc||t.sc.lbl!==a.lbl)return;if(turnKey0!==tkey()){toast('Tura już zatwierdzona — popraw ręcznie');return;}setDart(i,u.n,u.m);};
+  clearTimeout(UNS_T);UNS_T=setTimeout(unsureHide,10000);
+}
+/* ---------- SKUTECZNOŚĆ KAMERY (dziś) ---------- */
+const AKEY='dm_ac_acc';let ACC=null;
+function accDay(){const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function accLoad(){if(ACC&&ACC.day===accDay())return ACC;let o=null;try{o=JSON.parse(localStorage.getItem(AKEY)||'null');}catch(e){}
+  if(!o||o.day!==accDay())o={day:accDay(),auto:0,fixed:0,missed:0};ACC=o;return ACC;}
+function accAdd(k){try{const a=accLoad();a[k]=(a[k]||0)+1;localStorage.setItem(AKEY,JSON.stringify(a));accUI();}catch(e){}}
+function accSummary(){try{const a=accLoad(),tot=a.auto+a.missed;return{day:a.day,auto:a.auto,fixed:a.fixed,missed:a.missed,okPct:tot?Math.max(0,Math.round((a.auto-a.fixed)/tot*100)):null};}catch(e){return null;}}
+function accUI(){const e=document.getElementById('ac-acc');if(!e)return;const s=accSummary();if(!s)return;const tot=s.auto+s.missed;
+  e.innerHTML=tot?'Dziś: <b style="color:#00ff88">'+s.okPct+'%</b> lotek bez poprawki ('+(s.auto-s.fixed)+' z '+tot+') · poprawione '+s.fixed+' · niewykryte '+s.missed:'Dziś jeszcze brak lotek z kamery.';}
+/* ---------- PODPOWIEDŹ USTAWIENIA: lotki często chowają się za sobą ---------- */
+let OCCN=0,OCCD=0;
+function occlNote(){
+  OCCN++;OCCD=accLoad().auto;
+  try{if(OCCN<4)return;const last=+localStorage.getItem('dm_ac_occhint')||0;if(Date.now()-last<3*864e5)return;
+    if(!GEO||!GEO.pose)return;const P=GEO.pose,t=P.t,up=-(P.r2[0]*t[0]+P.r2[1]*t[1]+P.r2[2]*t[2])/10;
+    if(up<-15)return; // telefon już jest wyraźnie niżej niż bull
+    localStorage.setItem('dm_ac_occhint',String(Date.now()));
+    lg('podpowiedź ustawienia: lotki często się zasłaniają ('+OCCN+'×), telefon na wysokości '+Math.round(up)+' cm względem bulla');
+    toast('💡 Lotki często chowają się jedna za drugą. Spróbuj ustawić telefon niżej (ok. 20–30 cm pod bullem), nadal z boku — lotki obok siebie przestaną się zasłaniać.');
+  }catch(e){}
 }
 
 /* ---------- UI ---------- */
@@ -9519,7 +9571,7 @@ async function lockExposure(){
 }
 async function start(){
   if(running)return;
-  dmOpen();
+  dmOpen();lg('Darts Master Arena — rozpoznawanie '+APP_VER);OCCN=0;
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast('❌ Brak dostępu do kamery (wymagane HTTPS)');return;}
   if(typeof wrcStopSharing==='function'&&typeof wrcState!=='undefined'&&wrcState&&wrcState.sharing){try{wrcStopSharing();}catch(e){}}
   const base={width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}};
@@ -9814,17 +9866,17 @@ function addMissed(n,m){
   $('dm-pick').classList.remove('on');
   if(!canAdd()){toast('Tura pełna albo nie Twoja tura');return;}
   const sc=scFrom(n,m);if(!turn.length)turnKey0=tkey();
-  report('missed',null,sc,null);
+  report('missed',null,sc,null);accAdd('missed');
   if(LASTCUR){ref=LASTCUR;cand=null;diffWait=0;} // lotka już jest w obrazie — nie licz jej drugi raz
   if(!applyDart(sc))return;
   turn.push({px:[],before:ref,tip:null,sc,manual:true});
   sayDart(sc);afterDart();renderDarts();lg('dodano ręcznie → '+sc.lbl);
 }
 function setDart(i,n,m){
-  $('dm-pick').classList.remove('on');
+  $('dm-pick').classList.remove('on');if(UNS_I===i)unsureHide();
   if(!(turn[i]&&turnKey0===tkey()))return;const sc=scFrom(n,m),mode=gm(),old=turn[i].sc;
   if(mode==='bull'){toast('📍 Przy rzucie do bulla stuknij w obraz dokładnie w miejscu grota');return;}
-  if(sc.lbl!==old.lbl){report(turn[i].fell?'fall':'correction',turn[i],sc,null);if(!turn[i].fell&&turn[i].rawB&&!turn[i].occl){const t=nearestInField(turn[i].rawB,sc,1.5);if(Math.hypot(turn[i].rawB[0]-t[0],turn[i].rawB[1]-t[1])<=8)lrnAdd(turn[i].rawB,t,0.6);}}
+  if(sc.lbl!==old.lbl){report(turn[i].fell?'fall':'correction',turn[i],sc,null);if(!turn[i].fell&&!turn[i].manual&&!turn[i]._fx){turn[i]._fx=true;accAdd('fixed');}if(!turn[i].fell&&turn[i].rawB&&!turn[i].occl){const t=nearestInField(turn[i].rawB,sc,1.5);if(Math.hypot(turn[i].rawB[0]-t[0],turn[i].rawB[1]-t[1])<=8)lrnAdd(turn[i].rawB,t,0.6);}}
   if(mode==='atc'||mode==='train'||mode==='xg'){if(!redoFrom(i,sc))return;}
   else if(mode==='x01'){G.throws[i]=sc.val;G.throwMults[i]=(n===25||n===50)?1:m;refreshThrows();}
   else if(mode==='sum'){sumDarts[i]=sc.val;setSumUI();}
@@ -9836,7 +9888,7 @@ function addManual(nx,ny){ // dodanie lotki, której kamera nie wykryła
   if(!GEO){toast('Najpierw kalibracja');return;}
   if(turn.length>=3||(turn.length&&turnKey0!==tkey())){correctLast(nx,ny);return;}
   const sc=normToScore(nx,ny);if(!turn.length)turnKey0=tkey();CUR_TIP=[nx,ny];
-  report('missed',null,sc,[nx,ny]);
+  report('missed',null,sc,[nx,ny]);accAdd('missed');
   if(LASTCUR){ref=LASTCUR;cand=null;diffWait=0;}
   if(!applyDart(sc))return;
   {const dm={px:[],before:ref,tip:[nx,ny],sc};turn.push(dm);hmRec(dm);}afterDart();renderDarts();lg('ręcznie → '+sc.lbl);
@@ -10169,6 +10221,8 @@ function mount(){
        '<label style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:#c8c8d8">Zbieraj automatycznie przy poprawkach <input type="checkbox" id="ac-rpt" onchange="AutoCam.set(\'collectReports\',this.checked)"></label>'+
      '</div>'+
      '<div style="margin-top:10px;padding:10px;border:1px solid rgba(0,229,255,.3);border-radius:8px;background:rgba(0,229,255,.03)">'+
+       '<div style="color:#00e5ff;font-family:Bebas Neue,cursive;font-size:17px;letter-spacing:1px">🎯 SKUTECZNOŚĆ KAMERY</div>'+
+       '<div id="ac-acc" style="font-size:11px;color:#c8c8d8;line-height:1.5;margin:4px 0 10px"></div>'+
        '<div style="color:#00e5ff;font-family:Bebas Neue,cursive;font-size:17px;letter-spacing:1px">🧠 NAUKA Z POPRAWEK</div>'+
        '<div id="ac-lrn" style="font-size:10px;color:#8888aa;line-height:1.5;margin:4px 0 8px"></div>'+
        '<div class="dm-sheet-btns" style="margin-top:0;grid-template-columns:1fr"><button onclick="AutoCam.learnReset()">↺ ZAPOMNIJ NAUCZONE KOREKTY</button></div>'+
@@ -10213,7 +10267,8 @@ window.AutoCam={
     else await runAutoCal(true);},
   async setupSkip(){S.setupSeen=true;saveCfg();closeSetup();await runAutoCal(true);},
   start,stop,toggleFs,openCal,nextRound,undoDart,close:dmClose,pick,setDart,pickTab,addMissed,addMissedTab,refocus(){refocus(true);},
-  sheet(){$('dm-sheet').classList.toggle('on');applyVoice();rptCount();lrnUI();},
+  sheet(){$('dm-sheet').classList.toggle('on');applyVoice();rptCount();lrnUI();accUI();},
+  version:APP_VER,
   exportReports(){rptExport();},
   reportCount(){return rptCount();},
   correctTap(nx,ny){correctLast(nx,ny);},
