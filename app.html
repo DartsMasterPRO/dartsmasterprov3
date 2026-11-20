@@ -14310,6 +14310,12 @@ window.X3={close,friends,season,tours,live,cardBtns,seasonLine,
 #x4-vc button:active{opacity:1}
 #x4-vc.off #x4-mic{opacity:.35}
 #x4-vc.off .gap,#x4-vc.off #x4-spk{display:none}
+/* w widoku kamery przyciski siedzą w górnym pasku (obok NASTĘPNA RUNDA), nie na obrazie tarczy */
+#x4-vc.dock{flex-direction:row;gap:6px;padding:0;background:none;border:none;border-radius:0}
+#x4-vc.dock .gap{display:none}
+#x4-vc.dock button{width:34px;height:34px;font-size:16px;opacity:.95}
+#x4-vc.dock button small{display:none}
+#ac-panel.fs.x4pad #ac-hud{padding-right:96px}
 #ol-game-bar .olb-acts>#olb-spk{width:38px!important;height:38px!important;border-radius:12px!important;font-size:17px!important}
 </style>
 <div id="x4-vc">
@@ -14480,12 +14486,26 @@ async function mic(){
 }
 window.wrcToggleMic=mic; // przycisk 🎙 w górnym pasku gry też korzysta z nowego połączenia
 function mute(){VM.muted=!VM.muted;VM.room=roomId();if(RTC.audio)RTC.audio.muted=VM.muted;toast(VM.muted?'🔇 Rywal wyciszony':'🔊 Słyszysz rywala');sync();}
+// pozycja przycisków: górny pasek widoku kamery (między nazwą trybu a NASTĘPNA RUNDA) albo prawy górny róg pełnego ekranu kamery
+function dock(box){
+  const fsP=document.querySelector('#ac-panel.fs');
+  try{const p=document.getElementById('ac-panel');if(p)p.classList.toggle('x4pad',!!fsP&&box.classList.contains('on'));}catch(e){}
+  if(!box.classList.contains('on')){box.classList.remove('dock');return;}
+  const top=document.querySelector('#dm.on .dm-top'),nx=document.getElementById('dm-next');
+  box.classList.add('dock');
+  const bw=box.offsetWidth||74,bh=box.offsetHeight||34;
+  if(fsP){const h=document.getElementById('ac-hud');const r=h?h.getBoundingClientRect():{top:8,height:40};
+    box.style.top=Math.max(4,r.top+(r.height-bh)/2)+'px';box.style.right='10px';box.style.left='auto';return;}
+  if(top&&nx){const r=top.getBoundingClientRect(),n=nx.getBoundingClientRect();
+    const md=document.getElementById('dm-mode'),mr=md?md.getBoundingClientRect().right+18:8;box.style.top=(n.top+(n.height-bh)/2)+'px';box.style.left=Math.max(mr,n.left-bw-8)+'px';box.style.right='auto';return;}
+  box.classList.remove('dock');box.style.top='';box.style.left='';box.style.right='';
+}
 function sync(){
   const on=inOnline();
   if(VM.room&&VM.room!==roomId()){VM.muted=false;VM.room=null;}
   if(RTC.pc&&rtcLive()){RTC.pc.getStats().then(r=>r.forEach(x=>{if(x.type==='inbound-rtp'&&x.kind==='audio'&&(x.audioLevel||0)>0.012)VM.talkAt=Date.now();})).catch(()=>{});}
   const talk=Date.now()-VM.talkAt<(rtcLive()?900:2500);
-  const box=document.getElementById('x4-vc');box.classList.toggle('on',camView());box.classList.toggle('off',!on);
+  const box=document.getElementById('x4-vc');box.classList.toggle('on',camView());box.classList.toggle('off',!on);dock(box);
   const m=document.getElementById('x4-mic'),s=document.getElementById('x4-spk');
   const live=!!(VM.rtcMic||(typeof wrcState!=='undefined'&&wrcState.micActive));
   {const mb=document.getElementById('wrc-mic-btn');if(mb){mb.textContent=live?'🔴':'🎙️';mb.classList.toggle('live',live);}}
@@ -15147,6 +15167,7 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
     <div style="font-size:15px;color:#e8e8f0;margin-bottom:20px;line-height:1.5">Aby wyjść, naciśnij <b style="color:#ff3c3c;font-size:18px">◁</b> jeszcze raz</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button id="exit-stay" style="padding:14px;background:linear-gradient(135deg,#00ff88,#00aacc);color:#000;border:none;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:2px">NIE, ZOSTAJĘ</button>
+      <button id="exit-home" style="padding:12px;background:#1a1a26;border:1px solid #00e5ff;color:#00e5ff;border-radius:10px;cursor:pointer;font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:1px">🏠 POWRÓT DO MENU<small id="exit-home-sub" style="display:block;font-family:Rajdhani,sans-serif;font-size:11px;letter-spacing:0;color:#8888aa;margin-top:2px"></small></button>
     </div>
   </div>
 </div>
@@ -15163,8 +15184,18 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
   function show(){const m=modal();if(!m)return;
     // logo bierzemy z ekranu startowego (bez drugiej kopii obrazka w pliku)
     const l=document.getElementById('exit-logo');if(l&&!l.getAttribute('src')){const src=document.querySelector('#dm-logo img')||document.querySelector('.ab-logo img');l.src=src&&src.src?src.src:'/icon-192x192.png';}
+    // „Powrót do menu”: podpowiedź, że kończy trwający mecz
+    const sub=document.getElementById('exit-home-sub');if(sub){let t='';try{if(typeof OL!=='undefined'&&OL&&OL.currentRoomId)t='opuszczasz mecz online';else if(typeof G!=='undefined'&&G&&G.active)t='kończy trwający mecz';}catch(e){}sub.textContent=t;sub.style.display=t?'block':'none';}
     m.style.display='flex';}
   function hide(){const m=modal();if(m)m.style.display='none';}
+  async function goHome(){
+    try{if(window.AutoCam&&AutoCam.close)AutoCam.close();}catch(e){}
+    try{if(window.PC&&PC.close)PC.close();}catch(e){}
+    try{['win-overlay','lose-overlay'].forEach(id=>{const o=document.getElementById(id);if(o){o.classList.remove('show');o.style.display='none';}});if(typeof stopWinFanfare==='function')stopWinFanfare();}catch(e){}
+    try{if(typeof OL!=='undefined'&&OL&&OL.currentRoomId&&typeof olLeaveRoom==='function')await olLeaveRoom();}catch(e){}
+    try{goto('home');}catch(e){}
+    try{window.scrollTo(0,0);}catch(e){}
+  }
   window.addEventListener('pointerdown',arm,true);
   window.addEventListener('keydown',arm,true);
   window.addEventListener('popstate',function(){
@@ -15179,6 +15210,7 @@ setTimeout(()=>{try{const a=get();let ch=false;(G.players||[]).forEach((p,i)=>{c
   document.addEventListener('click',function(e){
     const t=e.target;
     if(t&&t.id==='exit-stay'){hide();arm();}
+    else if(t&&t.closest&&t.closest('#exit-home')){hide();arm();goHome();}
   });
 })();
 </script>
